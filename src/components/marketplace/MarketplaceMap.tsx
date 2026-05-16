@@ -13,6 +13,7 @@ export interface MapProperty {
   latitud: number;
   longitud: number;
   inmobiliariaId: string;
+  inmobiliariaNombre: string | null;
   fotoUrl?: string | null;
   whatsapp?: string | null;
 }

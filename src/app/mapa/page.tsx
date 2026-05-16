@@ -30,7 +30,7 @@ export default async function MapaPage() {
       longitud: true,
       inmobiliariaId: true,
       fotos: { where: { esPortada: true }, take: 1, select: { urlCloudinary: true } },
-      inmobiliaria: { select: { whatsapp: true } },
+      inmobiliaria: { select: { whatsapp: true, nombre: true } },
     },
   });
 
@@ -41,6 +41,7 @@ export default async function MapaPage() {
     tipo: p.tipo,
     operacion: p.operacion as MapProperty["operacion"],
     inmobiliariaId: p.inmobiliariaId,
+    inmobiliariaNombre: p.inmobiliaria?.nombre ?? null,
     precio: Number(p.precio),
     moneda: p.moneda,
     latitud: p.latitud!,

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { X, Filter } from "lucide-react";
 import type { MapProperty } from "./MarketplaceMap";
 
@@ -53,10 +53,10 @@ interface Props {
 export function MapaFullscreenClient({ properties }: Props) {
   const [operaciones, setOperaciones] = useState<Operacion[]>([]);
   const [tipo, setTipo] = useState<TipoFiltro>("");
+  const [inmobiliariaId, setInmobiliariaId] = useState("");
   const [precioMin, setPrecioMin] = useState("");
   const [precioMax, setPrecioMax] = useState("");
   const [moneda, setMoneda] = useState<"USD" | "ARS">("USD");
-  const [applied, setApplied] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
 
   const toggleOp = useCallback((op: Operacion) => {
@@ -65,36 +65,55 @@ export function MapaFullscreenClient({ properties }: Props) {
     );
   }, []);
 
-  const hasFilters = operaciones.length > 0 || tipo !== "" || precioMin !== "" || precioMax !== "";
+  // Unique inmobiliarias derived from the properties list
+  const inmobiliarias = useMemo(() => {
+    const seen = new Set<string>();
+    const result: { id: string; nombre: string }[] = [];
+    for (const p of properties) {
+      if (p.inmobiliariaNombre && !seen.has(p.inmobiliariaId)) {
+        seen.add(p.inmobiliariaId);
+        result.push({ id: p.inmobiliariaId, nombre: p.inmobiliariaNombre });
+      }
+    }
+    return result.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [properties]);
 
-  const filteredProperties = applied
-    ? properties.filter((p) => {
-        if (operaciones.length > 0 && !operaciones.includes(p.operacion as Operacion)) return false;
-        if (tipo && p.tipo !== tipo) return false;
-        const pMin = precioMin ? parseFloat(precioMin) : null;
-        const pMax = precioMax ? parseFloat(precioMax) : null;
-        if (pMin != null && p.precio < pMin) return false;
-        if (pMax != null && p.precio > pMax) return false;
-        return true;
-      })
-    : properties;
+  const hasFilters =
+    operaciones.length > 0 ||
+    tipo !== "" ||
+    inmobiliariaId !== "" ||
+    precioMin !== "" ||
+    precioMax !== "";
+
+  // Real-time filtering — no "Aplicar" gate
+  const filteredProperties = properties.filter((p) => {
+    if (operaciones.length > 0 && !operaciones.includes(p.operacion as Operacion)) return false;
+    if (tipo && p.tipo !== tipo) return false;
+    if (inmobiliariaId && p.inmobiliariaId !== inmobiliariaId) return false;
+    const pMin = precioMin ? parseFloat(precioMin) : null;
+    const pMax = precioMax ? parseFloat(precioMax) : null;
+    if ((pMin != null || pMax != null) && p.moneda !== moneda) return false;
+    if (pMin != null && p.precio < pMin) return false;
+    if (pMax != null && p.precio > pMax) return false;
+    return true;
+  });
 
   const limpiar = () => {
     setOperaciones([]);
     setTipo("");
+    setInmobiliariaId("");
     setPrecioMin("");
     setPrecioMax("");
-    setApplied(false);
   };
 
   return (
     <div className="absolute inset-0">
-      {/* Filter bar — floats above map, centered */}
+      {/* Filter bar — floats above map */}
       <div
         className="absolute z-[1000] left-0 right-0 flex flex-col items-center"
         style={{ top: 12, paddingLeft: 12, paddingRight: 12 }}
       >
-        {/* Mobile: toggle button */}
+        {/* Mobile toggle button */}
         <div className="sm:hidden w-full flex justify-end mb-2">
           <button
             onClick={() => setFiltersVisible((v) => !v)}
@@ -110,10 +129,7 @@ export function MapaFullscreenClient({ properties }: Props) {
             <Filter className="w-4 h-4" />
             Filtros
             {hasFilters && (
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{ background: "var(--terra-mid)" }}
-              />
+              <span className="w-2 h-2 rounded-full" style={{ background: "var(--terra-mid)" }} />
             )}
           </button>
         </div>
@@ -152,7 +168,6 @@ export function MapaFullscreenClient({ properties }: Props) {
             })}
           </div>
 
-          {/* Separator */}
           <div className="hidden sm:block w-px h-6" style={{ background: "var(--cream-border)" }} />
 
           {/* Tipo select */}
@@ -172,6 +187,28 @@ export function MapaFullscreenClient({ properties }: Props) {
               <option key={v} value={v}>{l}</option>
             ))}
           </select>
+
+          {/* Inmobiliaria select — only shown when there are multiple */}
+          {inmobiliarias.length > 1 && (
+            <select
+              value={inmobiliariaId}
+              onChange={(e) => setInmobiliariaId(e.target.value)}
+              className="text-sm rounded-xl px-3 py-1.5 outline-none"
+              style={{
+                border: "1px solid var(--cream-border)",
+                background: "white",
+                color: "var(--antracite)",
+                fontFamily: "var(--font-jakarta)",
+              }}
+            >
+              <option value="">Todas las inmobiliarias</option>
+              {inmobiliarias.map(({ id, nombre }) => (
+                <option key={id} value={id}>{nombre}</option>
+              ))}
+            </select>
+          )}
+
+          <div className="hidden sm:block w-px h-6" style={{ background: "var(--cream-border)" }} />
 
           {/* Price range */}
           <div className="flex items-center gap-1.5">
@@ -218,19 +255,10 @@ export function MapaFullscreenClient({ properties }: Props) {
             </select>
           </div>
 
-          {/* Separator */}
-          <div className="hidden sm:block w-px h-6" style={{ background: "var(--cream-border)" }} />
-
-          {/* Actions */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => { setApplied(true); setFiltersVisible(false); }}
-              className="px-4 py-1.5 rounded-xl text-sm font-semibold text-white"
-              style={{ background: "var(--terra-mid)", fontFamily: "var(--font-jakarta)" }}
-            >
-              Aplicar
-            </button>
-            {hasFilters && (
+          {/* Limpiar — only shown when there are active filters */}
+          {hasFilters && (
+            <>
+              <div className="hidden sm:block w-px h-6" style={{ background: "var(--cream-border)" }} />
               <button
                 onClick={limpiar}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm"
@@ -243,8 +271,8 @@ export function MapaFullscreenClient({ properties }: Props) {
                 <X className="w-3.5 h-3.5" />
                 Limpiar
               </button>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </div>
 

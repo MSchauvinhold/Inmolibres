@@ -28,6 +28,7 @@ export default async function MarketplaceHome({
   const propiedades = await db.propiedad.findMany({
     where: {
       publicada: true,
+      inmobiliaria: { estado: { in: ["ACTIVA", "PRUEBA"] } },
       ...(sp.operacion ? { operacion: sp.operacion as TipoOperacion } : {}),
       ...(sp.tipo ? { tipo: sp.tipo as TipoPropiedad } : {}),
       ...(sp.search
