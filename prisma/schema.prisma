@@ -1,0 +1,387 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Rol {
+  SUPERADMIN
+  ADMIN
+  AGENTE
+  PARTICULAR
+
+  @@map("rol")
+}
+
+enum EstadoInmobiliaria {
+  ACTIVA
+  INACTIVA
+  PRUEBA
+  SUSPENDIDA
+
+  @@map("estado_inmobiliaria")
+}
+
+enum TipoPropiedad {
+  CASA
+  DEPARTAMENTO
+  LOCAL
+  GALPON
+  TERRENO
+  OFICINA
+
+  @@map("tipo_propiedad")
+}
+
+enum TipoOperacion {
+  VENTA
+  ALQUILER
+  ALQUILER_TEMPORARIO
+
+  @@map("tipo_operacion")
+}
+
+enum EstadoPropiedad {
+  DISPONIBLE
+  RESERVADA
+  ALQUILADA
+  VENDIDA
+
+  @@map("estado_propiedad")
+}
+
+enum EstadoPipeline {
+  NUEVO
+  CONTACTADO
+  VISITA_AGENDADA
+  SEGUNDA_VISITA
+  CERRADO
+  PERDIDO
+
+  @@map("estado_pipeline")
+}
+
+enum OrigenLead {
+  INSTAGRAM
+  WHATSAPP
+  CONSULTA_LOCAL
+  REFERIDO
+  PORTAL
+  OTRO
+
+  @@map("origen_lead")
+}
+
+enum TipoVisita {
+  VISITA_COMPRADOR
+  VISITA_VENDEDOR
+
+  @@map("tipo_visita")
+}
+
+enum EstadoVisita {
+  PENDIENTE
+  REALIZADA
+  CANCELADA
+
+  @@map("estado_visita")
+}
+
+enum EstadoPago {
+  AL_DIA
+  ATRASADO
+
+  @@map("estado_pago")
+}
+
+enum Moneda {
+  ARS
+  USD
+
+  @@map("moneda")
+}
+
+enum TipoNotificacion {
+  SUSCRIPCION_7_DIAS
+  SUSCRIPCION_5_DIAS
+  SUSCRIPCION_2_DIAS
+  SUSCRIPCION_24_HORAS
+  SUSCRIPCION_VENCIDA
+  SUSCRIPCION_SUSPENDIDA
+  VISITA_PROXIMA
+  CONTRATO_POR_VENCER
+  PAGO_ATRASADO
+  LEAD_FRIO
+  CONSULTA_NUEVA
+
+  @@map("tipo_notificacion")
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model Inmobiliaria {
+  id               String             @id @default(dbgenerated("gen_random_uuid()"))
+  nombre           String
+  logoUrl          String?            @map("logo_url")
+  whatsapp         String
+  email            String
+  plan             String             @default("BASE")
+  estado           EstadoInmobiliaria @default(PRUEBA)
+  fechaVencimiento DateTime?          @map("fecha_vencimiento") @db.Timestamptz(6)
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  usuarios    Usuario[]
+  propiedades Propiedad[]
+  clientes    Cliente[]
+  visitas     Visita[]
+  contratos   ContratoAlquiler[]
+  consultas   Consulta[]
+  pagos       PagoSuscripcion[]
+
+  @@map("inmobiliarias")
+}
+
+model Usuario {
+  id             String   @id @default(dbgenerated("gen_random_uuid()"))
+  inmobiliariaId String?  @map("inmobiliaria_id")
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  nombre         String
+  rol            Rol
+  activo         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  inmobiliaria      Inmobiliaria?  @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
+  propiedades       Propiedad[]
+  visitas           Visita[]
+  clientesAsignados Cliente[]
+  notificaciones    Notificacion[]
+
+  @@index([inmobiliariaId], map: "idx_usuarios_inmobiliaria")
+  @@map("usuarios")
+}
+
+model Propiedad {
+  id             String          @id @default(dbgenerated("gen_random_uuid()"))
+  inmobiliariaId String          @map("inmobiliaria_id")
+  titulo         String
+  slug           String
+  tipo           TipoPropiedad
+  operacion      TipoOperacion
+  precio         Decimal         @db.Decimal(15, 2)
+  moneda         Moneda          @default(USD)
+  direccion      String
+  latitud        Float?
+  longitud       Float?
+  poligonoJson   Json?           @map("poligono_json")
+  estado         EstadoPropiedad @default(DISPONIBLE)
+  descripcion    String?
+  videoUrl       String?         @map("video_url")
+  publicada      Boolean         @default(true)
+  agenteId       String          @map("agente_id")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  inmobiliaria        Inmobiliaria       @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  agente              Usuario            @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
+  atributos           PropiedadAtributos?
+  fotos               FotoPropiedad[]
+  clientesInteresados PropiedadCliente[]
+  visitas             Visita[]
+  contratos           ContratoAlquiler[]
+  consultas           Consulta[]
+
+  @@unique([inmobiliariaId, slug])
+  @@index([inmobiliariaId], map: "idx_propiedades_inmobiliaria")
+  @@index([tipo, operacion], map: "idx_propiedades_tipo_operacion")
+  @@index([publicada, estado], map: "idx_propiedades_publicada")
+  @@map("propiedades")
+}
+
+model PropiedadAtributos {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()"))
+  propiedadId           String   @unique @map("propiedad_id")
+  superficieCubierta    Float?   @map("superficie_cubierta")
+  superficieTotal       Float?   @map("superficie_total")
+  habitaciones          Int?
+  banos                 Int?
+  garage                Boolean?
+  pileta                Boolean?
+  quincho               Boolean?
+  balcon                Boolean?
+  amueblado             Boolean?
+  cantidadPisos         Int?     @map("cantidad_pisos")
+  numeroPiso            Int?     @map("numero_piso")
+  mostrarPrecioPorM2    Boolean  @default(false) @map("mostrar_precio_por_m2")
+  precioPorDia          Decimal? @map("precio_por_dia") @db.Decimal(15, 2)
+  precioSemana          Decimal? @map("precio_semana") @db.Decimal(15, 2)
+  precioQuincena        Decimal? @map("precio_quincena") @db.Decimal(15, 2)
+  diasMinimos           Int?     @map("dias_minimos")
+  diasMaximos           Int?     @map("dias_maximos")
+  anchoMetros           Float?   @map("ancho_metros")
+  largoMetros           Float?   @map("largo_metros")
+  alturaInterna         Float?   @map("altura_interna")
+  serviciosAgua         Boolean? @map("servicios_agua")
+  serviciosLuz          Boolean? @map("servicios_luz")
+  serviciosGas          Boolean? @map("servicios_gas")
+  serviciosCloaca       Boolean? @map("servicios_cloaca")
+  caracteristicasCustom String[] @default([]) @map("caracteristicas_custom")
+
+  propiedad Propiedad @relation(fields: [propiedadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("propiedades_atributos")
+}
+
+model FotoPropiedad {
+  id            String  @id @default(dbgenerated("gen_random_uuid()"))
+  propiedadId   String  @map("propiedad_id")
+  urlCloudinary String  @map("url_cloudinary")
+  orden         Int     @default(0)
+  esPortada     Boolean @default(false) @map("es_portada")
+
+  propiedad Propiedad @relation(fields: [propiedadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([propiedadId], map: "idx_fotos_propiedad")
+  @@map("fotos_propiedades")
+}
+
+model Cliente {
+  id             String         @id @default(dbgenerated("gen_random_uuid()"))
+  inmobiliariaId String         @map("inmobiliaria_id")
+  nombre         String
+  telefono       String
+  email          String?
+  origen         OrigenLead     @default(OTRO)
+  estadoPipeline EstadoPipeline @default(NUEVO) @map("estado_pipeline")
+  agenteId       String?        @map("agente_id")
+  notas          String?
+  ultimaActividad DateTime      @default(now()) @map("ultima_actividad") @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  inmobiliaria Inmobiliaria      @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  agente       Usuario?          @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
+  propiedades  PropiedadCliente[]
+  visitas      Visita[]
+
+  @@index([inmobiliariaId], map: "idx_clientes_inmobiliaria")
+  @@index([estadoPipeline], map: "idx_clientes_pipeline")
+  @@index([ultimaActividad], map: "idx_clientes_ultima_actividad")
+  @@map("clientes")
+}
+
+model PropiedadCliente {
+  propiedadId String @map("propiedad_id")
+  clienteId   String @map("cliente_id")
+
+  propiedad Propiedad @relation(fields: [propiedadId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  cliente   Cliente   @relation(fields: [clienteId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([propiedadId, clienteId])
+  @@map("propiedades_clientes")
+}
+
+model Visita {
+  id             String       @id @default(dbgenerated("gen_random_uuid()"))
+  propiedadId    String       @map("propiedad_id")
+  clienteId      String       @map("cliente_id")
+  agenteId       String       @map("agente_id")
+  inmobiliariaId String       @map("inmobiliaria_id")
+  fechaHora      DateTime     @map("fecha_hora") @db.Timestamptz(6)
+  tipo           TipoVisita
+  estado         EstadoVisita @default(PENDIENTE)
+  notasPost      String?      @map("notas_post")
+  alertaEnviada  Boolean      @default(false) @map("alerta_enviada")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  propiedad    Propiedad    @relation(fields: [propiedadId], references: [id], onUpdate: NoAction)
+  cliente      Cliente      @relation(fields: [clienteId], references: [id], onUpdate: NoAction)
+  agente       Usuario      @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
+  inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
+
+  @@index([inmobiliariaId], map: "idx_visitas_inmobiliaria")
+  @@index([fechaHora], map: "idx_visitas_fecha")
+  @@index([alertaEnviada, estado, fechaHora], map: "idx_visitas_alerta")
+  @@map("visitas")
+}
+
+model ContratoAlquiler {
+  id                 String     @id @default(dbgenerated("gen_random_uuid()"))
+  propiedadId        String     @map("propiedad_id")
+  inmobiliariaId     String     @map("inmobiliaria_id")
+  inquilinoNombre    String     @map("inquilino_nombre")
+  inquilinoTel       String     @map("inquilino_tel")
+  precioMensual      Decimal    @map("precio_mensual") @db.Decimal(15, 2)
+  moneda             Moneda     @default(ARS)
+  diaVencimientoPago Int        @map("dia_vencimiento_pago")
+  estadoPago         EstadoPago @default(AL_DIA) @map("estado_pago")
+  fechaInicio        DateTime   @map("fecha_inicio") @db.Date
+  fechaFin           DateTime   @map("fecha_fin") @db.Date
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  propiedad    Propiedad    @relation(fields: [propiedadId], references: [id], onUpdate: NoAction)
+  inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
+
+  @@index([inmobiliariaId], map: "idx_contratos_inmobiliaria")
+  @@index([fechaFin], map: "idx_contratos_fecha_fin")
+  @@map("contratos_alquiler")
+}
+
+model Consulta {
+  id              String   @id @default(dbgenerated("gen_random_uuid()"))
+  propiedadId     String?  @map("propiedad_id")
+  inmobiliariaId  String?  @map("inmobiliaria_id")
+  nombreVisitante String   @map("nombre_visitante")
+  telefono        String
+  email           String?
+  mensaje         String
+  origen          String   @default("MARKETPLACE")
+  leida           Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  propiedad    Propiedad?    @relation(fields: [propiedadId], references: [id], onUpdate: NoAction)
+  inmobiliaria Inmobiliaria? @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
+
+  @@index([inmobiliariaId], map: "idx_consultas_inmobiliaria")
+  @@index([leida], map: "idx_consultas_leida")
+  @@index([origen], map: "idx_consultas_origen")
+  @@map("consultas")
+}
+
+model Notificacion {
+  id           String           @id @default(dbgenerated("gen_random_uuid()"))
+  usuarioId    String           @map("usuario_id")
+  tipo         TipoNotificacion
+  titulo       String
+  mensaje      String
+  leida        Boolean          @default(false)
+  url          String?
+  referenciaId String?          @map("referencia_id")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([usuarioId, leida], map: "idx_notificaciones_usuario_leida")
+  @@index([referenciaId], map: "idx_notificaciones_referencia")
+  @@index([createdAt(sort: Desc)], map: "idx_notificaciones_created")
+  @@map("notificaciones")
+}
+
+model PagoSuscripcion {
+  id             String   @id @default(dbgenerated("gen_random_uuid()"))
+  inmobiliariaId String   @map("inmobiliaria_id")
+  monto          Decimal  @db.Decimal(15, 2)
+  moneda         Moneda   @default(ARS)
+  fechaPago      DateTime @map("fecha_pago") @db.Date
+  notas          String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
+
+  @@index([inmobiliariaId], map: "idx_pagos_inmobiliaria")
+  @@map("pagos_suscripcion")
+}

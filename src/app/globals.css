@@ -1,0 +1,648 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens — CSS Custom Properties ──────────────────────────── */
+:root {
+  /* Base */
+  --background: #F7F5F2;
+  --foreground: #1C1917;
+  --surface: #FFFFFF;
+  --surface-raised: #F0EDE8;
+
+  /* Brand — CRM/Admin usa terracota, verde reservado para calculadoras */
+  --brand-primary: #8B4513;
+  --brand-secondary: #C1694F;
+  --brand-accent: #D4A853;
+  --brand-accent-light: #FAE5D3;
+
+  /* Semantic */
+  --success: #2D6A4F;
+  --warning: #D4A853;
+  --danger: #C0392B;
+  --info: #2980B9;
+
+  /* Text */
+  --text-primary: #1C1917;
+  --text-secondary: #5C5650;
+  --text-muted: #9C9590;
+
+  /* Borders */
+  --border: #DDD5C8;
+  --border-strong: #C5BFB5;
+
+  /* Sidebar CRM — fondo crema, activo terracota */
+  --sidebar-bg: #FAF8F5;
+  --sidebar-text: #2C2C2C;
+  --sidebar-active: rgba(139, 69, 19, 0.10);
+  --sidebar-hover: rgba(139, 69, 19, 0.06);
+
+  /* Shadcn/UI compatibility */
+  --primary: #8B4513;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F0EDE8;
+  --secondary-foreground: #1C1917;
+  --muted: #F0EDE8;
+  --muted-foreground: #9C9590;
+  --accent: #F0EDE8;
+  --accent-foreground: #1C1917;
+  --destructive: #C0392B;
+  --card: #FFFFFF;
+  --card-foreground: #1C1917;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1917;
+  --input: #E5E0D8;
+  --ring: #8B4513;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #1C1917;
+  --foreground: #FAFAF9;
+  --surface: #241F1C;
+  --surface-raised: #2D2723;
+
+  --brand-primary: #52B788;
+  --brand-secondary: #74C69D;
+  --brand-accent: #D4A853;
+  --brand-accent-light: #3D2E0A;
+
+  --success: #4ADE80;
+  --danger: #E74C3C;
+  --warning: #D4A853;
+
+  --border: #372F2B;
+  --border-strong: #4A3F3A;
+
+  --text-primary: #FAFAF9;
+  --text-secondary: #A8A29E;
+  --text-muted: #6B6560;
+
+  --sidebar-bg: #FAF8F5;
+  --sidebar-text: #2C2C2C;
+  --sidebar-active: rgba(139, 69, 19, 0.10);
+  --sidebar-hover: rgba(139, 69, 19, 0.06);
+
+  /* Shadcn dark mode */
+  --primary: #52B788;
+  --primary-foreground: #FFFFFF;
+  --secondary: #2D2723;
+  --secondary-foreground: #FAFAF9;
+  --muted: #2D2723;
+  --muted-foreground: #6B6560;
+  --accent: #2D2723;
+  --accent-foreground: #FAFAF9;
+  --destructive: #E74C3C;
+  --card: #241F1C;
+  --card-foreground: #FAFAF9;
+  --popover: #241F1C;
+  --popover-foreground: #FAFAF9;
+  --input: #372F2B;
+  --ring: #52B788;
+}
+
+/* ─── Tailwind v4 Theme Mapping ──────────────────────────────────────── */
+@theme inline {
+  /* Semantic color utilities — dynamic with dark mode support */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-light: var(--brand-accent-light);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-active: var(--sidebar-active);
+
+  /* Font families — injected by next/font/google via CSS variables on <html> */
+  --font-display: var(--font-playfair-display), Georgia, serif;
+  --font-body: var(--font-dm-sans), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* Static brand colors for non-theme-sensitive contexts */
+  --color-brand-static: #8B4513;
+  --color-accent-static: #D4A853;
+  --color-cream-static: #F7F5F2;
+
+  /* Shadcn @theme mappings */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Shadow tokens */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  /* Border radius tokens */
+  --radius-card: 1rem;
+  --radius-input: 0.75rem;
+  --radius-button: 0.75rem;
+  --radius-badge: 9999px;
+}
+
+/* ─── Light Portal — CRM y Admin siempre en modo claro ──────────────── */
+/* Sobreescribe variables de dark mode dentro de los layouts de CRM/Admin */
+.light-portal,
+.light-portal * {
+  --background: #FAF8F5;
+  --foreground: #1C1917;
+  --surface: #FFFFFF;
+  --surface-raised: #F0EDE8;
+  --card: #FFFFFF;
+  --card-foreground: #1C1917;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1917;
+  --border: #DDD5C8;
+  --border-strong: #C5BFB5;
+  --input: #FFFFFF;
+  --muted: #F0EDE8;
+  --muted-foreground: #9C9590;
+  --text-primary: #1C1917;
+  --text-secondary: #5C5650;
+  --text-muted: #9C9590;
+  --secondary: #F0EDE8;
+  --secondary-foreground: #1C1917;
+  --accent: #F0EDE8;
+  --accent-foreground: #1C1917;
+  color-scheme: light;
+}
+
+/* ─── Base Layer ─────────────────────────────────────────────────────── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-dm-sans), system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-dm-sans), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Display headings use Playfair Display */
+  h1,
+  h2 {
+    font-family: var(--font-playfair-display), Georgia, serif;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-dm-sans), system-ui, sans-serif;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  /* Numeric data uses JetBrains Mono */
+  .price,
+  .metric,
+  [data-price],
+  [data-metric] {
+    font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ─── Component Utilities ────────────────────────────────────────────── */
+@layer utilities {
+  /* Cards */
+  .card {
+    background-color: var(--surface);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-hover {
+    transition: box-shadow 200ms ease-out, transform 200ms ease-out;
+  }
+
+  .card-hover:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
+  }
+
+  /* Precios / datos numéricos */
+  .font-price {
+    font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  /* Badge de estado activo con punto pulsante */
+  .badge-dot-active::before {
+    content: "";
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background-color: var(--success);
+    margin-right: 0.375rem;
+    vertical-align: middle;
+    animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Item del sidebar */
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.75rem;
+    color: var(--sidebar-text);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 150ms ease-out, color 150ms ease-out;
+    text-decoration: none;
+    position: relative;
+  }
+
+  .sidebar-item:hover {
+    background-color: var(--sidebar-hover);
+  }
+
+  .sidebar-item.active {
+    background-color: var(--sidebar-active);
+    border-left: 3px solid #8B4513;
+    padding-left: calc(0.75rem - 3px);
+    color: #8B4513;
+    font-weight: 600;
+  }
+
+  /* Transición base para todos los interactivos */
+  .transition-base {
+    transition: all 200ms ease-out;
+  }
+
+  /* Botón primario */
+  .btn-primary {
+    background-color: var(--brand-primary);
+    color: #ffffff;
+    border-radius: 0.75rem;
+    padding: 0.625rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    transition: background-color 200ms ease-out, box-shadow 200ms ease-out;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-primary:hover {
+    background-color: #6B3410;
+    box-shadow: 0 4px 12px rgba(139, 69, 19, 0.35);
+  }
+
+  /* Botón de acento */
+  .btn-accent {
+    background-color: var(--brand-accent);
+    color: var(--foreground);
+    border-radius: 0.75rem;
+    padding: 0.625rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    transition: background-color 200ms ease-out, box-shadow 200ms ease-out;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-accent:hover {
+    background-color: #c49843;
+    box-shadow: 0 4px 12px rgba(212, 168, 83, 0.35);
+  }
+
+  /* Botón outline */
+  .btn-outline {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-strong);
+    border-radius: 0.75rem;
+    padding: 0.625rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    transition: background-color 200ms ease-out, border-color 200ms ease-out;
+    cursor: pointer;
+  }
+
+  .btn-outline:hover {
+    background-color: var(--surface-raised);
+    border-color: var(--text-muted);
+  }
+
+  /* Input base */
+  .input-base {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: var(--foreground);
+    transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
+    outline: none;
+    width: 100%;
+  }
+
+  .input-base:focus {
+    border-color: #8B4513;
+    box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.14);
+  }
+
+  .input-base::placeholder {
+    color: var(--text-muted);
+  }
+
+  /* Scroll personalizado */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
+  }
+
+  /* Texto gradient brand */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Surface glass effect */
+  .glass {
+    background-color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .dark .glass {
+    background-color: rgba(36, 31, 28, 0.8);
+    border: 1px solid rgba(55, 47, 43, 0.5);
+  }
+}
+
+/* ─── Keyframe Animations ────────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(1.4);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* ─── Typography Scale (Marketplace) ────────────────────────────────── */
+.display-xl {
+  font-family: var(--font-playfair-display), Georgia, serif;
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.display-lg {
+  font-family: var(--font-playfair-display), Georgia, serif;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.display-md {
+  font-family: var(--font-playfair-display), Georgia, serif;
+  font-size: clamp(1.375rem, 3vw, 2rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+/* ─── Marketplace Design System — Tierra Moderna ────────────────────────── */
+:root {
+  /* Terracota palette */
+  --terra-dark: #8B4513;
+  --terra-mid: #C1694F;
+  --terra-light: #E8A87C;
+  --terra-pale: #FAE5D3;
+
+  /* Antracite */
+  --antracite: #2C2C2C;
+  --antracite-mid: #4A4A4A;
+  --antracite-light: #7A7A7A;
+
+  /* Marketplace backgrounds */
+  --background-mp: #FAF8F5;
+  --background-mp-alt: #F2EDE6;
+  --cream-dark: #E8E0D4;
+  --cream-border: #DDD5C8;
+
+  /* Badge colors */
+  --badge-disponible: #2D6A4F;
+  --badge-dorado: #C9A84C;
+
+  /* Marketplace shadows */
+  --shadow-mp-card: 0 2px 8px rgba(139, 69, 19, 0.08), 0 8px 32px rgba(0, 0, 0, 0.06);
+  --shadow-mp-card-hover: 0 8px 24px rgba(139, 69, 19, 0.15), 0 16px 48px rgba(0, 0, 0, 0.1);
+  --shadow-mp-hero: 0 4px 32px rgba(139, 69, 19, 0.12);
+}
+
+@theme inline {
+  /* Marketplace fonts */
+  --font-fraunces: var(--font-fraunces-display), Georgia, serif;
+  --font-jakarta: var(--font-plus-jakarta), system-ui, sans-serif;
+
+  /* Marketplace color utilities */
+  --color-terra-dark: #8B4513;
+  --color-terra-mid: #C1694F;
+  --color-terra-light: #E8A87C;
+  --color-terra-pale: #FAE5D3;
+  --color-antracite: #2C2C2C;
+  --color-antracite-mid: #4A4A4A;
+  --color-antracite-light: #7A7A7A;
+  --color-background-mp: #FAF8F5;
+  --color-background-mp-alt: #F2EDE6;
+  --color-cream-border: #DDD5C8;
+}
+
+/* Marketplace keyframes */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes underline-grow {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* Marketplace utilities */
+@layer utilities {
+  .btn-terra {
+    background-color: var(--terra-mid);
+    color: #ffffff;
+    border-radius: 0.75rem;
+    padding: 0.625rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    min-height: 2.75rem;
+    transition: background-color 200ms ease-out, box-shadow 200ms ease-out, transform 100ms ease-out;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+  }
+
+  .btn-terra:hover {
+    background-color: var(--terra-dark);
+    box-shadow: 0 4px 12px rgba(193, 105, 79, 0.35);
+  }
+
+  .btn-terra:active {
+    transform: scale(0.97);
+  }
+
+  .mp-card {
+    background-color: var(--surface);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-mp-card);
+    transition: box-shadow 200ms ease-out, transform 200ms ease-out;
+    overflow: hidden;
+  }
+
+  .mp-card:hover {
+    box-shadow: var(--shadow-mp-card-hover);
+    transform: translateY(-2px);
+  }
+
+  .font-fraunces {
+    font-family: var(--font-fraunces);
+  }
+
+  .font-jakarta {
+    font-family: var(--font-jakarta);
+  }
+
+  /* Shimmer skeleton effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--cream-dark) 25%,
+      var(--cream-border) 37%,
+      var(--cream-dark) 63%
+    );
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: -100% 50%; }
+}

@@ -1,0 +1,80 @@
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { redirect, notFound } from "next/navigation";
+import { PropiedadForm, type PropiedadParaEditar } from "@/components/propiedades/PropiedadForm";
+
+export const metadata = { title: "Editar Propiedad" };
+
+export default async function EditarPropiedadPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user?.inmobiliariaId) redirect("/login");
+
+  const { id } = await params;
+
+  const propiedad = await db.propiedad.findUnique({
+    where: { id },
+    include: { atributos: true, fotos: { orderBy: { orden: "asc" } } },
+  });
+
+  if (!propiedad || propiedad.inmobiliariaId !== session.user.inmobiliariaId) notFound();
+
+  // Serializar: Prisma Decimal → number (no es transferible Server→Client)
+  const serialized: PropiedadParaEditar = {
+    id: propiedad.id,
+    titulo: propiedad.titulo,
+    tipo: propiedad.tipo,
+    operacion: propiedad.operacion,
+    precio: Number(propiedad.precio),
+    moneda: propiedad.moneda,
+    direccion: propiedad.direccion,
+    latitud: propiedad.latitud,
+    longitud: propiedad.longitud,
+    descripcion: propiedad.descripcion,
+    videoUrl: propiedad.videoUrl,
+    publicada: propiedad.publicada,
+    atributos: propiedad.atributos
+      ? {
+          superficieCubierta: propiedad.atributos.superficieCubierta,
+          superficieTotal: propiedad.atributos.superficieTotal,
+          habitaciones: propiedad.atributos.habitaciones,
+          banos: propiedad.atributos.banos,
+          garage: propiedad.atributos.garage,
+          pileta: propiedad.atributos.pileta,
+          quincho: propiedad.atributos.quincho,
+          balcon: propiedad.atributos.balcon,
+          amueblado: propiedad.atributos.amueblado,
+          cantidadPisos: propiedad.atributos.cantidadPisos,
+          numeroPiso: propiedad.atributos.numeroPiso,
+          mostrarPrecioPorM2: propiedad.atributos.mostrarPrecioPorM2,
+          precioPorDia: propiedad.atributos.precioPorDia != null ? Number(propiedad.atributos.precioPorDia) : null,
+          precioSemana: propiedad.atributos.precioSemana != null ? Number(propiedad.atributos.precioSemana) : null,
+          precioQuincena: propiedad.atributos.precioQuincena != null ? Number(propiedad.atributos.precioQuincena) : null,
+          diasMinimos: propiedad.atributos.diasMinimos,
+          diasMaximos: propiedad.atributos.diasMaximos,
+          anchoMetros: propiedad.atributos.anchoMetros,
+          largoMetros: propiedad.atributos.largoMetros,
+          alturaInterna: propiedad.atributos.alturaInterna,
+          serviciosAgua: propiedad.atributos.serviciosAgua,
+          serviciosLuz: propiedad.atributos.serviciosLuz,
+          serviciosGas: propiedad.atributos.serviciosGas,
+          serviciosCloaca: propiedad.atributos.serviciosCloaca,
+          caracteristicasCustom: propiedad.atributos.caracteristicasCustom,
+        }
+      : null,
+    fotos: propiedad.fotos.map((f) => ({
+      urlCloudinary: f.urlCloudinary,
+      orden: f.orden,
+      esPortada: f.esPortada,
+    })),
+  };
+
+  return (
+    <div className="w-full max-w-[800px] mx-auto space-y-5">
+      <div>
+        <h1 className="text-xl font-bold text-text-primary">Editar propiedad</h1>
+        <p className="text-sm text-text-muted mt-0.5 truncate">{propiedad.titulo}</p>
+      </div>
+      <PropiedadForm propiedad={serialized} />
+    </div>
+  );
+}
