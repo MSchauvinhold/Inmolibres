@@ -40,11 +40,8 @@ export function Sidebar({ user, className }: SidebarProps) {
     >
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-[#DDD5C8]">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--brand-primary)" }}>
-          <Building2 className="w-4 h-4 text-white" />
-        </div>
         <div>
-          <p className="font-semibold text-sm leading-tight text-[#1C1917]">InmoLibres</p>
+          <p className="font-semibold text-sm leading-tight text-[#1C1917]">Inmo<span style={{ color: "#8B4513" }}>Libres</span></p>
           {user.inmobiliariaNombre && (
             <p className="text-xs leading-tight truncate max-w-[140px]" style={{ color: "#5C5650" }}>
               {user.inmobiliariaNombre}
@@ -86,7 +83,10 @@ export function Sidebar({ user, className }: SidebarProps) {
           </div>
         </div>
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={async () => {
+            await signOut({ redirect: false });
+            window.location.href = "/login";
+          }}
           className="sidebar-item w-full text-xs"
           style={{ color: "#5C5650" }}
         >

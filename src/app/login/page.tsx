@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { signIn, getSession } from "next-auth/react";
 import { Eye, EyeOff, Loader2, Home } from "lucide-react";
 import { toast } from "sonner";
@@ -9,7 +8,6 @@ import Link from "next/link";
 import { motion } from "motion/react";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -29,9 +27,9 @@ export default function LoginPage() {
       } else {
         const session = await getSession();
         if (session?.user?.rol === "SUPERADMIN") {
-          router.push("/admin");
+          window.location.href = "/admin";
         } else {
-          router.push("/dashboard");
+          window.location.href = "/dashboard";
         }
       }
     } catch {
@@ -99,7 +97,7 @@ export default function LoginPage() {
               letterSpacing: "-0.03em",
             }}
           >
-            InmoLibres
+          Inmo<span style={{ color: "#6B2F0A" }}>Libres</span>
           </h1>
           <p
             className="mt-4 text-lg max-w-sm mx-auto leading-relaxed"
@@ -127,31 +125,6 @@ export default function LoginPage() {
           transition={{ duration: 0.55, ease: "easeOut" }}
           className="w-full max-w-sm"
         >
-          {/* Logo */}
-          <div className="mb-8 text-center lg:text-left">
-            <h2
-              style={{
-                fontFamily: "var(--font-fraunces)",
-                color: "var(--antracite)",
-                fontSize: "2rem",
-                fontWeight: 700,
-                letterSpacing: "-0.025em",
-                lineHeight: 1.1,
-              }}
-            >
-              InmoLibres
-            </h2>
-            <p
-              className="mt-1.5 text-sm"
-              style={{
-                color: "var(--antracite-light)",
-                fontFamily: "var(--font-jakarta)",
-              }}
-            >
-              Accedé a tu panel de gestión
-            </p>
-          </div>
-
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

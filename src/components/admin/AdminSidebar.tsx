@@ -27,14 +27,8 @@ export function AdminSidebar({ email, className }: AdminSidebarProps) {
     <aside className={cn("flex flex-col w-64 h-full shrink-0 bg-[var(--sidebar-bg)] text-[var(--sidebar-text)]", className)}>
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-[#DDD5C8]">
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-          style={{ background: "var(--brand-primary)" }}
-        >
-          <Building2 className="w-4 h-4 text-white" />
-        </div>
         <div>
-          <p className="font-semibold text-sm leading-tight text-[#1C1917]">InmoLibres</p>
+          <p className="font-semibold text-sm leading-tight text-[#1C1917]">Inmo<span style={{ color: "#8B4513" }}>Libres</span></p>
           <span
             className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full mt-0.5"
             style={{
@@ -85,7 +79,10 @@ export function AdminSidebar({ email, className }: AdminSidebarProps) {
           </div>
         </div>
         <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={async () => {
+            await signOut({ redirect: false });
+            window.location.href = "/login";
+          }}
           className="sidebar-item w-full text-xs"
           style={{ color: "#5C5650" }}
         >

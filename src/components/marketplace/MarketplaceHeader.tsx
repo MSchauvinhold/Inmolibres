@@ -47,29 +47,19 @@ export function MarketplaceHeader() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
             <div
-              className="rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-95"
-              style={{
-                width: 38,
-                height: 38,
-                background: "linear-gradient(135deg, #C1694F 0%, #8B4513 100%)",
-              }}
+              className="rounded-xl px-3 py-1.5"
+              style={{ border: "2px solid #8B4513" }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M3 12L12 3L21 12V20C21 20.55 20.55 21 20 21H15V15H9V21H4C3.45 21 3 20.55 3 20V12Z"
-                  fill="white"
-                />
-              </svg>
+              <span
+                className="text-xl font-bold tracking-tight"
+                style={{
+                  fontFamily: "var(--font-fraunces)",
+                  color: "var(--antracite)",
+                }}
+              >
+                Inmo<span style={{ color: "#8B4513" }}>Libres</span>
+              </span>
             </div>
-            <span
-              className="text-xl font-bold tracking-tight"
-              style={{
-                fontFamily: "var(--font-fraunces)",
-                color: "var(--antracite)",
-              }}
-            >
-              InmoLibres
-            </span>
           </Link>
 
           {/* Desktop navigation */}
