@@ -188,8 +188,8 @@ export function MapaFullscreenClient({ properties }: Props) {
             ))}
           </select>
 
-          {/* Inmobiliaria select — only shown when there are multiple */}
-          {inmobiliarias.length > 1 && (
+          {/* Inmobiliaria select — shown when there's at least one */}
+          {inmobiliarias.length > 0 && (
             <select
               value={inmobiliariaId}
               onChange={(e) => setInmobiliariaId(e.target.value)}
