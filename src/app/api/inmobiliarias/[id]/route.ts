@@ -117,7 +117,20 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       );
     }
 
-    await db.inmobiliaria.delete({ where: { id } });
+    // Eliminación ordenada para respetar FK constraints sin CASCADE en el schema.
+    // Orden: primero los modelos que referencian Propiedad/Cliente/Usuario sin cascade,
+    // luego Usuarios (auto-cascadea Notificaciones y PermisosAgente),
+    // finalmente Inmobiliaria (auto-cascadea Propiedades, Clientes, Configuracion).
+    await db.$transaction(async (tx) => {
+      await tx.visita.deleteMany({ where: { inmobiliariaId: id } });
+      await tx.contratoAlquiler.deleteMany({ where: { inmobiliariaId: id } });
+      await tx.consulta.deleteMany({ where: { inmobiliariaId: id } });
+      await tx.operacionCerrada.deleteMany({ where: { inmobiliariaId: id } });
+      await tx.egresoInmobiliaria.deleteMany({ where: { inmobiliariaId: id } });
+      await tx.pagoSuscripcion.deleteMany({ where: { inmobiliariaId: id } });
+      await tx.usuario.deleteMany({ where: { inmobiliariaId: id } });
+      await tx.inmobiliaria.delete({ where: { id } });
+    });
 
     return NextResponse.json({ success: true });
   } catch {
