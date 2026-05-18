@@ -121,6 +121,34 @@ enum TipoNotificacion {
   @@map("tipo_notificacion")
 }
 
+enum TipoDocumento {
+  DNI_FRENTE
+  DNI_DORSO
+  RECIBO_SUELDO
+  RECIBO_SUELDO_GARANTE
+  DNI_GARANTE_FRENTE
+  DNI_GARANTE_DORSO
+  ESCRITURA_PROPIEDAD
+  PLANO_APROBADO
+  CONSTANCIA_CUIL
+  CONSTANCIA_CUIL_GARANTE
+  CONTRATO_FIRMADO
+  BOLETO_COMPRAVENTA
+  RECIBO_PAGO
+  FOTO_ESTADO_INMUEBLE
+  OTRO
+
+  @@map("tipo_documento")
+}
+
+enum TipoOperacionFinanciera {
+  VENTA
+  ALQUILER
+  ALQUILER_TEMPORARIO
+
+  @@map("tipo_operacion_financiera")
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model Inmobiliaria {
@@ -135,13 +163,17 @@ model Inmobiliaria {
   createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  usuarios    Usuario[]
-  propiedades Propiedad[]
-  clientes    Cliente[]
-  visitas     Visita[]
-  contratos   ContratoAlquiler[]
-  consultas   Consulta[]
-  pagos       PagoSuscripcion[]
+  usuarios         Usuario[]
+  propiedades      Propiedad[]
+  clientes         Cliente[]
+  visitas          Visita[]
+  contratos        ContratoAlquiler[]
+  consultas        Consulta[]
+  pagos            PagoSuscripcion[]
+  configuracion    ConfiguracionInmobiliaria?
+  operaciones      OperacionCerrada[]
+  egresos          EgresoInmobiliaria[]
+  documentosCliente DocumentoCliente[]
 
   @@map("inmobiliarias")
 }
@@ -153,14 +185,17 @@ model Usuario {
   passwordHash   String   @map("password_hash")
   nombre         String
   rol            Rol
-  activo         Boolean  @default(true)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  activo              Boolean  @default(true)
+  comisionPersonalPct Float?   @map("comision_personal_pct")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  inmobiliaria      Inmobiliaria?  @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
+  inmobiliaria      Inmobiliaria?   @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
   propiedades       Propiedad[]
   visitas           Visita[]
   clientesAsignados Cliente[]
   notificaciones    Notificacion[]
+  permisos          PermisosAgente?
+  operaciones       OperacionCerrada[]
 
   @@index([inmobiliariaId], map: "idx_usuarios_inmobiliaria")
   @@map("usuarios")
@@ -263,10 +298,11 @@ model Cliente {
   ultimaActividad DateTime      @default(now()) @map("ultima_actividad") @db.Timestamptz(6)
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  inmobiliaria Inmobiliaria      @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  agente       Usuario?          @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
+  inmobiliaria Inmobiliaria       @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  agente       Usuario?           @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
   propiedades  PropiedadCliente[]
   visitas      Visita[]
+  documentos   DocumentoCliente[]
 
   @@index([inmobiliariaId], map: "idx_clientes_inmobiliaria")
   @@index([estadoPipeline], map: "idx_clientes_pipeline")
@@ -384,4 +420,125 @@ model PagoSuscripcion {
 
   @@index([inmobiliariaId], map: "idx_pagos_inmobiliaria")
   @@map("pagos_suscripcion")
+}
+
+model ConfiguracionInmobiliaria {
+  id                   String   @id @default(cuid())
+  inmobiliariaId       String   @unique @map("inmobiliaria_id")
+
+  comisionVendedorPct  Float    @default(3.0)  @map("comision_vendedor_pct")
+  comisionCompradorPct Float    @default(3.0)  @map("comision_comprador_pct")
+  comisionAlquilerMeses Float   @default(1.0)  @map("comision_alquiler_meses")
+  comisionAgentePct    Float    @default(30.0) @map("comision_agente_pct")
+  comisionInmobPct     Float    @default(70.0) @map("comision_inmob_pct")
+  ivaIncluido          Boolean  @default(true) @map("iva_incluido")
+  monedaPreferida      Moneda   @default(USD)  @map("moneda_preferida")
+
+  colorPrimario        String   @default("#1B4332") @map("color_primario")
+  colorSecundario      String   @default("#2C2C2C") @map("color_secundario")
+
+  clausulasAdicionales String?  @map("clausulas_adicionales")
+  piePaginaContrato    String?  @map("pie_pagina_contrato")
+
+  cuit                 String?
+  razonSocial          String?  @map("razon_social")
+  domicilioLegal       String?  @map("domicilio_legal")
+  matriculaCorredora   String?  @map("matricula_corredora")
+
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt      @map("updated_at") @db.Timestamptz(6)
+
+  inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade)
+
+  @@map("configuracion_inmobiliaria")
+}
+
+model PermisosAgente {
+  id                String  @id @default(cuid())
+  usuarioId         String  @unique @map("usuario_id")
+
+  verPropiedades    Boolean @default(true)  @map("ver_propiedades")
+  editarPropiedades Boolean @default(true)  @map("editar_propiedades")
+  verClientes       Boolean @default(true)  @map("ver_clientes")
+  editarClientes    Boolean @default(true)  @map("editar_clientes")
+  verVisitas        Boolean @default(true)  @map("ver_visitas")
+  editarVisitas     Boolean @default(true)  @map("editar_visitas")
+  verAlquileres     Boolean @default(true)  @map("ver_alquileres")
+  editarAlquileres  Boolean @default(false) @map("editar_alquileres")
+  verConsultas      Boolean @default(true)  @map("ver_consultas")
+  verCalculadoras   Boolean @default(true)  @map("ver_calculadoras")
+  verFinanzas       Boolean @default(false) @map("ver_finanzas")
+  verDocumentos     Boolean @default(true)  @map("ver_documentos")
+  verReportes       Boolean @default(false) @map("ver_reportes")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("permisos_agente")
+}
+
+model DocumentoCliente {
+  id             String        @id @default(cuid())
+  clienteId      String        @map("cliente_id")
+  inmobiliariaId String        @map("inmobiliaria_id")
+  tipo           TipoDocumento
+  nombre         String
+  urlCloudinary  String        @map("url_cloudinary")
+  esImagen       Boolean       @default(false) @map("es_imagen")
+  notas          String?
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  cliente      Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id])
+
+  @@index([clienteId])
+  @@index([inmobiliariaId])
+  @@map("documentos_cliente")
+}
+
+model OperacionCerrada {
+  id                   String                  @id @default(cuid())
+  inmobiliariaId       String                  @map("inmobiliaria_id")
+  propiedadId          String?                 @map("propiedad_id")
+  clienteId            String?                 @map("cliente_id")
+  agenteId             String                  @map("agente_id")
+
+  tipo                 TipoOperacionFinanciera
+  precioOperacion      Decimal                 @map("precio_operacion") @db.Decimal(15, 2)
+  moneda               Moneda                  @default(USD)
+
+  comisionVendedorPct  Float                   @map("comision_vendedor_pct")
+  comisionCompradorPct Float                   @map("comision_comprador_pct")
+  comisionTotal        Decimal                 @map("comision_total") @db.Decimal(15, 2)
+  comisionInmob        Decimal                 @map("comision_inmob") @db.Decimal(15, 2)
+  comisionAgente       Decimal                 @map("comision_agente") @db.Decimal(15, 2)
+  ivaComision          Decimal                 @default(0) @map("iva_comision") @db.Decimal(15, 2)
+
+  gastos               Decimal                 @default(0) @db.Decimal(15, 2)
+  descripcionGastos    String?                 @map("descripcion_gastos")
+
+  fechaCierre          DateTime                @default(now()) @map("fecha_cierre") @db.Timestamptz(6)
+  notas                String?
+
+  inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id])
+  agente       Usuario      @relation(fields: [agenteId], references: [id])
+
+  @@index([inmobiliariaId])
+  @@index([fechaCierre])
+  @@index([agenteId])
+  @@map("operaciones_cerradas")
+}
+
+model EgresoInmobiliaria {
+  id             String   @id @default(cuid())
+  inmobiliariaId String   @map("inmobiliaria_id")
+  concepto       String
+  monto          Decimal  @db.Decimal(15, 2)
+  moneda         Moneda   @default(ARS)
+  fecha          DateTime @default(now()) @db.Timestamptz(6)
+  categoria      String?
+
+  inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id])
+
+  @@index([inmobiliariaId])
+  @@map("egresos_inmobiliaria")
 }

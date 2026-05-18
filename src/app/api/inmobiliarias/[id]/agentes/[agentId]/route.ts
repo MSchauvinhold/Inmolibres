@@ -13,7 +13,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
-  let body: { activo?: boolean };
+  let body: { activo?: boolean; comisionPersonalPct?: number | null };
   try {
     body = await request.json();
   } catch {
@@ -25,10 +25,14 @@ export async function PUT(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Agente no encontrado" }, { status: 404 });
   }
 
+  const updateData: { activo?: boolean; comisionPersonalPct?: number | null } = {};
+  if (body.activo !== undefined) updateData.activo = body.activo;
+  if ("comisionPersonalPct" in body) updateData.comisionPersonalPct = body.comisionPersonalPct;
+
   const updated = await db.usuario.update({
     where: { id: agentId },
-    data: { activo: body.activo },
-    select: { id: true, nombre: true, activo: true },
+    data: updateData,
+    select: { id: true, nombre: true, activo: true, comisionPersonalPct: true },
   });
 
   return NextResponse.json({ data: updated });

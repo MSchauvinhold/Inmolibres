@@ -12,6 +12,9 @@ interface AtributosInfo {
   habitaciones: number | null;
   banos: number | null;
   superficieCubierta: number | null;
+  superficieTotal: number | null;
+  anchoMetros: number | null;
+  largoMetros: number | null;
   garage: boolean | null;
   caracteristicasCustom?: string[] | null;
 }
@@ -87,6 +90,16 @@ export function MarketplacePropiedadCard({
     .join("")
     .toUpperCase();
 
+  const supLabel = (() => {
+    if (!atributos) return null;
+    if (atributos.anchoMetros && atributos.largoMetros) {
+      return `${atributos.anchoMetros}×${atributos.largoMetros}m`;
+    }
+    if (atributos.superficieCubierta != null) return `${atributos.superficieCubierta}m²`;
+    if (atributos.superficieTotal != null) return `${atributos.superficieTotal}m²`;
+    return null;
+  })();
+
   const chips = [
     atributos?.habitaciones != null && {
       key: "hab",
@@ -98,10 +111,10 @@ export function MarketplacePropiedadCard({
       icon: Bath,
       label: `${atributos.banos}`,
     },
-    atributos?.superficieCubierta != null && {
+    supLabel !== null && {
       key: "sup",
       icon: Square,
-      label: `${atributos.superficieCubierta}m²`,
+      label: supLabel,
     },
     atributos?.garage && { key: "gar", icon: Car, label: "Garage" },
   ].filter(Boolean) as { key: string; icon: React.ElementType; label: string }[];

@@ -8,6 +8,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// ─── Money Formatting ────────────────────────────────────────────────────────
+
+export function formatMonto(valor: number, moneda: "ARS" | "USD"): string {
+  const numero = new Intl.NumberFormat("es-AR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(valor);
+  return moneda === "USD" ? `US$ ${numero}` : `$ ${numero}`;
+}
+
 // ─── Price Formatting ─────────────────────────────────────────────────────────
 
 export function formatPrice(

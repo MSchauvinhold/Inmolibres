@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Phone, Mail, Calendar } from "lucide-react";
 import { ESTADO_PIPELINE_LABELS, PIPELINE_COLORS, ORIGEN_LEAD_LABELS, formatDate, buildWhatsAppLink } from "@/lib/utils";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
+import { DocumentosExpediente } from "@/components/clientes/DocumentosExpediente";
 import type { ClienteInput } from "@/lib/validations/client";
 
 export const metadata = { title: "Detalle Cliente" };
@@ -15,20 +16,26 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
 
   const { id } = await params;
 
-  const cliente = await db.cliente.findUnique({
-    where: { id },
-    include: {
-      agente: { select: { id: true, nombre: true } },
-      visitas: {
-        orderBy: { fechaHora: "desc" },
-        take: 5,
-        include: { propiedad: { select: { titulo: true } } },
+  const [cliente, documentos] = await Promise.all([
+    db.cliente.findUnique({
+      where: { id },
+      include: {
+        agente: { select: { id: true, nombre: true } },
+        visitas: {
+          orderBy: { fechaHora: "desc" },
+          take: 5,
+          include: { propiedad: { select: { titulo: true } } },
+        },
+        propiedades: {
+          include: { propiedad: { select: { id: true, titulo: true, slug: true } } },
+        },
       },
-      propiedades: {
-        include: { propiedad: { select: { id: true, titulo: true, slug: true } } },
-      },
-    },
-  });
+    }),
+    db.documentoCliente.findMany({
+      where: { clienteId: id, inmobiliariaId: session.user.inmobiliariaId },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
 
   if (!cliente || cliente.inmobiliariaId !== session.user.inmobiliariaId) notFound();
 
@@ -42,8 +49,13 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
     notas: cliente.notas ?? "",
   };
 
+  const serializedDocumentos = documentos.map((d) => ({
+    ...d,
+    createdAt: d.createdAt.toISOString(),
+  }));
+
   return (
-    <div className="w-full max-w-[800px] mx-auto space-y-6">
+    <div className="w-full max-w-[860px] mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Link href="/clientes" className="p-2 rounded-lg hover:bg-surface-raised text-text-muted">
           <ArrowLeft className="w-4 h-4" />
@@ -58,7 +70,8 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
 
       {/* Contact */}
       <div className="card p-4 flex flex-wrap gap-4">
-        <a href={buildWhatsAppLink(cliente.telefono)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-brand-primary hover:underline">
+        <a href={buildWhatsAppLink(cliente.telefono)} target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-2 text-sm text-brand-primary hover:underline">
           <Phone className="w-4 h-4" /> {cliente.telefono}
         </a>
         {cliente.email && (
@@ -86,6 +99,20 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
       )}
+
+      {/* Documentos */}
+      <div className="card p-5">
+        <h2 className="font-semibold text-text-primary mb-4">
+          Expediente digital
+          <span className="ml-2 text-xs font-normal px-2 py-0.5 rounded-full bg-surface-raised text-text-muted">
+            {serializedDocumentos.length} doc{serializedDocumentos.length !== 1 ? "s" : ""}
+          </span>
+        </h2>
+        <DocumentosExpediente
+          clienteId={id}
+          initialDocumentos={serializedDocumentos}
+        />
+      </div>
 
       {/* Edit form */}
       <div className="card p-5">

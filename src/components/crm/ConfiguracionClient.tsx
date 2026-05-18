@@ -2,8 +2,28 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Eye, EyeOff, UserCheck, UserX, AlertTriangle } from "lucide-react";
+import {
+  Loader2, Plus, Eye, EyeOff, UserCheck, UserX, AlertTriangle,
+  Settings, Shield, ChevronDown, ChevronUp,
+} from "lucide-react";
 import { formatDate, ESTADO_INMOBILIARIA_LABELS, ESTADO_INMOBILIARIA_COLORS } from "@/lib/utils";
+import { PermisosSheet } from "./PermisosSheet";
+
+interface PermisosAgente {
+  verPropiedades: boolean;
+  editarPropiedades: boolean;
+  verClientes: boolean;
+  editarClientes: boolean;
+  verVisitas: boolean;
+  editarVisitas: boolean;
+  verAlquileres: boolean;
+  editarAlquileres: boolean;
+  verConsultas: boolean;
+  verCalculadoras: boolean;
+  verFinanzas: boolean;
+  verDocumentos: boolean;
+  verReportes: boolean;
+}
 
 interface Usuario {
   id: string;
@@ -11,6 +31,8 @@ interface Usuario {
   email: string;
   rol: string;
   activo: boolean;
+  comisionPersonalPct: number | null;
+  permisos: PermisosAgente | null;
 }
 
 interface Inmobiliaria {
@@ -25,13 +47,35 @@ interface Inmobiliaria {
   _count: { propiedades: number; clientes: number };
 }
 
+interface Config {
+  id: string;
+  comisionVendedorPct: number;
+  comisionCompradorPct: number;
+  comisionAlquilerMeses: number;
+  comisionAgentePct: number;
+  comisionInmobPct: number;
+  ivaIncluido: boolean;
+  monedaPreferida: "ARS" | "USD";
+  colorPrimario: string;
+  colorSecundario: string;
+  clausulasAdicionales: string | null;
+  piePaginaContrato: string | null;
+  cuit: string | null;
+  razonSocial: string | null;
+  domicilioLegal: string | null;
+  matriculaCorredora: string | null;
+}
+
 interface Props {
   inmobiliaria: Inmobiliaria;
   isAdmin: boolean;
   diasRestantes: number | null;
+  config: Config;
 }
 
-export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestantes }: Props) {
+const SLIDER_MAX = 10;
+
+export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestantes, config: initialConfig }: Props) {
   const [inmo, setInmo] = useState(initial);
   const [editingWa, setEditingWa] = useState(false);
   const [whatsappVal, setWhatsappVal] = useState(initial.whatsapp);
@@ -43,8 +87,17 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
   const [savingAgent, setSavingAgent] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
+  const [config, setConfig] = useState(initialConfig);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [openSection, setOpenSection] = useState<string | null>(null);
+
+  const [permisosAgentId, setPermisosAgentId] = useState<string | null>(null);
+
   const agentes = inmo.usuarios.filter((u) => u.rol === "AGENTE");
   const canAddAgent = agentes.length < 3;
+
+  const inp = "input-base w-full text-sm";
+  const lbl = "block text-xs font-medium text-text-primary mb-1";
 
   async function saveWhatsApp() {
     if (!whatsappVal.trim()) return;
@@ -79,15 +132,15 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(agentForm),
       });
-      const data = await res.json();
+      const data = (await res.json()) as { error?: string; data?: Usuario };
       if (!res.ok) {
         toast.error(data.error ?? "Error al crear agente");
         return;
       }
-      setInmo((p) => ({ ...p, usuarios: [...p.usuarios, data.data] }));
+      setInmo((p) => ({ ...p, usuarios: [...p.usuarios, data.data!] }));
       setAgentForm({ nombre: "", email: "", password: "" });
       setShowNewAgent(false);
-      toast.success(`Agente ${data.data.nombre} creado`);
+      toast.success(`Agente ${data.data!.nombre} creado`);
     } catch {
       toast.error("Error inesperado");
     } finally {
@@ -116,6 +169,45 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
     }
   }
 
+  async function saveConfig(patch: Partial<Config>) {
+    setSavingConfig(true);
+    try {
+      const res = await fetch("/api/configuracion", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = (await res.json()) as { data?: Config; error?: string };
+      if (!res.ok) throw new Error(data.error);
+      setConfig((p) => ({ ...p, ...data.data }));
+      toast.success("Configuración guardada");
+    } catch {
+      toast.error("Error al guardar");
+    } finally {
+      setSavingConfig(false);
+    }
+  }
+
+  async function saveComisionAgente(agentId: string, pct: number | null) {
+    try {
+      const res = await fetch(`/api/inmobiliarias/${inmo.id}/agentes/${agentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comisionPersonalPct: pct }),
+      });
+      if (!res.ok) throw new Error();
+      setInmo((p) => ({
+        ...p,
+        usuarios: p.usuarios.map((u) =>
+          u.id === agentId ? { ...u, comisionPersonalPct: pct } : u
+        ),
+      }));
+      toast.success("Comisión actualizada");
+    } catch {
+      toast.error("Error al guardar comisión");
+    }
+  }
+
   const suscripcionColor =
     diasRestantes === null ? "" :
     diasRestantes <= 2 ? "text-danger" :
@@ -126,19 +218,30 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
     ? Math.min(100, Math.round((diasRestantes / 365) * 100))
     : 0;
 
-  const inp = "input-base w-full text-sm";
-  const lbl = "block text-xs font-medium text-text-primary mb-1";
+  function SectionHeader({ id, title, icon: Icon }: { id: string; title: string; icon: React.ElementType }) {
+    const open = openSection === id;
+    return (
+      <button
+        onClick={() => setOpenSection(open ? null : id)}
+        className="flex items-center justify-between w-full border-b border-border pb-2"
+      >
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4 text-text-muted" />
+          <h2 className="font-semibold text-text-primary">{title}</h2>
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-text-muted" /> : <ChevronDown className="w-4 h-4 text-text-muted" />}
+      </button>
+    );
+  }
 
   return (
-    <div className="w-full max-w-[800px] mx-auto space-y-6">
+    <div className="w-full max-w-[860px] mx-auto space-y-6">
       <h1 className="text-xl font-bold text-text-primary">Configuración</h1>
 
-      {/* Alerta suscripción próxima a vencer */}
+      {/* Alerta suscripción */}
       {diasRestantes !== null && diasRestantes <= 7 && (
         <div className={`flex items-center gap-3 p-3 rounded-xl border ${
-          diasRestantes <= 2
-            ? "bg-danger/10 border-danger/30"
-            : "bg-warning/10 border-warning/30"
+          diasRestantes <= 2 ? "bg-danger/10 border-danger/30" : "bg-warning/10 border-warning/30"
         }`}>
           <AlertTriangle className={`w-4 h-4 shrink-0 ${diasRestantes <= 2 ? "text-danger" : "text-warning"}`} />
           <p className="text-sm font-medium text-text-primary">
@@ -151,9 +254,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
 
       {/* Datos de la inmobiliaria */}
       <div className="card p-5 space-y-4">
-        <h2 className="font-semibold text-text-primary border-b border-border pb-2">
-          Datos de la inmobiliaria
-        </h2>
+        <h2 className="font-semibold text-text-primary border-b border-border pb-2">Datos de la inmobiliaria</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-text-muted text-xs mb-0.5">Nombre</p>
@@ -173,8 +274,6 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
             <p className="text-text-muted text-xs mb-0.5">Email</p>
             <p className="font-medium text-text-primary">{inmo.email}</p>
           </div>
-
-          {/* WhatsApp editable */}
           <div className="col-span-2">
             <p className="text-text-muted text-xs mb-0.5">WhatsApp</p>
             {editingWa ? (
@@ -185,13 +284,8 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                   className={inp}
                   placeholder="+54 3772 ..."
                 />
-                <button
-                  onClick={saveWhatsApp}
-                  disabled={savingWa}
-                  className="btn-primary text-sm flex items-center gap-1"
-                >
-                  {savingWa && <Loader2 className="w-3 h-3 animate-spin" />}
-                  Guardar
+                <button onClick={saveWhatsApp} disabled={savingWa} className="btn-primary text-sm flex items-center gap-1">
+                  {savingWa && <Loader2 className="w-3 h-3 animate-spin" />}Guardar
                 </button>
                 <button onClick={() => { setEditingWa(false); setWhatsappVal(inmo.whatsapp); }} className="btn-outline text-sm">
                   Cancelar
@@ -213,9 +307,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
 
       {/* Suscripción */}
       <div className="card p-5 space-y-3">
-        <h2 className="font-semibold text-text-primary border-b border-border pb-2">
-          Suscripción
-        </h2>
+        <h2 className="font-semibold text-text-primary border-b border-border pb-2">Suscripción</h2>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-text-muted mb-0.5">Vencimiento</p>
@@ -253,7 +345,301 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
         </div>
       </div>
 
-      {/* Gestión de agentes — solo ADMIN */}
+      {/* ─── COMISIONES (solo ADMIN) ─── */}
+      {isAdmin && (
+        <div className="card p-5 space-y-4">
+          <SectionHeader id="comisiones" title="Comisiones" icon={Settings} />
+          {openSection === "comisiones" && (
+            <div className="space-y-5 pt-1">
+              {/* Vendedor */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
+                    Comisión vendedor
+                  </label>
+                  <span className="text-sm font-bold tabular-nums" style={{ color: "var(--brand-primary)", fontFamily: "var(--font-mono)" }}>
+                    {config.comisionVendedorPct}%
+                  </span>
+                </div>
+                <input
+                  type="range" min={0} max={SLIDER_MAX} step={0.5}
+                  value={config.comisionVendedorPct}
+                  onChange={(e) => setConfig((p) => ({ ...p, comisionVendedorPct: Number(e.target.value) }))}
+                  className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, var(--brand-primary) 0%, var(--brand-primary) ${config.comisionVendedorPct * 10}%, var(--border) ${config.comisionVendedorPct * 10}%, var(--border) 100%)`,
+                    accentColor: "var(--brand-primary)",
+                  }}
+                />
+                <div className="flex justify-between text-[10px] text-text-muted mt-1"><span>0%</span><span>5%</span><span>10%</span></div>
+              </div>
+
+              {/* Comprador */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
+                    Comisión comprador
+                  </label>
+                  <span className="text-sm font-bold tabular-nums" style={{ color: "var(--brand-primary)", fontFamily: "var(--font-mono)" }}>
+                    {config.comisionCompradorPct}%
+                  </span>
+                </div>
+                <input
+                  type="range" min={0} max={SLIDER_MAX} step={0.5}
+                  value={config.comisionCompradorPct}
+                  onChange={(e) => setConfig((p) => ({ ...p, comisionCompradorPct: Number(e.target.value) }))}
+                  className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, var(--brand-primary) 0%, var(--brand-primary) ${config.comisionCompradorPct * 10}%, var(--border) ${config.comisionCompradorPct * 10}%, var(--border) 100%)`,
+                    accentColor: "var(--brand-primary)",
+                  }}
+                />
+                <div className="flex justify-between text-[10px] text-text-muted mt-1"><span>0%</span><span>5%</span><span>10%</span></div>
+              </div>
+
+              {/* Alquiler */}
+              <div>
+                <label className={lbl}>Comisión alquiler (meses)</label>
+                <div className="flex gap-2">
+                  {[0.5, 1, 1.5, 2].map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setConfig((p) => ({ ...p, comisionAlquilerMeses: v }))}
+                      className="flex-1 py-2 rounded-xl border text-sm font-semibold transition-colors"
+                      style={{
+                        background: config.comisionAlquilerMeses === v ? "var(--brand-primary)" : "var(--surface)",
+                        color: config.comisionAlquilerMeses === v ? "white" : "var(--text-muted)",
+                        borderColor: config.comisionAlquilerMeses === v ? "var(--brand-primary)" : "var(--border)",
+                      }}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Distribución interna */}
+              <div>
+                <label className={lbl}>Distribución de comisión</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] text-text-muted mb-1">% Inmobiliaria</p>
+                    <input
+                      type="number" min={0} max={100} step={1}
+                      value={config.comisionInmobPct}
+                      onChange={(e) => {
+                        const v = Math.min(100, Math.max(0, Number(e.target.value)));
+                        setConfig((p) => ({ ...p, comisionInmobPct: v, comisionAgentePct: 100 - v }));
+                      }}
+                      className={inp}
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-text-muted mb-1">% Agente</p>
+                    <input
+                      type="number" min={0} max={100} step={1}
+                      value={config.comisionAgentePct}
+                      onChange={(e) => {
+                        const v = Math.min(100, Math.max(0, Number(e.target.value)));
+                        setConfig((p) => ({ ...p, comisionAgentePct: v, comisionInmobPct: 100 - v }));
+                      }}
+                      className={inp}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* IVA */}
+              <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}>
+                <div>
+                  <p className="text-sm font-medium text-text-primary">IVA incluido por defecto (21%)</p>
+                  <p className="text-xs text-text-muted">Se pre-carga en la calculadora de comisiones</p>
+                </div>
+                <button
+                  onClick={() => setConfig((p) => ({ ...p, ivaIncluido: !p.ivaIncluido }))}
+                  className="relative w-11 h-6 rounded-full transition-colors"
+                  style={{ background: config.ivaIncluido ? "var(--brand-primary)" : "var(--border)" }}
+                  role="switch" aria-checked={config.ivaIncluido}
+                >
+                  <span
+                    className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
+                    style={{ transform: config.ivaIncluido ? "translateX(20px)" : "translateX(0)" }}
+                  />
+                </button>
+              </div>
+
+              <button
+                onClick={() => saveConfig({
+                  comisionVendedorPct: config.comisionVendedorPct,
+                  comisionCompradorPct: config.comisionCompradorPct,
+                  comisionAlquilerMeses: config.comisionAlquilerMeses,
+                  comisionAgentePct: config.comisionAgentePct,
+                  comisionInmobPct: config.comisionInmobPct,
+                  ivaIncluido: config.ivaIncluido,
+                })}
+                disabled={savingConfig}
+                className="btn-primary text-sm flex items-center gap-2"
+              >
+                {savingConfig && <Loader2 className="w-3 h-3 animate-spin" />}
+                Guardar comisiones
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── DATOS LEGALES (solo ADMIN) ─── */}
+      {isAdmin && (
+        <div className="card p-5 space-y-4">
+          <SectionHeader id="legal" title="Datos legales" icon={Shield} />
+          {openSection === "legal" && (
+            <div className="space-y-4 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={lbl}>CUIT</label>
+                  <input
+                    value={config.cuit ?? ""}
+                    onChange={(e) => setConfig((p) => ({ ...p, cuit: e.target.value }))}
+                    className={inp} placeholder="20-12345678-9"
+                  />
+                </div>
+                <div>
+                  <label className={lbl}>Razón social</label>
+                  <input
+                    value={config.razonSocial ?? ""}
+                    onChange={(e) => setConfig((p) => ({ ...p, razonSocial: e.target.value }))}
+                    className={inp} placeholder="Inmobiliaria SRL"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className={lbl}>Domicilio legal</label>
+                  <input
+                    value={config.domicilioLegal ?? ""}
+                    onChange={(e) => setConfig((p) => ({ ...p, domicilioLegal: e.target.value }))}
+                    className={inp} placeholder="Av. San Martín 123, Paso de los Libres"
+                  />
+                </div>
+                <div>
+                  <label className={lbl}>Matrícula corredora</label>
+                  <input
+                    value={config.matriculaCorredora ?? ""}
+                    onChange={(e) => setConfig((p) => ({ ...p, matriculaCorredora: e.target.value }))}
+                    className={inp} placeholder="Nº de matrícula"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={() => saveConfig({
+                  cuit: config.cuit,
+                  razonSocial: config.razonSocial,
+                  domicilioLegal: config.domicilioLegal,
+                  matriculaCorredora: config.matriculaCorredora,
+                })}
+                disabled={savingConfig}
+                className="btn-primary text-sm flex items-center gap-2"
+              >
+                {savingConfig && <Loader2 className="w-3 h-3 animate-spin" />}
+                Guardar datos legales
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── IDENTIDAD VISUAL CONTRATOS (solo ADMIN) ─── */}
+      {isAdmin && (
+        <div className="card p-5 space-y-4">
+          <SectionHeader id="visual" title="Identidad visual para contratos" icon={Settings} />
+          {openSection === "visual" && (
+            <div className="space-y-4 pt-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={lbl}>Color primario</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={config.colorPrimario}
+                      onChange={(e) => setConfig((p) => ({ ...p, colorPrimario: e.target.value }))}
+                      className="w-10 h-9 rounded-lg border border-border cursor-pointer p-0.5"
+                    />
+                    <input
+                      value={config.colorPrimario}
+                      onChange={(e) => setConfig((p) => ({ ...p, colorPrimario: e.target.value }))}
+                      className={`${inp} font-mono text-xs`}
+                      placeholder="#1B4332"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={lbl}>Color secundario</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={config.colorSecundario}
+                      onChange={(e) => setConfig((p) => ({ ...p, colorSecundario: e.target.value }))}
+                      className="w-10 h-9 rounded-lg border border-border cursor-pointer p-0.5"
+                    />
+                    <input
+                      value={config.colorSecundario}
+                      onChange={(e) => setConfig((p) => ({ ...p, colorSecundario: e.target.value }))}
+                      className={`${inp} font-mono text-xs`}
+                      placeholder="#2C2C2C"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview contrato */}
+              <div className="rounded-xl overflow-hidden border border-border">
+                <div className="p-4 flex items-center gap-3" style={{ background: config.colorPrimario }}>
+                  <div className="text-white font-bold text-lg">InmoLibres</div>
+                  <div className="h-5 w-px bg-white/40" />
+                  <div className="text-white/80 text-sm">{inmo.nombre}</div>
+                </div>
+                <div className="p-4 bg-surface-raised">
+                  <p className="text-xs text-text-muted">Vista previa del encabezado del contrato</p>
+                </div>
+              </div>
+
+              <div>
+                <label className={lbl}>Cláusulas adicionales</label>
+                <textarea
+                  value={config.clausulasAdicionales ?? ""}
+                  onChange={(e) => setConfig((p) => ({ ...p, clausulasAdicionales: e.target.value }))}
+                  className={`${inp} min-h-[80px] resize-y`}
+                  placeholder="Cláusulas que se agregarán al contrato PDF..."
+                  rows={3}
+                />
+              </div>
+              <div>
+                <label className={lbl}>Pie de página del contrato</label>
+                <input
+                  value={config.piePaginaContrato ?? ""}
+                  onChange={(e) => setConfig((p) => ({ ...p, piePaginaContrato: e.target.value }))}
+                  className={inp}
+                  placeholder="Firma digital válida según Ley 25.506"
+                />
+              </div>
+
+              <button
+                onClick={() => saveConfig({
+                  colorPrimario: config.colorPrimario,
+                  colorSecundario: config.colorSecundario,
+                  clausulasAdicionales: config.clausulasAdicionales,
+                  piePaginaContrato: config.piePaginaContrato,
+                })}
+                disabled={savingConfig}
+                className="btn-primary text-sm flex items-center gap-2"
+              >
+                {savingConfig && <Loader2 className="w-3 h-3 animate-spin" />}
+                Guardar identidad visual
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── EQUIPO Y PERMISOS ─── */}
       {isAdmin && (
         <div className="card p-5 space-y-3">
           <div className="flex items-center justify-between border-b border-border pb-2">
@@ -270,7 +656,6 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
             )}
           </div>
 
-          {/* Form nuevo agente */}
           {showNewAgent && (
             <form onSubmit={crearAgente} className="space-y-3 p-3 rounded-xl bg-surface-raised">
               <p className="text-xs font-semibold text-text-muted uppercase tracking-wide">Nuevo agente</p>
@@ -280,96 +665,164 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                   <input
                     value={agentForm.nombre}
                     onChange={(e) => setAgentForm((p) => ({ ...p, nombre: e.target.value }))}
-                    className={inp}
-                    placeholder="Nombre completo"
-                    required
+                    className={inp} placeholder="Nombre completo" required
                   />
                 </div>
                 <div>
                   <label className={lbl}>Email *</label>
                   <input
-                    type="email"
-                    value={agentForm.email}
+                    type="email" value={agentForm.email}
                     onChange={(e) => setAgentForm((p) => ({ ...p, email: e.target.value }))}
-                    className={inp}
-                    placeholder="agente@email.com"
-                    required
+                    className={inp} placeholder="agente@email.com" required
                   />
                 </div>
                 <div className="col-span-2">
                   <label className={lbl}>Contraseña inicial *</label>
                   <div className="relative">
                     <input
-                      type={showPass ? "text" : "password"}
-                      value={agentForm.password}
+                      type={showPass ? "text" : "password"} value={agentForm.password}
                       onChange={(e) => setAgentForm((p) => ({ ...p, password: e.target.value }))}
-                      className={`${inp} pr-10`}
-                      placeholder="mín. 8 caracteres"
-                      required
-                      minLength={8}
+                      className={`${inp} pr-10`} placeholder="mín. 8 caracteres"
+                      required minLength={8}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPass((p) => !p)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted"
-                    >
+                    <button type="button" onClick={() => setShowPass((p) => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted">
                       {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={() => setShowNewAgent(false)} className="btn-outline text-sm">
-                  Cancelar
-                </button>
+                <button type="button" onClick={() => setShowNewAgent(false)} className="btn-outline text-sm">Cancelar</button>
                 <button type="submit" disabled={savingAgent} className="btn-primary text-sm flex items-center gap-1.5">
-                  {savingAgent && <Loader2 className="w-3 h-3 animate-spin" />}
-                  Crear agente
+                  {savingAgent && <Loader2 className="w-3 h-3 animate-spin" />}Crear agente
                 </button>
               </div>
             </form>
           )}
 
-          {/* Lista de usuarios */}
           <div className="space-y-2">
             {inmo.usuarios.map((u) => (
-              <div key={u.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
-                <div>
+              <div key={u.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0 gap-3">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-text-primary">{u.nombre}</p>
                     {!u.activo && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
-                        Inactivo
-                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Inactivo</span>
                     )}
                   </div>
                   <p className="text-xs text-text-muted">{u.email} · {u.rol}</p>
+
+                  {/* Comisión personal del agente */}
+                  {u.rol === "AGENTE" && (
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-[10px] text-text-muted">Comisión personal:</span>
+                      <AgentComisionInput
+                        value={u.comisionPersonalPct}
+                        defaultPct={config.comisionAgentePct}
+                        onSave={(pct) => saveComisionAgente(u.id, pct)}
+                      />
+                    </div>
+                  )}
                 </div>
-                {u.rol === "AGENTE" && (
-                  <button
-                    onClick={() => toggleAgente(u.id, u.activo)}
-                    disabled={togglingId === u.id}
-                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                      u.activo
-                        ? "bg-red-50 text-red-700 hover:bg-red-100"
-                        : "bg-green-50 text-green-700 hover:bg-green-100"
-                    }`}
-                  >
-                    {togglingId === u.id ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : u.activo ? (
-                      <UserX className="w-3 h-3" />
-                    ) : (
-                      <UserCheck className="w-3 h-3" />
-                    )}
-                    {u.activo ? "Desactivar" : "Activar"}
-                  </button>
-                )}
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {u.rol === "AGENTE" && (
+                    <>
+                      <button
+                        onClick={() => setPermisosAgentId(u.id)}
+                        className="text-xs px-2.5 py-1.5 rounded-lg font-medium bg-surface-raised hover:bg-border transition-colors text-text-secondary"
+                      >
+                        Permisos
+                      </button>
+                      <button
+                        onClick={() => toggleAgente(u.id, u.activo)}
+                        disabled={togglingId === u.id}
+                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                          u.activo ? "bg-red-50 text-red-700 hover:bg-red-100" : "bg-green-50 text-green-700 hover:bg-green-100"
+                        }`}
+                      >
+                        {togglingId === u.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : u.activo ? (
+                          <UserX className="w-3 h-3" />
+                        ) : (
+                          <UserCheck className="w-3 h-3" />
+                        )}
+                        {u.activo ? "Desactivar" : "Activar"}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
+
+      {/* Sheet de permisos */}
+      {permisosAgentId && (
+        <PermisosSheet
+          agentId={permisosAgentId}
+          inmobiliariaId={inmo.id}
+          agentName={inmo.usuarios.find((u) => u.id === permisosAgentId)?.nombre ?? ""}
+          initialPermisos={inmo.usuarios.find((u) => u.id === permisosAgentId)?.permisos ?? null}
+          onClose={() => setPermisosAgentId(null)}
+          onSave={(permisos) => {
+            setInmo((p) => ({
+              ...p,
+              usuarios: p.usuarios.map((u) =>
+                u.id === permisosAgentId ? { ...u, permisos } : u
+              ),
+            }));
+            setPermisosAgentId(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function AgentComisionInput({
+  value, defaultPct, onSave,
+}: { value: number | null; defaultPct: number; onSave: (pct: number | null) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(value?.toString() ?? "");
+  const [saving, setSaving] = useState(false);
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        className="text-[10px] underline text-brand-primary"
+      >
+        {value != null ? `${value}%` : `default (${defaultPct}%)`}
+      </button>
+    );
+  }
+
+  async function handle() {
+    setSaving(true);
+    const parsed = val.trim() === "" ? null : Number(val);
+    await onSave(parsed);
+    setSaving(false);
+    setEditing(false);
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        type="number" min={0} max={100} step={0.5}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        className="w-16 px-2 py-0.5 text-xs rounded-lg border border-border bg-surface"
+        placeholder={`${defaultPct}`}
+        autoFocus
+      />
+      <span className="text-[10px] text-text-muted">%</span>
+      <button onClick={handle} disabled={saving} className="text-[10px] text-brand-primary font-medium">
+        {saving ? "..." : "OK"}
+      </button>
+      <button onClick={() => setEditing(false)} className="text-[10px] text-text-muted">✕</button>
     </div>
   );
 }

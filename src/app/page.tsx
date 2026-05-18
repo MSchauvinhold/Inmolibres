@@ -48,6 +48,9 @@ export default async function MarketplaceHome({
           habitaciones: true,
           banos: true,
           superficieCubierta: true,
+          superficieTotal: true,
+          anchoMetros: true,
+          largoMetros: true,
           garage: true,
           caracteristicasCustom: true,
         },
@@ -280,10 +283,10 @@ export default async function MarketplaceHome({
                       ? {
                           habitaciones: p.atributos.habitaciones,
                           banos: p.atributos.banos,
-                          superficieCubierta:
-                            p.atributos.superficieCubierta != null
-                              ? Number(p.atributos.superficieCubierta)
-                              : null,
+                          superficieCubierta: p.atributos.superficieCubierta != null ? Number(p.atributos.superficieCubierta) : null,
+                          superficieTotal: p.atributos.superficieTotal != null ? Number(p.atributos.superficieTotal) : null,
+                          anchoMetros: p.atributos.anchoMetros != null ? Number(p.atributos.anchoMetros) : null,
+                          largoMetros: p.atributos.largoMetros != null ? Number(p.atributos.largoMetros) : null,
                           garage: p.atributos.garage,
                           caracteristicasCustom: p.atributos.caracteristicasCustom,
                         }

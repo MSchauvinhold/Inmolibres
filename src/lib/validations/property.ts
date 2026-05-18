@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+// react-hook-form con valueAsNumber envía NaN cuando el input queda vacío.
+// Zod lo reconoce como "number" pero falla .positive()/.min() silenciosamente,
+// impidiendo que onSubmit se llame. Se normaliza NaN → undefined antes de validar.
+const nanToUndef = (v: unknown) =>
+  typeof v === "number" && isNaN(v) ? undefined : v;
+
+const optPos = z.preprocess(nanToUndef, z.number().positive().optional().nullable());
+const optInt = (min: number) =>
+  z.preprocess(nanToUndef, z.number().int().min(min).optional().nullable());
+
 export const propiedadSchema = z.object({
   titulo: z
     .string()
@@ -27,26 +37,26 @@ export const propiedadSchema = z.object({
   publicada: z.boolean().default(true),
   atributos: z
     .object({
-      superficieCubierta: z.number().positive().optional().nullable(),
-      superficieTotal: z.number().positive().optional().nullable(),
-      habitaciones: z.number().int().min(0).optional().nullable(),
-      banos: z.number().int().min(0).optional().nullable(),
+      superficieCubierta: optPos,
+      superficieTotal: optPos,
+      habitaciones: optInt(0),
+      banos: optInt(0),
       garage: z.boolean().optional().nullable(),
       pileta: z.boolean().optional().nullable(),
       quincho: z.boolean().optional().nullable(),
       balcon: z.boolean().optional().nullable(),
       amueblado: z.boolean().optional().nullable(),
-      cantidadPisos: z.number().int().positive().optional().nullable(),
-      numeroPiso: z.number().int().min(0).optional().nullable(),
+      cantidadPisos: optInt(1),
+      numeroPiso: optInt(0),
       mostrarPrecioPorM2: z.boolean().default(false),
-      precioPorDia: z.number().positive().optional().nullable(),
-      precioSemana: z.number().positive().optional().nullable(),
-      precioQuincena: z.number().positive().optional().nullable(),
-      diasMinimos: z.number().int().positive().optional().nullable(),
-      diasMaximos: z.number().int().positive().optional().nullable(),
-      anchoMetros: z.number().positive().optional().nullable(),
-      largoMetros: z.number().positive().optional().nullable(),
-      alturaInterna: z.number().positive().optional().nullable(),
+      precioPorDia: optPos,
+      precioSemana: optPos,
+      precioQuincena: optPos,
+      diasMinimos: optInt(1),
+      diasMaximos: optInt(1),
+      anchoMetros: optPos,
+      largoMetros: optPos,
+      alturaInterna: optPos,
       serviciosAgua: z.boolean().optional().nullable(),
       serviciosLuz: z.boolean().optional().nullable(),
       serviciosGas: z.boolean().optional().nullable(),

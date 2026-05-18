@@ -78,11 +78,15 @@ export function PropiedadCard({ propiedad, href, showActions }: Props) {
                 <Bath className="w-3.5 h-3.5" /> {propiedad.atributos.banos}
               </span>
             )}
-            {propiedad.atributos.superficieCubierta != null && (
+            {propiedad.atributos.superficieCubierta != null ? (
               <span className="flex items-center gap-1">
-                <Square className="w-3.5 h-3.5" /> {propiedad.atributos.superficieCubierta}m²
+                <Square className="w-3.5 h-3.5" /> {propiedad.atributos.superficieCubierta}m² cub.
               </span>
-            )}
+            ) : propiedad.atributos.superficieTotal != null ? (
+              <span className="flex items-center gap-1">
+                <Square className="w-3.5 h-3.5" /> {propiedad.atributos.superficieTotal}m²
+              </span>
+            ) : null}
           </div>
         )}
       </div>

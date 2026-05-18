@@ -4,30 +4,50 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Building2, Users, CalendarCheck,
-  FileText, MessageSquare, Settings, LogOut, ChevronRight, Calculator,
+  FileText, MessageSquare, Settings, LogOut, ChevronRight,
+  Calculator, TrendingUp,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import type { SessionUser } from "@/types";
 
-const navItems = [
-  { href: "/dashboard",     label: "Dashboard",    icon: LayoutDashboard },
-  { href: "/propiedades",   label: "Propiedades",  icon: Building2 },
-  { href: "/clientes",      label: "Clientes",     icon: Users },
-  { href: "/visitas",       label: "Visitas",      icon: CalendarCheck },
-  { href: "/alquileres",    label: "Alquileres",   icon: FileText },
-  { href: "/consultas",     label: "Consultas",    icon: MessageSquare },
-  { href: "/calculadoras",  label: "Calculadoras", icon: Calculator },
-  { href: "/configuracion", label: "Configuración",icon: Settings },
-];
+interface PermisosAgente {
+  verPropiedades: boolean;
+  verClientes: boolean;
+  verVisitas: boolean;
+  verAlquileres: boolean;
+  verConsultas: boolean;
+  verCalculadoras: boolean;
+  verFinanzas: boolean;
+}
 
 interface SidebarProps {
   user: SessionUser;
+  permisos?: PermisosAgente | null;
   className?: string;
 }
 
-export function Sidebar({ user, className }: SidebarProps) {
+const ALL_NAV = [
+  { href: "/dashboard",     label: "Dashboard",    icon: LayoutDashboard, permKey: null },
+  { href: "/propiedades",   label: "Propiedades",  icon: Building2,       permKey: "verPropiedades" },
+  { href: "/clientes",      label: "Clientes",     icon: Users,           permKey: "verClientes" },
+  { href: "/visitas",       label: "Visitas",      icon: CalendarCheck,   permKey: "verVisitas" },
+  { href: "/alquileres",    label: "Alquileres",   icon: FileText,        permKey: "verAlquileres" },
+  { href: "/consultas",     label: "Consultas",    icon: MessageSquare,   permKey: "verConsultas" },
+  { href: "/calculadoras",  label: "Calculadoras", icon: Calculator,      permKey: "verCalculadoras" },
+  { href: "/finanzas",      label: "Finanzas",     icon: TrendingUp,      permKey: "verFinanzas" },
+  { href: "/configuracion", label: "Configuración",icon: Settings,        permKey: null },
+] as const;
+
+export function Sidebar({ user, permisos, className }: SidebarProps) {
   const pathname = usePathname();
+  const isAgente = user.rol === "AGENTE";
+
+  const navItems = ALL_NAV.filter(({ permKey }) => {
+    if (!permKey || !isAgente) return true;
+    if (!permisos) return true;
+    return permisos[permKey as keyof PermisosAgente] === true;
+  });
 
   return (
     <aside
@@ -58,10 +78,7 @@ export function Sidebar({ user, className }: SidebarProps) {
             <Link
               key={href}
               href={href}
-              className={cn(
-                "sidebar-item group",
-                active && "active"
-              )}
+              className={cn("sidebar-item group", active && "active")}
             >
               <Icon className="w-4 h-4 shrink-0 opacity-80" />
               <span className="flex-1">{label}</span>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
-import { Copy, Info } from "lucide-react";
+import { Copy, Info, Loader2 } from "lucide-react";
 import { calcularAjusteICL, fmt, fmtNum } from "@/lib/calculadoras";
 import { ResultadoCard } from "./ResultadoCard";
 
@@ -10,13 +10,46 @@ const inputCls = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none tran
 const inputStyle = { background: "var(--surface)", borderColor: "var(--border)", color: "var(--text-primary)" };
 const labelCls = "block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1.5";
 
+interface IndiceData {
+  valor: number | null;
+  fecha: string | null;
+}
+
 export function CalculadoraICL() {
   const [alquilerActual, setAlquilerActual] = useState<number>(100000);
   const [moneda, setMoneda] = useState<"ARS" | "USD">("ARS");
   const [indiceInicio, setIndiceInicio] = useState<number>(0);
   const [indiceFin, setIndiceFin] = useState<number>(0);
+  const [indiceType, setIndiceType] = useState<"ICL" | "IPC">("ICL");
+
+  const [icl, setIcl] = useState<IndiceData | null>(null);
+  const [ipc, setIpc] = useState<IndiceData | null>(null);
+  const [loadingIndices, setLoadingIndices] = useState(false);
 
   const mesActual = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setLoadingIndices(true);
+      try {
+        const res = await fetch("/api/indices");
+        if (!res.ok || cancelled) return;
+        const json = (await res.json()) as { data: { icl: IndiceData | null; ipc: IndiceData | null } };
+        if (!cancelled) {
+          setIcl(json.data.icl);
+          setIpc(json.data.ipc);
+        }
+      } catch {
+        // silent
+      } finally {
+        if (!cancelled) setLoadingIndices(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const resultado = useMemo(
     () => calcularAjusteICL(alquilerActual || 0, moneda, indiceInicio || 0, indiceFin || 0),
@@ -26,8 +59,9 @@ export function CalculadoraICL() {
   function copiarNotificacion() {
     const lines = [
       `Actualización de alquiler — ${mesActual}`,
+      `Índice usado: ${indiceType}`,
       `Alquiler anterior: ${fmt(resultado.alquilerActual, moneda)}`,
-      `Variación ICL: ${fmtNum(resultado.porcentajeAumento)}%`,
+      `Variación ${indiceType}: ${fmtNum(resultado.porcentajeAumento)}%`,
       `Nuevo alquiler: ${fmt(resultado.nuevoAlquiler, moneda)}`,
       `Aumento mensual: ${fmt(resultado.aumento, moneda)}`,
     ].join("\n");
@@ -37,10 +71,51 @@ export function CalculadoraICL() {
 
   const indicesOk = indiceInicio > 0 && indiceFin > 0;
 
+  const iclVariacion = icl?.valor && ipc?.valor
+    ? ((icl.valor / (ipc.valor || 1)) - 1) * 100
+    : null;
+
   return (
     <div className="grid lg:grid-cols-5 gap-6">
       {/* ── Inputs ── */}
       <div className="lg:col-span-3 space-y-5">
+        {/* Toggle ICL / IPC */}
+        <div>
+          <label className={labelCls}>Índice de ajuste</label>
+          <div className="flex gap-2 p-1 rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}>
+            {(["ICL", "IPC"] as const).map((tipo) => (
+              <button
+                key={tipo}
+                onClick={() => setIndiceType(tipo)}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+                style={{
+                  background: indiceType === tipo ? "var(--surface)" : "transparent",
+                  color: indiceType === tipo ? "var(--brand-primary)" : "var(--text-muted)",
+                  boxShadow: indiceType === tipo ? "var(--shadow-card)" : "none",
+                }}
+              >
+                {tipo}
+                <span className="ml-1 text-[10px] font-normal">
+                  {tipo === "ICL" ? "(BCRA)" : "(INDEC)"}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Nota explicativa */}
+          <div className="mt-2 p-3 rounded-xl text-xs" style={{ background: "var(--surface-raised)", border: "1px solid var(--border)" }}>
+            {indiceType === "ICL" ? (
+              <p className="text-text-secondary">
+                <strong>ICL (BCRA):</strong> Conviene más al <strong>inquilino</strong> — refleja solo inflación financiera. Publicado a diario.
+              </p>
+            ) : (
+              <p className="text-text-secondary">
+                <strong>IPC (INDEC):</strong> Conviene más al <strong>propietario</strong> — refleja inflación general de precios. Publicado mensualmente.
+              </p>
+            )}
+          </div>
+        </div>
+
         {/* Alquiler actual */}
         <div>
           <label className={labelCls}>Alquiler mensual actual</label>
@@ -69,10 +144,10 @@ export function CalculadoraICL() {
           </div>
         </div>
 
-        {/* Índices ICL */}
+        {/* Índices */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className={labelCls}>ICL al inicio del período</label>
+            <label className={labelCls}>{indiceType} al inicio del período</label>
             <input
               type="number"
               value={indiceInicio || ""}
@@ -84,7 +159,7 @@ export function CalculadoraICL() {
             />
           </div>
           <div>
-            <label className={labelCls}>ICL actual</label>
+            <label className={labelCls}>{indiceType} actual</label>
             <input
               type="number"
               value={indiceFin || ""}
@@ -97,21 +172,36 @@ export function CalculadoraICL() {
           </div>
         </div>
 
-        {/* Info BCRA */}
+        {/* Info índices + referencia */}
         <div className="flex gap-2.5 p-3.5 rounded-xl" style={{ background: "var(--surface-raised)", border: "1px solid var(--border)" }}>
           <Info className="w-4 h-4 text-text-muted shrink-0 mt-0.5" />
-          <div className="text-xs text-text-secondary leading-relaxed space-y-1">
-            <p>Consultá los índices ICL en:</p>
-            <a
-              href="https://www.bcra.gob.ar/PublicacionesEstadisticas/Principales_variables_datos.asp"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium underline"
-              style={{ color: "var(--brand-primary)" }}
-            >
-              bcra.gob.ar → Índice para Contratos de Locación
-            </a>
-            <p className="text-text-muted">El ICL se publica todos los días hábiles.</p>
+          <div className="text-xs text-text-secondary leading-relaxed space-y-1.5">
+            {loadingIndices ? (
+              <div className="flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" /><span>Cargando índices...</span></div>
+            ) : (
+              <>
+                {icl?.valor && (
+                  <p>ICL actual: <strong>{fmtNum(icl.valor)}</strong> ({icl.fecha})</p>
+                )}
+                {ipc?.valor && (
+                  <p>IPC mensual: <strong>{fmtNum(ipc.valor)}%</strong> ({ipc.fecha})</p>
+                )}
+                {iclVariacion !== null && (
+                  <p className="text-text-muted">Diferencia ICL vs IPC este período: {fmtNum(iclVariacion)}%</p>
+                )}
+              </>
+            )}
+            <p>
+              {indiceType === "ICL" ? (
+                <a href="https://www.bcra.gob.ar/PublicacionesEstadisticas/Principales_variables_datos.asp" target="_blank" rel="noopener noreferrer" className="font-medium underline" style={{ color: "var(--brand-primary)" }}>
+                  bcra.gob.ar → Índice para Contratos de Locación
+                </a>
+              ) : (
+                <a href="https://www.indec.gob.ar/indec/web/Nivel4-Tema-3-5-31" target="_blank" rel="noopener noreferrer" className="font-medium underline" style={{ color: "var(--brand-primary)" }}>
+                  indec.gob.ar → IPC — Precios al consumidor
+                </a>
+              )}
+            </p>
           </div>
         </div>
 
@@ -121,8 +211,9 @@ export function CalculadoraICL() {
             <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Vista previa — notificación inquilino</p>
             <pre className="text-xs text-text-secondary whitespace-pre-wrap leading-relaxed font-mono">
 {`Actualización de alquiler — ${mesActual}
+Índice: ${indiceType}
 Alquiler anterior: ${fmt(resultado.alquilerActual, moneda)}
-Variación ICL: ${fmtNum(resultado.porcentajeAumento)}%
+Variación ${indiceType}: ${fmtNum(resultado.porcentajeAumento)}%
 Nuevo alquiler: ${fmt(resultado.nuevoAlquiler, moneda)}
 Aumento mensual: ${fmt(resultado.aumento, moneda)}`}
             </pre>
@@ -133,16 +224,16 @@ Aumento mensual: ${fmt(resultado.aumento, moneda)}`}
       {/* ── Resultados ── */}
       <div className="lg:col-span-2">
         <div className="sticky top-6 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-4">Resultado del ajuste</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-4">Resultado del ajuste — {indiceType}</p>
 
           {!indicesOk ? (
             <div className="rounded-xl p-6 text-center border border-dashed" style={{ borderColor: "var(--border)" }}>
-              <p className="text-sm text-text-muted">Ingresá ambos índices ICL para calcular</p>
+              <p className="text-sm text-text-muted">Ingresá ambos índices {indiceType} para calcular</p>
             </div>
           ) : (
             <>
               <div className="rounded-xl p-4 text-center border" style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}>
-                <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Variación ICL</p>
+                <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Variación {indiceType}</p>
                 <p
                   className="text-4xl font-bold tabular-nums"
                   style={{

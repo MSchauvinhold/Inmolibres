@@ -72,24 +72,27 @@ export default async function PropiedadDetailPage({
 
   if (!propiedad) notFound();
 
+  const a = propiedad.atributos;
   const atributos = [
-    propiedad.atributos?.habitaciones != null && {
-      icon: Bed,
-      label: `${propiedad.atributos.habitaciones} dormitorio${propiedad.atributos.habitaciones !== 1 ? "s" : ""}`,
-    },
-    propiedad.atributos?.banos != null && {
-      icon: Bath,
-      label: `${propiedad.atributos.banos} baño${propiedad.atributos.banos !== 1 ? "s" : ""}`,
-    },
-    propiedad.atributos?.superficieCubierta != null && {
-      icon: Square,
-      label: `${propiedad.atributos.superficieCubierta} m² cubiertos`,
-    },
-    propiedad.atributos?.superficieTotal != null && {
-      icon: Square,
-      label: `${propiedad.atributos.superficieTotal} m² totales`,
-    },
+    a?.habitaciones != null && { icon: Bed, label: `${a.habitaciones} dormitorio${a.habitaciones !== 1 ? "s" : ""}` },
+    a?.banos != null && { icon: Bath, label: `${a.banos} baño${a.banos !== 1 ? "s" : ""}` },
+    a?.superficieCubierta != null && { icon: Square, label: `${a.superficieCubierta} m² cubiertos` },
+    a?.superficieTotal != null && { icon: Square, label: `${a.superficieTotal} m² totales` },
+    (a?.anchoMetros != null && a?.largoMetros != null) && { icon: Square, label: `${a.anchoMetros} × ${a.largoMetros} m` },
+    a?.alturaInterna != null && { icon: Square, label: `${a.alturaInterna} m altura interna` },
+    a?.garage && { icon: Square, label: "Garage" },
+    a?.pileta && { icon: Square, label: "Pileta" },
+    a?.quincho && { icon: Square, label: "Quincho" },
+    a?.balcon && { icon: Square, label: "Balcón" },
+    a?.amueblado && { icon: Square, label: "Amueblado" },
   ].filter(Boolean) as Array<{ icon: React.ElementType; label: string }>;
+
+  const servicios = [
+    a?.serviciosAgua && "Agua corriente",
+    a?.serviciosLuz && "Luz eléctrica",
+    a?.serviciosGas && "Gas natural",
+    a?.serviciosCloaca && "Cloaca",
+  ].filter(Boolean) as string[];
 
   const waMsg = `Hola, vi "${propiedad.titulo}" en InmoLibres y me interesa más información.`;
   const waLink = buildWhatsAppLink(propiedad.inmobiliaria.whatsapp, waMsg);
@@ -212,6 +215,46 @@ export default async function PropiedadDetailPage({
                   {label}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Servicios */}
+          {servicios.length > 0 && (
+            <div>
+              <h2 className="text-base font-semibold mb-2" style={{ fontFamily: "var(--font-fraunces)", color: "var(--antracite)" }}>
+                Servicios
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {servicios.map((s) => (
+                  <span
+                    key={s}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium"
+                    style={{ background: "#E8F5E9", color: "#1B4332", fontFamily: "var(--font-jakarta)" }}
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Características custom */}
+          {a?.caracteristicasCustom && a.caracteristicasCustom.length > 0 && (
+            <div>
+              <h2 className="text-base font-semibold mb-2" style={{ fontFamily: "var(--font-fraunces)", color: "var(--antracite)" }}>
+                Características
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {a.caracteristicasCustom.map((c) => (
+                  <span
+                    key={c}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium"
+                    style={{ background: "var(--cream-dark)", color: "var(--antracite-mid)", fontFamily: "var(--font-jakarta)", border: "1px solid var(--cream-border)" }}
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 

@@ -86,12 +86,11 @@ export function calcularAjusteICL(
 // ─── Helpers de formato ───────────────────────────────────────────────────────
 
 export function fmt(valor: number, moneda: "ARS" | "USD"): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: moneda,
-    minimumFractionDigits: moneda === "USD" ? 2 : 0,
-    maximumFractionDigits: moneda === "USD" ? 2 : 0,
+  const numero = new Intl.NumberFormat("es-AR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(valor);
+  return moneda === "USD" ? `US$ ${numero}` : `$ ${numero}`;
 }
 
 export function fmtNum(valor: number): string {
