@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { requireCrmAuth, isNextResponse } from "@/lib/api-auth";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_req: NextRequest, { params }: Params) {
   const { id } = await params;
-  const session = await requireInmobiliariaAuth();
+  const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
-  const { inmobiliariaId } = session;
+  const { userId, inmobiliariaId, rol } = session;
+  const isParticular = rol === "PARTICULAR";
 
   try {
     const original = await db.propiedad.findUnique({
@@ -16,16 +17,20 @@ export async function POST(_req: NextRequest, { params }: Params) {
       include: { atributos: true, fotos: { orderBy: { orden: "asc" } } },
     });
 
-    if (!original || original.inmobiliariaId !== inmobiliariaId) {
+    const esPropia = isParticular
+      ? original?.agenteId === userId
+      : original?.inmobiliariaId === inmobiliariaId;
+
+    if (!original || !esPropia) {
       return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
     }
 
-    // Slug único: append -copia, -copia-2, etc.
+    // Slug único global: append -copia, -copia-2, etc.
     let nuevoSlug = `${original.slug}-copia`;
     let intento = 1;
     while (true) {
       const existe = await db.propiedad.findUnique({
-        where: { inmobiliariaId_slug: { inmobiliariaId, slug: nuevoSlug } },
+        where: { slug: nuevoSlug },
         select: { id: true },
       });
       if (!existe) break;
@@ -36,7 +41,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     const nueva = await db.$transaction(async (tx) => {
       const propiedad = await tx.propiedad.create({
         data: {
-          inmobiliariaId,
+          inmobiliariaId: isParticular ? null : inmobiliariaId!,
           titulo: `${original.titulo} (copia)`,
           slug: nuevoSlug,
           tipo: original.tipo,

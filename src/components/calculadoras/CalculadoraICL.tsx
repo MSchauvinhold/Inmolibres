@@ -17,7 +17,7 @@ interface IndiceData {
 
 export function CalculadoraICL() {
   const [alquilerActual, setAlquilerActual] = useState<number>(100000);
-  const [moneda, setMoneda] = useState<"ARS" | "USD">("ARS");
+  const moneda: "ARS" | "USD" = "ARS";
   const [indiceInicio, setIndiceInicio] = useState<number>(0);
   const [indiceFin, setIndiceFin] = useState<number>(0);
   const [indiceType, setIndiceType] = useState<"ICL" | "IPC">("ICL");
@@ -119,29 +119,15 @@ export function CalculadoraICL() {
         {/* Alquiler actual */}
         <div>
           <label className={labelCls}>Alquiler mensual actual</label>
-          <div className="flex gap-2">
-            <div className="flex rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-              {(["ARS", "USD"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMoneda(m)}
-                  className="px-4 py-2.5 text-sm font-semibold transition-colors"
-                  style={{ background: moneda === m ? "var(--brand-primary)" : "var(--surface)", color: moneda === m ? "white" : "var(--text-muted)" }}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-            <input
-              type="number"
-              value={alquilerActual || ""}
-              onChange={(e) => setAlquilerActual(Number(e.target.value))}
-              className={inputCls}
-              style={inputStyle}
-              placeholder="0"
-              min={0}
-            />
-          </div>
+          <input
+            type="number"
+            value={alquilerActual || ""}
+            onChange={(e) => setAlquilerActual(Number(e.target.value))}
+            className={inputCls}
+            style={inputStyle}
+            placeholder="0"
+            min={0}
+          />
         </div>
 
         {/* Índices */}

@@ -77,7 +77,7 @@ export function ClienteForm({ clienteId, defaultValues }: Props) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
-          <label className={labelCls}>Origen del lead</label>
+          <label className={labelCls}>Cómo nos conoció</label>
           <select {...register("origen")} className={inputCls}>
             <option value="INSTAGRAM">Instagram</option>
             <option value="WHATSAPP">WhatsApp</option>
@@ -88,12 +88,12 @@ export function ClienteForm({ clienteId, defaultValues }: Props) {
           </select>
         </div>
         <div>
-          <label className={labelCls}>Estado pipeline</label>
+          <label className={labelCls}>Etapa del cliente</label>
           <select {...register("estadoPipeline")} className={inputCls}>
             <option value="NUEVO">Nuevo</option>
             <option value="CONTACTADO">Contactado</option>
-            <option value="VISITA_AGENDADA">Visita Agendada</option>
-            <option value="SEGUNDA_VISITA">2da Visita</option>
+            <option value="VISITA_AGENDADA">Visita agendada</option>
+            <option value="SEGUNDA_VISITA">Segunda visita</option>
             <option value="CERRADO">Cerrado</option>
             <option value="PERDIDO">Perdido</option>
           </select>

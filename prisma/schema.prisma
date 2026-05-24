@@ -141,6 +141,14 @@ enum TipoDocumento {
   @@map("tipo_documento")
 }
 
+enum RolContacto {
+  PROPIETARIO
+  INQUILINO
+  COMPRADOR
+
+  @@map("rol_contacto")
+}
+
 enum TipoOperacionFinanciera {
   VENTA
   ALQUILER
@@ -168,12 +176,14 @@ model Inmobiliaria {
   clientes         Cliente[]
   visitas          Visita[]
   contratos        ContratoAlquiler[]
+  contratosVenta   ContratoVenta[]
   consultas        Consulta[]
   pagos            PagoSuscripcion[]
   configuracion    ConfiguracionInmobiliaria?
   operaciones      OperacionCerrada[]
   egresos          EgresoInmobiliaria[]
   documentosCliente DocumentoCliente[]
+  contactos         Contacto[]
 
   @@map("inmobiliarias")
 }
@@ -203,9 +213,9 @@ model Usuario {
 
 model Propiedad {
   id             String          @id @default(dbgenerated("gen_random_uuid()"))
-  inmobiliariaId String          @map("inmobiliaria_id")
+  inmobiliariaId String?         @map("inmobiliaria_id")
   titulo         String
-  slug           String
+  slug           String          @unique
   tipo           TipoPropiedad
   operacion      TipoOperacion
   precio         Decimal         @db.Decimal(15, 2)
@@ -222,7 +232,7 @@ model Propiedad {
   createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  inmobiliaria        Inmobiliaria       @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  inmobiliaria        Inmobiliaria?      @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   agente              Usuario            @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
   atributos           PropiedadAtributos?
   fotos               FotoPropiedad[]
@@ -231,7 +241,6 @@ model Propiedad {
   contratos           ContratoAlquiler[]
   consultas           Consulta[]
 
-  @@unique([inmobiliariaId, slug])
   @@index([inmobiliariaId], map: "idx_propiedades_inmobiliaria")
   @@index([tipo, operacion], map: "idx_propiedades_tipo_operacion")
   @@index([publicada, estado], map: "idx_propiedades_publicada")
@@ -287,7 +296,7 @@ model FotoPropiedad {
 
 model Cliente {
   id             String         @id @default(dbgenerated("gen_random_uuid()"))
-  inmobiliariaId String         @map("inmobiliaria_id")
+  inmobiliariaId String?        @map("inmobiliaria_id")
   nombre         String
   telefono       String
   email          String?
@@ -298,7 +307,7 @@ model Cliente {
   ultimaActividad DateTime      @default(now()) @map("ultima_actividad") @db.Timestamptz(6)
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  inmobiliaria Inmobiliaria       @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  inmobiliaria Inmobiliaria?      @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   agente       Usuario?           @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
   propiedades  PropiedadCliente[]
   visitas      Visita[]
@@ -326,7 +335,7 @@ model Visita {
   propiedadId    String       @map("propiedad_id")
   clienteId      String       @map("cliente_id")
   agenteId       String       @map("agente_id")
-  inmobiliariaId String       @map("inmobiliaria_id")
+  inmobiliariaId String?      @map("inmobiliaria_id")
   fechaHora      DateTime     @map("fecha_hora") @db.Timestamptz(6)
   tipo           TipoVisita
   estado         EstadoVisita @default(PENDIENTE)
@@ -334,10 +343,10 @@ model Visita {
   alertaEnviada  Boolean      @default(false) @map("alerta_enviada")
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  propiedad    Propiedad    @relation(fields: [propiedadId], references: [id], onUpdate: NoAction)
-  cliente      Cliente      @relation(fields: [clienteId], references: [id], onUpdate: NoAction)
-  agente       Usuario      @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
-  inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
+  propiedad    Propiedad     @relation(fields: [propiedadId], references: [id], onUpdate: NoAction)
+  cliente      Cliente       @relation(fields: [clienteId], references: [id], onUpdate: NoAction)
+  agente       Usuario       @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
+  inmobiliaria Inmobiliaria? @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
 
   @@index([inmobiliariaId], map: "idx_visitas_inmobiliaria")
   @@index([fechaHora], map: "idx_visitas_fecha")
@@ -359,12 +368,55 @@ model ContratoAlquiler {
   fechaFin           DateTime   @map("fecha_fin") @db.Date
   createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  propiedad    Propiedad    @relation(fields: [propiedadId], references: [id], onUpdate: NoAction)
-  inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
+  propiedad    Propiedad        @relation(fields: [propiedadId], references: [id], onUpdate: NoAction)
+  inmobiliaria Inmobiliaria     @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
+  personas     ContratoPersona[]
 
   @@index([inmobiliariaId], map: "idx_contratos_inmobiliaria")
   @@index([fechaFin], map: "idx_contratos_fecha_fin")
   @@map("contratos_alquiler")
+}
+
+model ContratoVenta {
+  id                   String    @id @default(cuid())
+  inmobiliariaId       String    @map("inmobiliaria_id")
+
+  propiedadDireccion   String    @map("propiedad_direccion")
+  propiedadDescripcion String?   @map("propiedad_descripcion")
+  matriculaInmueble    String?   @map("matricula_inmueble")
+
+  vendedorNombre       String    @map("vendedor_nombre")
+  vendedorDni          String    @map("vendedor_dni")
+  vendedorDomicilio    String?   @map("vendedor_domicilio")
+  vendedorEstadoCivil  String    @default("soltero") @map("vendedor_estado_civil")
+  vendedorConyuge      String?   @map("vendedor_conyuge")
+
+  compradorNombre      String    @map("comprador_nombre")
+  compradorDni         String    @map("comprador_dni")
+  compradorDomicilio   String?   @map("comprador_domicilio")
+  compradorEstadoCivil String    @default("soltero") @map("comprador_estado_civil")
+  compradorConyuge     String?   @map("comprador_conyuge")
+
+  precioVenta          Decimal   @map("precio_venta") @db.Decimal(15, 2)
+  moneda               Moneda    @default(USD)
+  sena                 Decimal?  @db.Decimal(15, 2)
+  comisionVendedorPct  Float     @default(3) @map("comision_vendedor_pct")
+  comisionCompradorPct Float     @default(3) @map("comision_comprador_pct")
+  formaPago            String    @default("Contado") @map("forma_pago")
+
+  escribanoNombre      String?   @map("escribano_nombre")
+  escribanoRegistro    String?   @map("escribano_registro")
+  fechaEscritura       DateTime? @map("fecha_escritura") @db.Date
+
+  clausulas            String?
+
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt      @map("updated_at") @db.Timestamptz(6)
+
+  inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade)
+
+  @@index([inmobiliariaId], map: "idx_contratos_venta_inmobiliaria")
+  @@map("contratos_venta")
 }
 
 model Consulta {
@@ -436,6 +488,8 @@ model ConfiguracionInmobiliaria {
 
   colorPrimario        String   @default("#1B4332") @map("color_primario")
   colorSecundario      String   @default("#2C2C2C") @map("color_secundario")
+
+  logoEnContrato       Boolean  @default(false) @map("logo_en_contrato")
 
   clausulasAdicionales String?  @map("clausulas_adicionales")
   piePaginaContrato    String?  @map("pie_pagina_contrato")
@@ -541,4 +595,80 @@ model EgresoInmobiliaria {
 
   @@index([inmobiliariaId])
   @@map("egresos_inmobiliaria")
+}
+
+// ─── Contactos ────────────────────────────────────────────────────────────────
+
+model Contacto {
+  id              String        @id @default(cuid())
+  inmobiliariaId  String        @map("inmobiliaria_id")
+  roles           RolContacto[]
+  nombre          String
+  dni             String?
+  fechaNacimiento DateTime?     @map("fecha_nacimiento")
+  domicilio       String?
+  telefono        String?
+  email           String?
+  estadoCivil     String?       @map("estado_civil")
+  ocupacion       String?
+  notas           String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt      @map("updated_at")
+
+  inmobiliaria Inmobiliaria        @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade)
+  documentos   DocumentoContacto[]
+  garante      Garante?
+  contratos    ContratoPersona[]
+
+  @@index([inmobiliariaId], map: "idx_contactos_inmobiliaria")
+  @@map("contactos")
+}
+
+model Garante {
+  id                  String    @id @default(cuid())
+  contactoId          String    @unique @map("contacto_id")
+  nombre              String
+  dni                 String?
+  fechaNacimiento     DateTime? @map("fecha_nacimiento")
+  domicilio           String?
+  telefono            String?
+  relacionConContacto String?   @map("relacion_con_contacto")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt      @map("updated_at")
+
+  contacto   Contacto            @relation(fields: [contactoId], references: [id], onDelete: Cascade)
+  documentos DocumentoContacto[]
+
+  @@map("garantes")
+}
+
+model DocumentoContacto {
+  id         String        @id @default(cuid())
+  contactoId String?       @map("contacto_id")
+  garanteId  String?       @map("garante_id")
+  tipo       TipoDocumento
+  label      String?
+  url        String
+  esImagen   Boolean       @default(false) @map("es_imagen")
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  contacto Contacto? @relation(fields: [contactoId], references: [id], onDelete: Cascade)
+  garante  Garante?  @relation(fields: [garanteId], references: [id], onDelete: Cascade)
+
+  @@index([contactoId])
+  @@index([garanteId])
+  @@map("documentos_contacto")
+}
+
+model ContratoPersona {
+  id         String @id @default(cuid())
+  contratoId String @map("contrato_id")
+  contactoId String @map("contacto_id")
+  rol        String
+
+  contrato ContratoAlquiler @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  contacto Contacto         @relation(fields: [contactoId], references: [id], onDelete: Cascade)
+
+  @@unique([contratoId, contactoId, rol])
+  @@map("contratos_personas")
 }

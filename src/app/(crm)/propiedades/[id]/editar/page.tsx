@@ -7,7 +7,10 @@ export const metadata = { title: "Editar Propiedad" };
 
 export default async function EditarPropiedadPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  if (!session?.user?.inmobiliariaId) redirect("/login");
+  if (!session?.user) redirect("/login");
+
+  const isParticular = session.user.rol === "PARTICULAR";
+  if (!isParticular && !session.user.inmobiliariaId) redirect("/login");
 
   const { id } = await params;
 
@@ -16,7 +19,11 @@ export default async function EditarPropiedadPage({ params }: { params: Promise<
     include: { atributos: true, fotos: { orderBy: { orden: "asc" } } },
   });
 
-  if (!propiedad || propiedad.inmobiliariaId !== session.user.inmobiliariaId) notFound();
+  const esPropia = isParticular
+    ? propiedad?.agenteId === session.user.id
+    : propiedad?.inmobiliariaId === session.user.inmobiliariaId;
+
+  if (!propiedad || !esPropia) notFound();
 
   // Serializar: Prisma Decimal → number (no es transferible Server→Client)
   const serialized: PropiedadParaEditar = {
@@ -29,6 +36,7 @@ export default async function EditarPropiedadPage({ params }: { params: Promise<
     direccion: propiedad.direccion,
     latitud: propiedad.latitud,
     longitud: propiedad.longitud,
+    poligonoJson: (propiedad.poligonoJson as [number, number][] | null) ?? null,
     descripcion: propiedad.descripcion,
     videoUrl: propiedad.videoUrl,
     publicada: propiedad.publicada,

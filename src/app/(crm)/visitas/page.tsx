@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Plus, CalendarCheck } from "lucide-react";
+import { ESTADO_VISITA_LABELS } from "@/lib/utils";
 import { VisitaForm } from "@/components/visitas/VisitaForm";
 import { VisitasCalendar } from "@/components/visitas/VisitasCalendar";
 import { VisitasToggle } from "@/components/visitas/VisitasToggle";
@@ -14,16 +15,18 @@ export default async function VisitasPage({
   searchParams: Promise<{ vista?: string }>;
 }) {
   const session = await auth();
-  if (!session?.user?.inmobiliariaId) redirect("/login");
+  if (!session?.user) redirect("/login");
 
+  const isParticular = session.user.rol === "PARTICULAR";
   const inmobiliariaId = session.user.inmobiliariaId;
+  if (!isParticular && !inmobiliariaId) redirect("/login");
+
   const isAgente = session.user.rol === "AGENTE";
   const userId = session.user.id;
 
   const sp = await searchParams;
   const vista = sp.vista === "calendario" ? "calendario" : "lista";
 
-  // Para lista: últimos 7 días + próximas. Para calendario: rango amplio (3 meses)
   const ahora = new Date();
   const desde = vista === "calendario"
     ? new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1)
@@ -32,13 +35,17 @@ export default async function VisitasPage({
     ? new Date(ahora.getFullYear(), ahora.getMonth() + 3, 0)
     : undefined;
 
-  const [visitas, propiedades, clientes, agentes] = await Promise.all([
-    db.visita.findMany({
-      where: {
-        inmobiliariaId,
+  const visitasWhere = isParticular
+    ? { agenteId: userId, fechaHora: { gte: desde, ...(hasta ? { lte: hasta } : {}) } }
+    : {
+        inmobiliariaId: inmobiliariaId!,
         ...(isAgente ? { agenteId: userId } : {}),
         fechaHora: { gte: desde, ...(hasta ? { lte: hasta } : {}) },
-      },
+      };
+
+  const [visitas, propiedades, clientes, agentes] = await Promise.all([
+    db.visita.findMany({
+      where: visitasWhere,
       orderBy: { fechaHora: "asc" },
       include: {
         propiedad: { select: { titulo: true, direccion: true } },
@@ -47,9 +54,15 @@ export default async function VisitasPage({
       },
       take: 200,
     }),
-    db.propiedad.findMany({ where: { inmobiliariaId }, select: { id: true, titulo: true }, orderBy: { titulo: "asc" } }),
-    db.cliente.findMany({ where: { inmobiliariaId }, select: { id: true, nombre: true }, orderBy: { nombre: "asc" } }),
-    db.usuario.findMany({ where: { inmobiliariaId, activo: true, rol: { in: ["ADMIN", "AGENTE"] } }, select: { id: true, nombre: true } }),
+    isParticular
+      ? db.propiedad.findMany({ where: { agenteId: userId }, select: { id: true, titulo: true }, orderBy: { titulo: "asc" } })
+      : db.propiedad.findMany({ where: { inmobiliariaId: inmobiliariaId! }, select: { id: true, titulo: true }, orderBy: { titulo: "asc" } }),
+    isParticular
+      ? db.cliente.findMany({ where: { agenteId: userId, inmobiliariaId: null }, select: { id: true, nombre: true }, orderBy: { nombre: "asc" } })
+      : db.cliente.findMany({ where: { inmobiliariaId: inmobiliariaId! }, select: { id: true, nombre: true }, orderBy: { nombre: "asc" } }),
+    isParticular
+      ? Promise.resolve([{ id: userId, nombre: session.user.nombre ?? "Yo" }])
+      : db.usuario.findMany({ where: { inmobiliariaId: inmobiliariaId!, activo: true, rol: { in: ["ADMIN", "AGENTE"] } }, select: { id: true, nombre: true } }),
   ]);
 
   const visitasSerialized = visitas.map((v) => ({
@@ -108,7 +121,7 @@ export default async function VisitasPage({
                           <p className="text-xs text-text-muted">{v.propiedad.direccion}</p>
                         </div>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${ESTADO_COLORS[v.estado]}`}>
-                          {v.estado}
+                          {ESTADO_VISITA_LABELS[v.estado]}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 mt-2 text-xs text-text-secondary">

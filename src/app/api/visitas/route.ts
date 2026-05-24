@@ -3,11 +3,11 @@ import { db } from "@/lib/db";
 import { visitaSchema, actualizarVisitaSchema } from "@/lib/validations/visit";
 import { notifyAgente, NotifMessages } from "@/lib/notifications";
 import { buildPaginationMeta } from "@/lib/utils";
-import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { requireCrmAuth, isNextResponse } from "@/lib/api-auth";
 import type { Prisma, EstadoVisita } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
-  const session = await requireInmobiliariaAuth();
+  const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
   const { userId, inmobiliariaId, rol } = session;
 
@@ -19,11 +19,13 @@ export async function GET(request: NextRequest) {
   const fechaHasta = searchParams.get("fechaHasta");
   const agenteId = searchParams.get("agenteId");
 
-  const where: Prisma.VisitaWhereInput = { inmobiliariaId };
+  const where: Prisma.VisitaWhereInput = rol === "PARTICULAR"
+    ? { agenteId: userId }
+    : { inmobiliariaId: inmobiliariaId! };
 
   if (rol === "AGENTE") {
     where.agenteId = userId;
-  } else if (agenteId) {
+  } else if (rol !== "PARTICULAR" && agenteId) {
     where.agenteId = agenteId;
   }
 
@@ -63,9 +65,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await requireInmobiliariaAuth();
+  const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
-  const { inmobiliariaId } = session;
+  const { inmobiliariaId, rol } = session;
+  const isParticular = rol === "PARTICULAR";
 
   let body: unknown;
   try {
@@ -87,7 +90,7 @@ export async function POST(request: NextRequest) {
       data: {
         ...parsed.data,
         fechaHora: new Date(parsed.data.fechaHora),
-        inmobiliariaId,
+        inmobiliariaId: isParticular ? null : inmobiliariaId!,
       },
       include: {
         propiedad: { select: { id: true, titulo: true } },
@@ -115,7 +118,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const session = await requireInmobiliariaAuth();
+  const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
   const { userId, inmobiliariaId, rol } = session;
 
@@ -149,11 +152,17 @@ export async function PUT(request: NextRequest) {
     if (!existing) {
       return NextResponse.json({ error: "Visita no encontrada" }, { status: 404 });
     }
-    if (existing.inmobiliariaId !== inmobiliariaId) {
-      return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
-    }
-    if (rol === "AGENTE" && existing.agenteId !== userId) {
-      return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+    if (rol === "PARTICULAR") {
+      if (existing.agenteId !== userId) {
+        return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+      }
+    } else {
+      if (existing.inmobiliariaId !== inmobiliariaId) {
+        return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+      }
+      if (rol === "AGENTE" && existing.agenteId !== userId) {
+        return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+      }
     }
 
     const visita = await db.visita.update({

@@ -117,10 +117,18 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       );
     }
 
-    // Eliminación ordenada para respetar FK constraints sin CASCADE en el schema.
-    // Orden: primero los modelos que referencian Propiedad/Cliente/Usuario sin cascade,
-    // luego Usuarios (auto-cascadea Notificaciones y PermisosAgente),
-    // finalmente Inmobiliaria (auto-cascadea Propiedades, Clientes, Configuracion).
+    // Eliminación manual en orden topológico — todos los modelos que referencian
+    // entidades de esta inmobiliaria sin onDelete: Cascade deben borrarse antes
+    // que su tabla padre. Orden crítico:
+    //   - Visita, ContratoAlquiler, Consulta → antes de Propiedad y Cliente
+    //   - OperacionCerrada → antes de Usuario (agenteId sin cascade)
+    //   - Propiedad → antes de Usuario (agenteId sin cascade)
+    //     ↳ auto-cascadea FotoPropiedad, PropiedadAtributos, PropiedadCliente
+    //   - Cliente → antes de Usuario (agenteId nullable sin cascade)
+    //     ↳ auto-cascadea DocumentoCliente
+    //   - Usuario → antes de Inmobiliaria (inmobiliariaId sin cascade)
+    //     ↳ auto-cascadea Notificacion, PermisosAgente
+    //   - Inmobiliaria → queda sin dependientes, se borra limpio
     await db.$transaction(async (tx) => {
       await tx.visita.deleteMany({ where: { inmobiliariaId: id } });
       await tx.contratoAlquiler.deleteMany({ where: { inmobiliariaId: id } });
@@ -128,12 +136,17 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       await tx.operacionCerrada.deleteMany({ where: { inmobiliariaId: id } });
       await tx.egresoInmobiliaria.deleteMany({ where: { inmobiliariaId: id } });
       await tx.pagoSuscripcion.deleteMany({ where: { inmobiliariaId: id } });
+      // Propiedad y Cliente ANTES de Usuario para limpiar sus agenteId FKs
+      await tx.propiedad.deleteMany({ where: { inmobiliariaId: id } });
+      await tx.cliente.deleteMany({ where: { inmobiliariaId: id } });
+      await tx.configuracionInmobiliaria.deleteMany({ where: { inmobiliariaId: id } });
       await tx.usuario.deleteMany({ where: { inmobiliariaId: id } });
       await tx.inmobiliaria.delete({ where: { id } });
     });
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (e) {
+    console.error("[DELETE /api/inmobiliarias]", e);
     return NextResponse.json({ error: "Error al eliminar inmobiliaria" }, { status: 500 });
   }
 }

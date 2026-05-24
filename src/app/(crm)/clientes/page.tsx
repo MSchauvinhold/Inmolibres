@@ -19,28 +19,39 @@ export default async function ClientesPage({
   searchParams: Promise<SearchParams>;
 }) {
   const session = await auth();
-  if (!session?.user?.inmobiliariaId) redirect("/login");
+  if (!session?.user) redirect("/login");
 
+  const isParticular = session.user.rol === "PARTICULAR";
   const inmobiliariaId = session.user.inmobiliariaId;
+  if (!isParticular && !inmobiliariaId) redirect("/login");
+
   const isAgente = session.user.rol === "AGENTE";
   const userId = session.user.id;
   const sp = await searchParams;
 
-  const [clientes, agentes] = await Promise.all([
-    db.cliente.findMany({
-      where: {
-        inmobiliariaId,
+  const where = isParticular
+    ? {
+        agenteId: userId,
+        inmobiliariaId: null,
+        ...(sp.estado ? { estadoPipeline: sp.estado as EstadoPipeline } : {}),
+      }
+    : {
+        inmobiliariaId: inmobiliariaId!,
         ...(isAgente ? { agenteId: userId } : {}),
         ...(sp.estado ? { estadoPipeline: sp.estado as EstadoPipeline } : {}),
         ...(sp.agenteId ? { agenteId: sp.agenteId } : {}),
-      },
+      };
+
+  const [clientes, agentes] = await Promise.all([
+    db.cliente.findMany({
+      where,
       orderBy: { ultimaActividad: "desc" },
       include: { agente: { select: { nombre: true } } },
     }),
-    isAgente
+    isParticular || isAgente
       ? []
       : db.usuario.findMany({
-          where: { inmobiliariaId, activo: true, rol: { in: ["ADMIN", "AGENTE"] } },
+          where: { inmobiliariaId: inmobiliariaId!, activo: true, rol: { in: ["ADMIN", "AGENTE"] } },
           select: { id: true, nombre: true },
           orderBy: { nombre: "asc" },
         }),
@@ -79,8 +90,8 @@ export default async function ClientesPage({
           <option value="">Todos los estados</option>
           <option value="NUEVO">Nuevo</option>
           <option value="CONTACTADO">Contactado</option>
-          <option value="VISITA_AGENDADA">Visita Agendada</option>
-          <option value="SEGUNDA_VISITA">2da Visita</option>
+          <option value="VISITA_AGENDADA">Visita agendada</option>
+          <option value="SEGUNDA_VISITA">Segunda visita</option>
           <option value="CERRADO">Cerrado</option>
           <option value="PERDIDO">Perdido</option>
         </select>

@@ -32,7 +32,7 @@ function Toggle({ value, onChange, label, desc }: { value: boolean; onChange: (v
 
 export function CalculadoraEscrituracion() {
   const [precio, setPrecio] = useState<number>(50000);
-  const [moneda, setMoneda] = useState<"ARS" | "USD">("USD");
+  const [moneda] = useState<"ARS" | "USD">("USD");
   const [tasaCambio, setTasaCambio] = useState<number>(1200);
   const [cargandoTC, setCargandoTC] = useState(false);
   const [aplicaITI, setAplicaITI] = useState(false);
@@ -87,29 +87,15 @@ export function CalculadoraEscrituracion() {
       <div className="lg:col-span-3 space-y-5">
         <div>
           <label className={labelCls}>Precio de venta</label>
-          <div className="flex gap-2">
-            <div className="flex rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-              {(["USD", "ARS"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMoneda(m)}
-                  className="px-4 py-2.5 text-sm font-semibold transition-colors"
-                  style={{ background: moneda === m ? "var(--brand-primary)" : "var(--surface)", color: moneda === m ? "white" : "var(--text-muted)" }}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-            <input
-              type="number"
-              value={precio || ""}
-              onChange={(e) => setPrecio(Number(e.target.value))}
-              className={inputCls}
-              style={inputStyle}
-              placeholder="0"
-              min={0}
-            />
-          </div>
+          <input
+            type="number"
+            value={precio || ""}
+            onChange={(e) => setPrecio(Number(e.target.value))}
+            className={inputCls}
+            style={inputStyle}
+            placeholder="0"
+            min={0}
+          />
         </div>
 
         {moneda === "USD" && (

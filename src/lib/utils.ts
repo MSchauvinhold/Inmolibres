@@ -147,7 +147,7 @@ export const TIPO_PROPIEDAD_LABELS: Record<TipoPropiedad, string> = {
 export const TIPO_OPERACION_LABELS: Record<TipoOperacion, string> = {
   VENTA: "Venta",
   ALQUILER: "Alquiler",
-  ALQUILER_TEMPORARIO: "Alquiler Temporario",
+  ALQUILER_TEMPORARIO: "Alquiler temporario",
 };
 
 export const ESTADO_PROPIEDAD_LABELS: Record<EstadoPropiedad, string> = {
@@ -160,8 +160,8 @@ export const ESTADO_PROPIEDAD_LABELS: Record<EstadoPropiedad, string> = {
 export const ESTADO_PIPELINE_LABELS: Record<EstadoPipeline, string> = {
   NUEVO: "Nuevo",
   CONTACTADO: "Contactado",
-  VISITA_AGENDADA: "Visita Agendada",
-  SEGUNDA_VISITA: "2da Visita",
+  VISITA_AGENDADA: "Visita agendada",
+  SEGUNDA_VISITA: "Segunda visita",
   CERRADO: "Cerrado",
   PERDIDO: "Perdido",
 };
@@ -169,10 +169,16 @@ export const ESTADO_PIPELINE_LABELS: Record<EstadoPipeline, string> = {
 export const ORIGEN_LEAD_LABELS: Record<OrigenLead, string> = {
   INSTAGRAM: "Instagram",
   WHATSAPP: "WhatsApp",
-  CONSULTA_LOCAL: "Consulta Local",
+  CONSULTA_LOCAL: "Consulta local",
   REFERIDO: "Referido",
   PORTAL: "Portal",
   OTRO: "Otro",
+};
+
+export const ESTADO_VISITA_LABELS: Record<"PENDIENTE" | "REALIZADA" | "CANCELADA", string> = {
+  PENDIENTE: "Pendiente",
+  REALIZADA: "Realizada",
+  CANCELADA: "Cancelada",
 };
 
 export const ESTADO_INMOBILIARIA_LABELS: Record<EstadoInmobiliaria, string> = {
@@ -240,7 +246,7 @@ export function buildPaginationMeta(
 // ─── Tenant Guard ─────────────────────────────────────────────────────────────
 
 export function assertSameTenant(
-  resourceInmobiliariaId: string,
+  resourceInmobiliariaId: string | null,
   sessionInmobiliariaId: string | null | undefined,
   userRol: string
 ) {

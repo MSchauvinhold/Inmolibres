@@ -23,9 +23,9 @@ export async function generateMetadata({
 }: {
   params: Promise<Params>;
 }): Promise<Metadata> {
-  const { id, slug } = await params;
+  const { id } = await params;
   const prop = await db.propiedad.findUnique({
-    where: { inmobiliariaId_slug: { inmobiliariaId: id, slug } },
+    where: { id },
     select: {
       titulo: true,
       descripcion: true,
@@ -47,11 +47,11 @@ export default async function PropiedadDetailPage({
 }: {
   params: Promise<Params>;
 }) {
-  const { id: inmobiliariaId, slug } = await params;
+  const { id } = await params;
 
   const propiedad = await db.propiedad.findUnique({
     where: {
-      inmobiliariaId_slug: { inmobiliariaId, slug },
+      id,
       publicada: true,
     },
     include: {
@@ -95,14 +95,18 @@ export default async function PropiedadDetailPage({
   ].filter(Boolean) as string[];
 
   const waMsg = `Hola, vi "${propiedad.titulo}" en InmoLibres y me interesa más información.`;
-  const waLink = buildWhatsAppLink(propiedad.inmobiliaria.whatsapp, waMsg);
+  const waLink = propiedad.inmobiliaria
+    ? buildWhatsAppLink(propiedad.inmobiliaria.whatsapp, waMsg)
+    : null;
 
-  const initials = propiedad.inmobiliaria.nombre
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0] ?? "")
-    .join("")
-    .toUpperCase();
+  const initials = propiedad.inmobiliaria
+    ? propiedad.inmobiliaria.nombre
+        .split(" ")
+        .slice(0, 2)
+        .map((w) => w[0] ?? "")
+        .join("")
+        .toUpperCase()
+    : "P";
 
   const fotos = propiedad.fotos.map((f) => ({
     id: f.id,
@@ -111,14 +115,14 @@ export default async function PropiedadDetailPage({
   }));
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 pb-24 lg:pb-10">
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-10 pb-24 lg:pb-10">
       {/* Mobile sticky CTA */}
       <div
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 px-4 py-3 border-t"
         style={{ background: "white", borderColor: "var(--cream-border)" }}
       >
         <a
-          href={waLink}
+          href={waLink ?? undefined}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-terra w-full justify-center gap-2.5 py-3.5 rounded-xl text-sm font-semibold"
@@ -129,9 +133,9 @@ export default async function PropiedadDetailPage({
         </a>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-10">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-10 lg:gap-x-10">
         {/* Main column */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="min-w-0 space-y-8">
           {/* Gallery */}
           {fotos.length > 0 && <PropiedadGallery fotos={fotos} />}
 
@@ -299,6 +303,7 @@ export default async function PropiedadDetailPage({
                   lat={propiedad.latitud}
                   lon={propiedad.longitud}
                   titulo={propiedad.titulo}
+                  polygon={propiedad.poligonoJson as [number, number][] | null}
                 />
               </div>
             </div>
@@ -306,16 +311,16 @@ export default async function PropiedadDetailPage({
         </div>
 
         {/* Sticky sidebar */}
-        <div>
+        <div className="min-w-0 lg:pl-6">
           <div
             className="sticky rounded-2xl p-6 space-y-5"
             style={{
-              top: 80,
+              top: 88,
               background: "white",
               boxShadow: "var(--shadow-mp-card)",
             }}
           >
-            {/* Inmobiliaria branding */}
+            {/* Inmobiliaria / particular branding */}
             <div className="flex items-center gap-3">
               <div
                 className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center shrink-0 text-sm font-bold"
@@ -325,7 +330,7 @@ export default async function PropiedadDetailPage({
                   fontFamily: "var(--font-jakarta)",
                 }}
               >
-                {propiedad.inmobiliaria.logoUrl ? (
+                {propiedad.inmobiliaria?.logoUrl ? (
                   <Image
                     src={propiedad.inmobiliaria.logoUrl}
                     alt={propiedad.inmobiliaria.nombre}
@@ -345,7 +350,7 @@ export default async function PropiedadDetailPage({
                     color: "var(--antracite)",
                   }}
                 >
-                  {propiedad.inmobiliaria.nombre}
+                  {propiedad.inmobiliaria?.nombre ?? "Propietario particular"}
                 </p>
                 <p
                   className="text-xs mt-0.5"
@@ -354,29 +359,31 @@ export default async function PropiedadDetailPage({
                     fontFamily: "var(--font-jakarta)",
                   }}
                 >
-                  Asesor: {propiedad.agente.nombre}
+                  {propiedad.inmobiliaria ? `Asesor: ${propiedad.agente.nombre}` : "Publicado directamente"}
                 </p>
               </div>
             </div>
 
             {/* WhatsApp button */}
-            <a
-              href={waLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-xl font-semibold text-sm transition-opacity hover:opacity-90"
-              style={{
-                background: "#25D366",
-                color: "white",
-                fontFamily: "var(--font-jakarta)",
-                textDecoration: "none",
-              }}
-            >
-              <MessageCircle className="w-5 h-5" />
-              Consultar por WhatsApp
-            </a>
+            {waLink && (
+              <a
+                href={waLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-xl font-semibold text-sm transition-opacity hover:opacity-90"
+                style={{
+                  background: "#25D366",
+                  color: "white",
+                  fontFamily: "var(--font-jakarta)",
+                  textDecoration: "none",
+                }}
+              >
+                <MessageCircle className="w-5 h-5" />
+                Consultar por WhatsApp
+              </a>
+            )}
 
-            {propiedad.inmobiliaria.email && (
+            {propiedad.inmobiliaria?.email && (
               <a
                 href={`mailto:${propiedad.inmobiliaria.email}?subject=${encodeURIComponent(`Consulta sobre: ${propiedad.titulo}`)}`}
                 className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl font-medium text-sm border transition-colors"

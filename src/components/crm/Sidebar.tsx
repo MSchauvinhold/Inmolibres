@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Building2, Users, CalendarCheck,
-  FileText, MessageSquare, Settings, LogOut, ChevronRight,
-  Calculator, TrendingUp,
+  ScrollText, MessageSquare, Settings, LogOut, ChevronRight,
+  Calculator, TrendingUp, BookUser,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -30,20 +30,25 @@ interface SidebarProps {
 const ALL_NAV = [
   { href: "/dashboard",     label: "Dashboard",    icon: LayoutDashboard, permKey: null },
   { href: "/propiedades",   label: "Propiedades",  icon: Building2,       permKey: "verPropiedades" },
-  { href: "/clientes",      label: "Clientes",     icon: Users,           permKey: "verClientes" },
+  { href: "/contactos",     label: "Contactos",    icon: BookUser,        permKey: "verClientes" },
+  { href: "/clientes",      label: "Prospectos",   icon: Users,           permKey: "verClientes" },
   { href: "/visitas",       label: "Visitas",      icon: CalendarCheck,   permKey: "verVisitas" },
-  { href: "/alquileres",    label: "Alquileres",   icon: FileText,        permKey: "verAlquileres" },
-  { href: "/consultas",     label: "Consultas",    icon: MessageSquare,   permKey: "verConsultas" },
+  { href: "/alquileres",    label: "Contratos",    icon: ScrollText,      permKey: "verAlquileres" },
+  { href: "/consultas",     label: "Mensajes",     icon: MessageSquare,   permKey: "verConsultas" },
   { href: "/calculadoras",  label: "Calculadoras", icon: Calculator,      permKey: "verCalculadoras" },
   { href: "/finanzas",      label: "Finanzas",     icon: TrendingUp,      permKey: "verFinanzas" },
   { href: "/configuracion", label: "Configuración",icon: Settings,        permKey: null },
 ] as const;
 
+const PARTICULAR_NAV_HREFS = new Set(["/dashboard", "/propiedades", "/contactos", "/clientes", "/visitas", "/consultas"]);
+
 export function Sidebar({ user, permisos, className }: SidebarProps) {
   const pathname = usePathname();
   const isAgente = user.rol === "AGENTE";
+  const isParticular = user.rol === "PARTICULAR";
 
-  const navItems = ALL_NAV.filter(({ permKey }) => {
+  const navItems = ALL_NAV.filter(({ href, permKey }) => {
+    if (isParticular) return PARTICULAR_NAV_HREFS.has(href);
     if (!permKey || !isAgente) return true;
     if (!permisos) return true;
     return permisos[permKey as keyof PermisosAgente] === true;

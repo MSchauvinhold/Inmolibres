@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Loader2, Plus, Eye, EyeOff, UserCheck, UserX, AlertTriangle,
-  Settings, Shield, ChevronDown, ChevronUp,
+  Settings, Shield, ChevronDown, ChevronUp, ImageIcon, Upload, Trash2,
 } from "lucide-react";
 import { formatDate, ESTADO_INMOBILIARIA_LABELS, ESTADO_INMOBILIARIA_COLORS } from "@/lib/utils";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 import { PermisosSheet } from "./PermisosSheet";
 
 interface PermisosAgente {
@@ -43,6 +44,7 @@ interface Inmobiliaria {
   plan: string;
   estado: "ACTIVA" | "INACTIVA" | "PRUEBA" | "SUSPENDIDA";
   fechaVencimiento: string | null;
+  logoUrl: string | null;
   usuarios: Usuario[];
   _count: { propiedades: number; clientes: number };
 }
@@ -58,6 +60,7 @@ interface Config {
   monedaPreferida: "ARS" | "USD";
   colorPrimario: string;
   colorSecundario: string;
+  logoEnContrato: boolean;
   clausulasAdicionales: string | null;
   piePaginaContrato: string | null;
   cuit: string | null;
@@ -92,6 +95,9 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
   const [openSection, setOpenSection] = useState<string | null>(null);
 
   const [permisosAgentId, setPermisosAgentId] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoProgress, setLogoProgress] = useState(0);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const agentes = inmo.usuarios.filter((u) => u.rol === "AGENTE");
   const canAddAgent = agentes.length < 3;
@@ -208,6 +214,46 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
     }
   }
 
+  async function uploadLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    setLogoProgress(0);
+    try {
+      const result = await uploadToCloudinary(file, "logos", setLogoProgress);
+      const res = await fetch("/api/configuracion/logo", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl: result.secure_url }),
+      });
+      if (!res.ok) throw new Error();
+      setInmo((p) => ({ ...p, logoUrl: result.secure_url }));
+      toast.success("Logo subido correctamente");
+    } catch {
+      toast.error("Error al subir el logo");
+    } finally {
+      setUploadingLogo(false);
+      setLogoProgress(0);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  }
+
+  async function removeLogo() {
+    try {
+      const res = await fetch("/api/configuracion/logo", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl: null }),
+      });
+      if (!res.ok) throw new Error();
+      setInmo((p) => ({ ...p, logoUrl: null }));
+      setConfig((p) => ({ ...p, logoEnContrato: false }));
+      toast.success("Logo eliminado");
+    } catch {
+      toast.error("Error al eliminar el logo");
+    }
+  }
+
   const suscripcionColor =
     diasRestantes === null ? "" :
     diasRestantes <= 2 ? "text-danger" :
@@ -301,6 +347,60 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                 )}
               </div>
             )}
+          </div>
+
+          {/* Logo */}
+          <div className="col-span-2 pt-1 border-t border-border">
+            <p className="text-text-muted text-xs mb-3">Logo de la inmobiliaria</p>
+            <div className="flex items-center gap-5">
+              {/* Preview */}
+              {inmo.logoUrl ? (
+                <img
+                  src={inmo.logoUrl}
+                  alt="Logo"
+                  className="w-20 h-20 object-contain rounded-xl border border-border bg-surface"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 bg-surface-raised shrink-0">
+                  <ImageIcon className="w-5 h-5 text-text-muted" />
+                  <span className="text-[10px] text-text-muted">Sin logo</span>
+                </div>
+              )}
+
+              {isAdmin && (
+                <div className="flex flex-col gap-2">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    className="hidden"
+                    disabled={uploadingLogo}
+                    onChange={uploadLogo}
+                  />
+                  <button
+                    type="button"
+                    disabled={uploadingLogo}
+                    onClick={() => logoInputRef.current?.click()}
+                    className="btn-primary text-xs flex items-center gap-1.5 py-1.5 px-3 disabled:opacity-60"
+                  >
+                    {uploadingLogo
+                      ? <><Loader2 className="w-3 h-3 animate-spin" />{logoProgress}%</>
+                      : <><Upload className="w-3 h-3" />{inmo.logoUrl ? "Cambiar logo" : "Subir logo"}</>
+                    }
+                  </button>
+                  {inmo.logoUrl && (
+                    <button
+                      type="button"
+                      onClick={removeLogo}
+                      className="flex items-center gap-1.5 text-xs text-danger hover:underline"
+                    >
+                      <Trash2 className="w-3 h-3" /> Eliminar logo
+                    </button>
+                  )}
+                  <p className="text-[10px] text-text-muted">PNG, JPG, WebP o SVG</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -589,9 +689,35 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                 </div>
               </div>
 
+              {/* Toggle: logo en contratos */}
+              {inmo.logoUrl && (
+                <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}>
+                  <div>
+                    <p className="text-sm font-medium text-text-primary">Incluir logo en contratos</p>
+                    <p className="text-xs text-text-muted">Aparecerá en el encabezado del contrato PDF</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setConfig((p) => ({ ...p, logoEnContrato: !p.logoEnContrato }))}
+                    className="relative w-11 h-6 rounded-full transition-colors shrink-0"
+                    style={{ background: config.logoEnContrato ? "var(--brand-primary)" : "var(--border)" }}
+                    role="switch"
+                    aria-checked={config.logoEnContrato}
+                  >
+                    <span
+                      className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
+                      style={{ transform: config.logoEnContrato ? "translateX(20px)" : "translateX(0)" }}
+                    />
+                  </button>
+                </div>
+              )}
+
               {/* Preview contrato */}
               <div className="rounded-xl overflow-hidden border border-border">
                 <div className="p-4 flex items-center gap-3" style={{ background: config.colorPrimario }}>
+                  {config.logoEnContrato && inmo.logoUrl && (
+                    <img src={inmo.logoUrl} alt="Logo" className="h-8 object-contain shrink-0" />
+                  )}
                   <div className="text-white font-bold text-lg">InmoLibres</div>
                   <div className="h-5 w-px bg-white/40" />
                   <div className="text-white/80 text-sm">{inmo.nombre}</div>
@@ -625,6 +751,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                 onClick={() => saveConfig({
                   colorPrimario: config.colorPrimario,
                   colorSecundario: config.colorSecundario,
+                  logoEnContrato: config.logoEnContrato,
                   clausulasAdicionales: config.clausulasAdicionales,
                   piePaginaContrato: config.piePaginaContrato,
                 })}

@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { clienteSchema } from "@/lib/validations/client";
 import { buildPaginationMeta } from "@/lib/utils";
-import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { requireCrmAuth, isNextResponse } from "@/lib/api-auth";
 import type { Prisma, EstadoPipeline } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
-  const session = await requireInmobiliariaAuth();
+  const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
   const { userId, inmobiliariaId, rol } = session;
 
@@ -17,11 +17,13 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search");
   const agenteId = searchParams.get("agenteId");
 
-  const where: Prisma.ClienteWhereInput = { inmobiliariaId };
+  const where: Prisma.ClienteWhereInput = rol === "PARTICULAR"
+    ? { agenteId: userId, inmobiliariaId: null }
+    : { inmobiliariaId: inmobiliariaId! };
 
   if (rol === "AGENTE") {
     where.agenteId = userId;
-  } else if (agenteId) {
+  } else if (rol !== "PARTICULAR" && agenteId) {
     where.agenteId = agenteId;
   }
 
@@ -67,9 +69,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await requireInmobiliariaAuth();
+  const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
-  const { inmobiliariaId } = session;
+  const { userId, inmobiliariaId, rol } = session;
+  const isParticular = rol === "PARTICULAR";
 
   let body: unknown;
   try {
@@ -89,7 +92,7 @@ export async function POST(request: NextRequest) {
   const { propiedadIds, agenteId, email, ...clienteData } = parsed.data;
 
   try {
-    if (agenteId && agenteId !== "") {
+    if (!isParticular && agenteId && agenteId !== "") {
       const agente = await db.usuario.findUnique({
         where: { id: agenteId },
         select: { inmobiliariaId: true },
@@ -100,12 +103,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (propiedadIds?.length) {
-      const validProps = await db.propiedad.findMany({
-        where: { inmobiliariaId, id: { in: propiedadIds } },
-        select: { id: true },
-      });
+      const propWhere = isParticular
+        ? { agenteId: userId, id: { in: propiedadIds } }
+        : { inmobiliariaId: inmobiliariaId!, id: { in: propiedadIds } };
+      const validProps = await db.propiedad.findMany({ where: propWhere, select: { id: true } });
       if (validProps.length !== propiedadIds.length) {
-        return NextResponse.json({ error: "Una o más propiedades no pertenecen a esta inmobiliaria" }, { status: 400 });
+        return NextResponse.json({ error: "Una o más propiedades no son válidas" }, { status: 400 });
       }
     }
 
@@ -113,8 +116,8 @@ export async function POST(request: NextRequest) {
       data: {
         ...clienteData,
         email: email === "" ? null : email,
-        agenteId: agenteId === "" ? null : (agenteId ?? null),
-        inmobiliariaId,
+        agenteId: isParticular ? userId : (agenteId === "" ? null : (agenteId ?? null)),
+        inmobiliariaId: isParticular ? null : inmobiliariaId!,
         ...(propiedadIds?.length
           ? {
               propiedades: {

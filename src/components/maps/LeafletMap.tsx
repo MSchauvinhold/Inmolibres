@@ -13,6 +13,7 @@ interface LeafletMapProps {
   center?: [number, number];
   zoom?: number;
   className?: string;
+  polygon?: [number, number][] | null;
 }
 
 // Default: Paso de los Libres, Corrientes
@@ -23,6 +24,7 @@ export function LeafletMap({
   center,
   zoom = 14,
   className = "h-64 w-full rounded-xl",
+  polygon,
 }: LeafletMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<unknown>(null);
@@ -67,6 +69,17 @@ export function LeafletMap({
         const m = L.marker([lat, lon], { icon }).addTo(map);
         if (label) m.bindPopup(label);
       });
+
+      if (polygon && polygon.length >= 3) {
+        const poly = L.polygon(polygon as L.LatLngExpression[], {
+          color: "#1B4332",
+          fillColor: "#1B4332",
+          fillOpacity: 0.15,
+          weight: 2,
+        }).addTo(map);
+        // Fit bounds to polygon if no explicit center was given
+        if (!center) map.fitBounds(poly.getBounds());
+      }
     });
 
     return () => {

@@ -61,7 +61,7 @@ function buildPopupHtml(prop: MapProperty): string {
           <span style="font-size:13px;font-weight:700;color:#1a1612;">${precioLabel}</span>
         </div>
         <div style="display:flex;gap:6px;">
-          <a href="/propiedades/${prop.inmobiliariaId}/${prop.slug}" target="_blank" style="flex:1;text-align:center;font-size:11px;font-weight:700;padding:7px 6px;background:#2C2C2C;color:white;border-radius:8px;text-decoration:none;display:block;">Ver detalle</a>
+          <a href="/propiedades/${prop.id}/${prop.slug}" target="_blank" style="flex:1;text-align:center;font-size:11px;font-weight:700;padding:7px 6px;background:#2C2C2C;color:white;border-radius:8px;text-decoration:none;display:block;">Ver detalle</a>
           ${wpLink}
         </div>
       </div>

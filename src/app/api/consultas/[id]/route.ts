@@ -15,21 +15,38 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
   const inmobiliariaId = session.user.inmobiliariaId;
   const userRol = session.user.rol;
+  const userId = session.user.id;
 
-  if (!inmobiliariaId || (userRol !== "ADMIN" && userRol !== "AGENTE")) {
+  const allowedRoles = ["ADMIN", "AGENTE", "PARTICULAR"];
+  if (!allowedRoles.includes(userRol)) {
+    return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+  }
+  if (userRol !== "PARTICULAR" && !inmobiliariaId) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
   try {
     const existing = await db.consulta.findUnique({
       where: { id },
-      select: { inmobiliariaId: true },
+      select: { inmobiliariaId: true, propiedadId: true },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Consulta no encontrada" }, { status: 404 });
     }
-    if (existing.inmobiliariaId !== inmobiliariaId) {
+
+    if (userRol === "PARTICULAR") {
+      if (!existing.propiedadId) {
+        return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+      }
+      const propiedad = await db.propiedad.findUnique({
+        where: { id: existing.propiedadId },
+        select: { agenteId: true },
+      });
+      if (!propiedad || propiedad.agenteId !== userId) {
+        return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+      }
+    } else if (existing.inmobiliariaId !== inmobiliariaId) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 

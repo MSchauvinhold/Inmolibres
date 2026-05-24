@@ -70,7 +70,7 @@ export function MapaFullscreenClient({ properties }: Props) {
     const seen = new Set<string>();
     const result: { id: string; nombre: string }[] = [];
     for (const p of properties) {
-      if (p.inmobiliariaNombre && !seen.has(p.inmobiliariaId)) {
+      if (p.inmobiliariaNombre && p.inmobiliariaId && !seen.has(p.inmobiliariaId)) {
         seen.add(p.inmobiliariaId);
         result.push({ id: p.inmobiliariaId, nombre: p.inmobiliariaNombre });
       }

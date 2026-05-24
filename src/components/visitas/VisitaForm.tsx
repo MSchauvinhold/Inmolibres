@@ -99,8 +99,8 @@ export function VisitaForm({ propiedades, clientes, agentes }: Props) {
         <div>
           <label className={labelCls}>Tipo de visita</label>
           <select {...register("tipo")} className={inputCls}>
-            <option value="VISITA_COMPRADOR">Visita Comprador</option>
-            <option value="VISITA_VENDEDOR">Visita Vendedor</option>
+            <option value="VISITA_COMPRADOR">Visita comprador</option>
+            <option value="VISITA_VENDEDOR">Visita vendedor</option>
           </select>
         </div>
       </div>

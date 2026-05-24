@@ -48,8 +48,7 @@ next-env.d.ts
 # playwright mcp artifacts
 .playwright-mcp/
 
-# tests 
-tests/e2e/screenshots/
-tests/e2e/reporte.md
+# tests / playwright
+tests/
 test-results/
-tests/e2e/html-report/
+playwright-report/

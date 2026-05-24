@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import { Home, Shield, MessageCircle } from "lucide-react";
 
 const FEATURES = [
@@ -34,13 +33,7 @@ export function FeaturesSection() {
       style={{ background: "var(--background-mp-alt)" }}
     >
       <div className="max-w-6xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.55 }}
-          className="text-center mb-12"
-        >
+        <div className="text-center mb-12">
           <h2
             className="text-2xl sm:text-3xl font-bold"
             style={{
@@ -57,22 +50,25 @@ export function FeaturesSection() {
           >
             La forma más sencilla de encontrar propiedades en Paso de los Libres.
           </p>
-        </motion.div>
+        </div>
 
         <div className="grid sm:grid-cols-3 gap-5">
-          {FEATURES.map((feature, i) => (
-            <motion.div
+          {FEATURES.map((feature) => (
+            <div
               key={feature.title}
-              initial={{ opacity: 0, y: 36 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-40px" }}
-              transition={{ duration: 0.55, delay: i * 0.15, ease: "easeOut" }}
-              whileHover={{ y: -4, boxShadow: "var(--shadow-mp-card-hover)" }}
               className="p-7 rounded-2xl"
               style={{
                 background: "white",
                 boxShadow: "var(--shadow-mp-card)",
-                transition: "box-shadow 200ms ease-out",
+                transition: "box-shadow 200ms ease-out, transform 200ms ease-out",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-mp-card-hover)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-mp-card)";
               }}
             >
               <div
@@ -102,7 +98,7 @@ export function FeaturesSection() {
               >
                 {feature.text}
               </p>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

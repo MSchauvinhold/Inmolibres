@@ -1,96 +1,89 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { Plus, FileText } from "lucide-react";
-import { ContratoForm } from "@/components/alquileres/ContratoForm";
-import { formatPrice, formatDate } from "@/lib/utils";
+import { AlquileresClient } from "@/components/alquileres/AlquileresClient";
 
-export const metadata = { title: "Alquileres" };
+export const metadata = { title: "Contratos" };
 
 export default async function AlquileresPage() {
   const session = await auth();
   if (!session?.user?.inmobiliariaId) redirect("/login");
 
   const inmobiliariaId = session.user.inmobiliariaId;
-  const hoy = new Date();
+  const isAdmin = session.user.rol === "ADMIN";
 
-  const [contratos, propiedadesDisponibles] = await Promise.all([
+  const [contratos, ventas, propiedades, config, inmobiliaria] = await Promise.all([
     db.contratoAlquiler.findMany({
-      where: { inmobiliariaId, fechaFin: { gte: hoy } },
+      where: { inmobiliariaId },
       orderBy: { fechaFin: "asc" },
-      include: { propiedad: { select: { id: true, titulo: true, direccion: true } } },
+      include: {
+        propiedad: { select: { id: true, titulo: true, direccion: true } },
+      },
+    }),
+    db.contratoVenta.findMany({
+      where: { inmobiliariaId },
+      orderBy: { createdAt: "desc" },
     }),
     db.propiedad.findMany({
       where: { inmobiliariaId, estado: { in: ["DISPONIBLE", "RESERVADA"] } },
-      select: { id: true, titulo: true },
+      select: { id: true, titulo: true, direccion: true },
       orderBy: { titulo: "asc" },
+    }),
+    db.configuracionInmobiliaria.findUnique({ where: { inmobiliariaId } }),
+    db.inmobiliaria.findUnique({
+      where: { id: inmobiliariaId },
+      select: { nombre: true, logoUrl: true, whatsapp: true, email: true },
     }),
   ]);
 
-  const PAGO_COLORS = { AL_DIA: "bg-green-100 text-green-800", ATRASADO: "bg-red-100 text-red-800" } as const;
+  const serialized = contratos.map((c) => ({
+    id: c.id,
+    propiedadId: c.propiedadId,
+    inmobiliariaId: c.inmobiliariaId,
+    inquilinoNombre: c.inquilinoNombre,
+    inquilinoTel: c.inquilinoTel,
+    precioMensual: Number(c.precioMensual),
+    moneda: c.moneda as "ARS" | "USD",
+    diaVencimientoPago: c.diaVencimientoPago,
+    estadoPago: c.estadoPago as "AL_DIA" | "ATRASADO",
+    fechaInicio: c.fechaInicio.toISOString().slice(0, 10),
+    fechaFin: c.fechaFin.toISOString().slice(0, 10),
+    createdAt: c.createdAt.toISOString(),
+    propiedad: c.propiedad,
+  }));
+
+  const serializedVentas = ventas.map((v) => ({
+    ...v,
+    precioVenta: Number(v.precioVenta),
+    sena: v.sena !== null ? Number(v.sena) : null,
+    fechaEscritura: v.fechaEscritura ? v.fechaEscritura.toISOString().slice(0, 10) : null,
+    createdAt: v.createdAt.toISOString(),
+    updatedAt: v.updatedAt.toISOString(),
+  }));
+
+  const configData = config
+    ? {
+        colorPrimario: config.colorPrimario,
+        colorSecundario: config.colorSecundario,
+        clausulasAdicionales: config.clausulasAdicionales,
+        piePaginaContrato: config.piePaginaContrato,
+        cuit: config.cuit,
+        razonSocial: config.razonSocial,
+        domicilioLegal: config.domicilioLegal,
+        matriculaCorredora: config.matriculaCorredora,
+        comisionVendedorPct: config.comisionVendedorPct,
+        comisionCompradorPct: config.comisionCompradorPct,
+      }
+    : null;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-text-primary">Alquileres</h1>
-        <p className="text-sm text-text-muted">{contratos.length} contratos activos</p>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* List */}
-        <div className="lg:col-span-2 space-y-3">
-          {contratos.length === 0 ? (
-            <div className="card p-8 text-center">
-              <FileText className="w-10 h-10 text-text-muted mx-auto mb-3" />
-              <p className="text-text-muted">Sin contratos activos</p>
-            </div>
-          ) : (
-            contratos.map((c) => {
-              const diasRestantes = Math.ceil((c.fechaFin.getTime() - hoy.getTime()) / 86_400_000);
-              return (
-                <div key={c.id} className="card p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-text-primary truncate">{c.propiedad.titulo}</p>
-                      <p className="text-xs text-text-muted mt-0.5">{c.propiedad.direccion}</p>
-                    </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${PAGO_COLORS[c.estadoPago]}`}>
-                      {c.estadoPago === "AL_DIA" ? "Al día" : "Atrasado"}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 text-sm">
-                    <div>
-                      <p className="text-xs text-text-muted">Inquilino</p>
-                      <p className="font-medium text-text-primary truncate">{c.inquilinoNombre}</p>
-                      <p className="text-xs text-text-secondary">{c.inquilinoTel}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Alquiler mensual</p>
-                      <p className="font-price font-semibold text-brand-primary">{formatPrice(Number(c.precioMensual), c.moneda)}</p>
-                      <p className="text-xs text-text-secondary">Vence día {c.diaVencimientoPago}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted">Fin de contrato</p>
-                      <p className="font-medium text-text-primary">{formatDate(c.fechaFin)}</p>
-                      <p className={`text-xs ${diasRestantes <= 30 ? "text-warning" : "text-text-secondary"}`}>
-                        {diasRestantes} días restantes
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* Form */}
-        <div className="card p-5">
-          <h2 className="font-semibold text-text-primary mb-4 flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Nuevo contrato
-          </h2>
-          <ContratoForm propiedades={propiedadesDisponibles.map((p) => ({ id: p.id, label: p.titulo }))} />
-        </div>
-      </div>
-    </div>
+    <AlquileresClient
+      contratos={serialized}
+      ventas={serializedVentas}
+      propiedades={propiedades}
+      isAdmin={isAdmin}
+      config={configData}
+      inmobiliaria={inmobiliaria}
+    />
   );
 }

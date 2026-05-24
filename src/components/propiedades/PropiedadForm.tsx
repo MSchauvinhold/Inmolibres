@@ -18,6 +18,11 @@ const MapPicker = dynamic(
   { ssr: false, loading: () => <div className="h-64 bg-surface-raised rounded-xl animate-pulse" /> }
 );
 
+const MapaPoligonoEditor = dynamic(
+  () => import("@/components/maps/MapaPoligonoEditor").then((m) => m.MapaPoligonoEditor),
+  { ssr: false, loading: () => <div className="h-72 bg-surface-raised rounded-xl animate-pulse" /> }
+);
+
 export interface PropiedadParaEditar {
   id: string;
   titulo: string;
@@ -28,6 +33,7 @@ export interface PropiedadParaEditar {
   direccion: string;
   latitud: number | null;
   longitud: number | null;
+  poligonoJson: [number, number][] | null;
   descripcion: string | null;
   videoUrl: string | null;
   publicada: boolean;
@@ -109,6 +115,7 @@ export function PropiedadForm({ propiedad }: Props) {
           direccion: propiedad.direccion,
           latitud: propiedad.latitud,
           longitud: propiedad.longitud,
+          poligonoJson: propiedad.poligonoJson,
           descripcion: propiedad.descripcion ?? "",
           videoUrl: propiedad.videoUrl ?? "",
           publicada: propiedad.publicada,
@@ -160,6 +167,7 @@ export function PropiedadForm({ propiedad }: Props) {
   const fotos = watch("fotos") ?? [];
   const lat = watch("latitud");
   const lon = watch("longitud");
+  const poligonoJson = watch("poligonoJson") as [number, number][] | null | undefined;
   const rawCaract = useWatch({ control, name: "atributos.caracteristicasCustom" }) as string[] | undefined;
   const caracteristicasCustom = useMemo(() => rawCaract ?? [], [rawCaract]);
 
@@ -588,6 +596,30 @@ export function PropiedadForm({ propiedad }: Props) {
           <p className="text-xs text-text-muted mt-2">
             Lat: {lat.toFixed(6)}, Lon: {lon.toFixed(6)}
           </p>
+        )}
+
+        {/* Polígono — solo para TERRENO */}
+        {tipo === "TERRENO" && (
+          <div className="border-t border-border pt-4 mt-4">
+            <p className="text-sm font-medium text-text-primary mb-0.5">
+              Límites del terreno <span className="text-text-muted font-normal">(opcional)</span>
+            </p>
+            <p className="text-xs text-text-muted mb-3">
+              Dibujá el perímetro del terreno en el mapa para mostrar sus dimensiones exactas en el marketplace.
+            </p>
+            {lat && lon ? (
+              <MapaPoligonoEditor
+                lat={lat}
+                lon={lon}
+                initialPolygon={poligonoJson ?? null}
+                onChange={(polygon) => setValue("poligonoJson", polygon)}
+              />
+            ) : (
+              <p className="text-xs text-text-muted py-3 px-4 rounded-xl bg-surface-raised">
+                Marcá primero la ubicación en el mapa de arriba para poder dibujar el polígono.
+              </p>
+            )}
+          </div>
         )}
       </section>
 

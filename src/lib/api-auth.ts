@@ -28,6 +28,16 @@ export async function requireInmobiliariaAuth(): Promise<ApiSession & { inmobili
   return result as ApiSession & { inmobiliariaId: string };
 }
 
+// Allows ADMIN, AGENTE, PARTICULAR (inmobiliariaId may be null for PARTICULAR)
+export async function requireCrmAuth(): Promise<ApiSession | NextResponse> {
+  const result = await requireAuth();
+  if (result instanceof NextResponse) return result;
+  if (!["ADMIN", "AGENTE", "PARTICULAR"].includes(result.rol)) {
+    return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+  }
+  return result;
+}
+
 export async function requireSuperAdmin(): Promise<ApiSession | NextResponse> {
   const result = await requireAuth();
   if (result instanceof NextResponse) return result;

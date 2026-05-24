@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     // Non-blocking: don't let notification failure break the response
     const notif = NotifMessages.consultaNueva(propiedad.titulo, consulta.nombreVisitante);
-    notifyInmobiliaria(
+    if (propiedad.inmobiliariaId) notifyInmobiliaria(
       propiedad.inmobiliariaId,
       "CONSULTA_NUEVA",
       notif.titulo,
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       notif.url,
       ["ADMIN", "AGENTE"],
       consulta.id
-    ).catch(() => {/* ignore */});
+    )?.catch(() => {/* ignore */});
 
     return NextResponse.json({ data: { id: consulta.id } }, { status: 201 });
   } catch {

@@ -33,7 +33,7 @@ export async function GET(req: Request) {
   const opsMes = operaciones.filter((o) => o.fechaCierre >= inicioMes);
   const egresosMes = egresos.filter((e) => e.fecha >= inicioMes);
 
-  const totalComisionesMes = opsMes.reduce((s, o) => s + Number(o.comisionTotal), 0);
+  const totalComisionesMes = opsMes.reduce((s, o) => s + Number(o.comisionInmob), 0);
   const totalEgresosMes = egresosMes.reduce((s, e) => s + Number(e.monto), 0);
   const resultadoNeto = totalComisionesMes - totalEgresosMes;
 
@@ -48,7 +48,7 @@ export async function GET(req: Request) {
       comisionAgente: 0,
     };
     entry.operaciones++;
-    entry.totalComisiones += Number(op.comisionTotal);
+    entry.totalComisiones += Number(op.comisionInmob);
     entry.comisionAgente += Number(op.comisionAgente);
     rankingMap.set(op.agenteId, entry);
   }

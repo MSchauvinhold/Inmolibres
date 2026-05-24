@@ -3,15 +3,18 @@ import { db } from "@/lib/db";
 import { propiedadFormSchema } from "@/lib/validations/property";
 import { generateUniqueSlug, buildPaginationMeta } from "@/lib/utils";
 import { auth } from "@/lib/auth";
-import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { requireCrmAuth, isNextResponse } from "@/lib/api-auth";
 import type { Prisma, TipoPropiedad, TipoOperacion, EstadoPropiedad, Moneda } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
 
-  // Try to get the authenticated user's inmobiliariaId for CRM mode
+  // Try to get the authenticated user's session for CRM mode
   const session = await auth();
   const inmobiliariaId = session?.user?.inmobiliariaId ?? null;
+  const userRol = session?.user?.rol ?? null;
+  const userId = session?.user?.id ?? null;
+  const isParticular = userRol === "PARTICULAR";
 
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
   const pageSize = Math.min(50, Math.max(1, parseInt(searchParams.get("pageSize") ?? "20")));
@@ -26,13 +29,19 @@ export async function GET(request: NextRequest) {
 
   const where: Prisma.PropiedadWhereInput = {};
 
-  if (inmobiliariaId) {
-    // CRM: show all properties (including unpublished) for this inmobiliaria
+  if (isParticular && userId) {
+    // PARTICULAR CRM: show only their own propiedades
+    where.agenteId = userId;
+  } else if (inmobiliariaId) {
+    // ADMIN/AGENTE CRM: show all properties for their inmobiliaria
     where.inmobiliariaId = inmobiliariaId;
   } else {
-    // Marketplace: only show published properties from active inmobiliarias
+    // Marketplace: published properties from active inmobiliarias OR particulares
     where.publicada = true;
-    where.inmobiliaria = { estado: { in: ["ACTIVA", "PRUEBA"] } };
+    where.OR = [
+      { inmobiliaria: { estado: { in: ["ACTIVA", "PRUEBA"] } } },
+      { inmobiliariaId: null },
+    ];
     if (qInmobiliariaId) where.inmobiliariaId = qInmobiliariaId;
   }
 
@@ -83,13 +92,26 @@ export async function GET(request: NextRequest) {
   }
 }
 
+const MAX_PROPIEDADES_PARTICULAR = 3;
+
 export async function POST(request: NextRequest) {
-  const session = await requireInmobiliariaAuth();
+  const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
   const { userId, inmobiliariaId, rol } = session;
+  const isParticular = rol === "PARTICULAR";
 
-  if (rol !== "ADMIN" && rol !== "AGENTE") {
+  if (!isParticular && rol !== "ADMIN" && rol !== "AGENTE") {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+  }
+
+  if (isParticular) {
+    const total = await db.propiedad.count({ where: { agenteId: userId } });
+    if (total >= MAX_PROPIEDADES_PARTICULAR) {
+      return NextResponse.json(
+        { error: `Límite de ${MAX_PROPIEDADES_PARTICULAR} propiedades alcanzado` },
+        { status: 403 }
+      );
+    }
   }
 
   let body: unknown;
@@ -115,7 +137,7 @@ export async function POST(request: NextRequest) {
       data: {
         ...propData,
         precio: propData.precio,
-        inmobiliariaId,
+        inmobiliariaId: isParticular ? null : inmobiliariaId!,
         agenteId: userId,
         slug,
         ...(atributos

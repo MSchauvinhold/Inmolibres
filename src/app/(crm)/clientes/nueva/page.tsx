@@ -6,7 +6,9 @@ export const metadata = { title: "Nuevo Cliente" };
 
 export default async function NuevoClientePage() {
   const session = await auth();
-  if (!session?.user?.inmobiliariaId) redirect("/login");
+  if (!session?.user) redirect("/login");
+  const isParticular = session.user.rol === "PARTICULAR";
+  if (!isParticular && !session.user.inmobiliariaId) redirect("/login");
 
   return (
     <div className="w-full max-w-[800px] mx-auto space-y-5">

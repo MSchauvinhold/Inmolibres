@@ -11,14 +11,16 @@ interface Props {
   lat: number;
   lon: number;
   titulo: string;
+  polygon?: [number, number][] | null;
 }
 
-export function PropiedadMap({ lat, lon, titulo }: Props) {
+export function PropiedadMap({ lat, lon, titulo, polygon }: Props) {
   return (
     <LeafletMap
       markers={[{ lat, lon, label: titulo }]}
       center={[lat, lon]}
       className="h-64 w-full rounded-2xl"
+      polygon={polygon}
     />
   );
 }

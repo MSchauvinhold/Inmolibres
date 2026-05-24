@@ -31,17 +31,22 @@ export async function PUT(req: Request) {
     "comisionAgentePct", "comisionInmobPct", "ivaIncluido", "monedaPreferida",
     "colorPrimario", "colorSecundario", "clausulasAdicionales", "piePaginaContrato",
     "cuit", "razonSocial", "domicilioLegal", "matriculaCorredora",
+    "logoEnContrato",
   ];
   const data: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) data[key] = body[key];
   }
 
-  const config = await db.configuracionInmobiliaria.upsert({
-    where: { inmobiliariaId },
-    create: { inmobiliariaId, ...data },
-    update: data,
-  });
-
-  return NextResponse.json({ data: config });
+  try {
+    const config = await db.configuracionInmobiliaria.upsert({
+      where: { inmobiliariaId },
+      create: { inmobiliariaId, ...data },
+      update: data,
+    });
+    return NextResponse.json({ data: config });
+  } catch (e) {
+    console.error("[PUT /api/configuracion]", e);
+    return NextResponse.json({ error: "Error al guardar configuración" }, { status: 500 });
+  }
 }

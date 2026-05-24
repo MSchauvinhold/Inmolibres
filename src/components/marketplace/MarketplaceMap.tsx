@@ -12,7 +12,7 @@ export interface MapProperty {
   moneda: string;
   latitud: number;
   longitud: number;
-  inmobiliariaId: string;
+  inmobiliariaId: string | null;
   inmobiliariaNombre: string | null;
   fotoUrl?: string | null;
   whatsapp?: string | null;
@@ -70,7 +70,7 @@ function buildPopupHtml(prop: MapProperty): string {
           <span style="font-size:12px;font-weight:700;color:#1a1612;">${precioLabel}</span>
         </div>
         <div style="display:flex;gap:6px;">
-          <a href="/propiedades/${prop.inmobiliariaId}/${prop.slug}" style="flex:1;text-align:center;font-size:11px;font-weight:700;padding:7px 6px;background:#2C2C2C;color:white;border-radius:8px;text-decoration:none;display:block;">Ver propiedad</a>
+          <a href="/propiedades/${prop.id}/${prop.slug}" style="flex:1;text-align:center;font-size:11px;font-weight:700;padding:7px 6px;background:#2C2C2C;color:white;border-radius:8px;text-decoration:none;display:block;">Ver propiedad</a>
           ${wpLink}
         </div>
       </div>

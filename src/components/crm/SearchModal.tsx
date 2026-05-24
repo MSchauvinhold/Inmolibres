@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Building2, Users, FileText, Loader2, X } from "lucide-react";
-import { TIPO_PROPIEDAD_LABELS, TIPO_OPERACION_LABELS } from "@/lib/utils";
+import { TIPO_PROPIEDAD_LABELS, TIPO_OPERACION_LABELS, ESTADO_PIPELINE_LABELS } from "@/lib/utils";
+import type { EstadoPipeline } from "@prisma/client";
 
 interface SearchResults {
   propiedades: { id: string; titulo: string; direccion: string; tipo: string; operacion: string }[];
@@ -152,7 +153,7 @@ export function SearchModal({ open, onClose }: Props) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-text-primary">{c.nombre}</p>
-                        <p className="text-xs text-text-muted">{c.telefono} · {c.estadoPipeline}</p>
+                        <p className="text-xs text-text-muted">{c.telefono} · {ESTADO_PIPELINE_LABELS[c.estadoPipeline as EstadoPipeline]}</p>
                       </div>
                     </button>
                   ))}

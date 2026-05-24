@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { propiedadFormSchema } from "@/lib/validations/property";
 import { assertSameTenant } from "@/lib/utils";
 import { auth } from "@/lib/auth";
-import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { requireCrmAuth, isNextResponse } from "@/lib/api-auth";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -34,7 +34,12 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 
     // CRM: verify tenant
+    const userRolGet = session?.user?.rol;
+    const userIdGet = session?.user?.id;
     if (inmobiliariaId && propiedad.inmobiliariaId !== inmobiliariaId) {
+      return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+    }
+    if (userRolGet === "PARTICULAR" && propiedad.agenteId !== userIdGet) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
@@ -46,11 +51,12 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const session = await requireInmobiliariaAuth();
+  const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
-  const { inmobiliariaId, rol } = session;
+  const { userId, inmobiliariaId, rol } = session;
+  const isParticular = rol === "PARTICULAR";
 
-  if (rol !== "ADMIN" && rol !== "AGENTE") {
+  if (!isParticular && rol !== "ADMIN" && rol !== "AGENTE") {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
@@ -72,14 +78,20 @@ export async function PUT(request: NextRequest, { params }: Params) {
   try {
     const existing = await db.propiedad.findUnique({
       where: { id },
-      select: { inmobiliariaId: true },
+      select: { inmobiliariaId: true, agenteId: true },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
     }
 
-    assertSameTenant(existing.inmobiliariaId, inmobiliariaId, rol);
+    if (isParticular) {
+      if (existing.agenteId !== userId) {
+        return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+      }
+    } else {
+      assertSameTenant(existing.inmobiliariaId ?? "", inmobiliariaId, rol);
+    }
 
     const { atributos, fotos, ...propData } = parsed.data;
 
@@ -120,11 +132,12 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const session = await requireInmobiliariaAuth();
+  const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
-  const { inmobiliariaId, rol } = session;
+  const { userId, inmobiliariaId, rol } = session;
+  const isParticular = rol === "PARTICULAR";
 
-  if (rol !== "ADMIN") {
+  if (!isParticular && rol !== "ADMIN") {
     return NextResponse.json(
       { error: "Solo el administrador puede eliminar propiedades" },
       { status: 403 }
@@ -134,14 +147,20 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const existing = await db.propiedad.findUnique({
       where: { id },
-      select: { inmobiliariaId: true },
+      select: { inmobiliariaId: true, agenteId: true },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
     }
 
-    assertSameTenant(existing.inmobiliariaId, inmobiliariaId, rol);
+    if (isParticular) {
+      if (existing.agenteId !== userId) {
+        return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+      }
+    } else {
+      assertSameTenant(existing.inmobiliariaId ?? "", inmobiliariaId, rol);
+    }
 
     await db.$transaction([
       db.visita.deleteMany({ where: { propiedadId: id } }),

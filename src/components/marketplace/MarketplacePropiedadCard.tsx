@@ -37,7 +37,7 @@ interface MarketplacePropiedadCardProps {
   direccion: string;
   fotos: { urlCloudinary: string; esPortada: boolean }[];
   atributos: AtributosInfo | null;
-  inmobiliaria: InmobiliariaInfo;
+  inmobiliaria: InmobiliariaInfo | null;
   createdAt?: string;
   index?: number;
 }
@@ -55,6 +55,7 @@ const OPERACION_SHORT: Record<TipoOperacion, string> = {
 };
 
 export function MarketplacePropiedadCard({
+  id,
   titulo,
   slug,
   operacion,
@@ -70,7 +71,7 @@ export function MarketplacePropiedadCard({
   const [hovered, setHovered] = useState(false);
 
   const portada = fotos.find((f) => f.esPortada) ?? fotos[0];
-  const href = `/propiedades/${inmobiliaria.id}/${slug}`;
+  const href = `/propiedades/${id}/${slug}`;
 
   const [isNuevo] = useState(() =>
     createdAt
@@ -79,16 +80,13 @@ export function MarketplacePropiedadCard({
   );
 
   const waMsg = `Hola, vi "${titulo}" en InmoLibres y me interesa más información.`;
-  const waLink = buildWhatsAppLink(inmobiliaria.whatsapp, waMsg);
+  const waLink = inmobiliaria ? buildWhatsAppLink(inmobiliaria.whatsapp, waMsg) : null;
 
   const opStyle = OPERACION_STYLE[operacion];
 
-  const initials = inmobiliaria.nombre
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0] ?? "")
-    .join("")
-    .toUpperCase();
+  const initials = inmobiliaria
+    ? inmobiliaria.nombre.split(" ").slice(0, 2).map((w) => w[0] ?? "").join("").toUpperCase()
+    : "P";
 
   const supLabel = (() => {
     if (!atributos) return null;
@@ -222,9 +220,9 @@ export function MarketplacePropiedadCard({
               background: "var(--terra-pale)",
               boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
             }}
-            title={inmobiliaria.nombre}
+            title={inmobiliaria?.nombre ?? "Particular"}
           >
-            {inmobiliaria.logoUrl ? (
+            {inmobiliaria?.logoUrl ? (
               <Image
                 src={inmobiliaria.logoUrl}
                 alt={inmobiliaria.nombre}
@@ -352,9 +350,10 @@ export function MarketplacePropiedadCard({
                 fontFamily: "var(--font-jakarta)",
               }}
             >
-              {inmobiliaria.nombre}
+              {inmobiliaria?.nombre ?? "Particular"}
             </p>
 
+            {waLink && (
             <motion.a
               href={waLink}
               target="_blank"
@@ -374,6 +373,7 @@ export function MarketplacePropiedadCard({
               <MessageCircle className="w-3.5 h-3.5" />
               Consultar
             </motion.a>
+            )}
           </div>
         </div>
       </div>

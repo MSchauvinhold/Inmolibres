@@ -4,25 +4,35 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PropiedadCard } from "@/components/propiedades/PropiedadCard";
-import { ESTADO_PROPIEDAD_LABELS } from "@/lib/utils";
+import { ESTADO_PROPIEDAD_LABELS, TIPO_PROPIEDAD_LABELS } from "@/lib/utils";
 import type { TipoPropiedad, TipoOperacion, EstadoPropiedad } from "@prisma/client";
 
 export const metadata = { title: "Propiedades" };
 
 interface SearchParams { tipo?: string; operacion?: string; estado?: string; search?: string; page?: string }
 
+const MAX_PROPIEDADES_PARTICULAR = 3;
+
 export default async function PropiedadesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const session = await auth();
-  if (!session?.user?.inmobiliariaId) redirect("/login");
-  const inmobiliariaId = session.user.inmobiliariaId;
+  if (!session?.user) redirect("/login");
 
+  const isParticular = session.user.rol === "PARTICULAR";
+  const inmobiliariaId = session.user.inmobiliariaId;
+  if (!isParticular && !inmobiliariaId) redirect("/login");
+
+  const userId = session.user.id;
   const sp = await searchParams;
   const page = Math.max(1, parseInt(sp.page ?? "1"));
   const pageSize = 12;
   const skip = (page - 1) * pageSize;
 
+  const baseWhere = isParticular
+    ? { agenteId: userId }
+    : { inmobiliariaId: inmobiliariaId! };
+
   const where = {
-    inmobiliariaId,
+    ...baseWhere,
     ...(sp.tipo ? { tipo: sp.tipo as TipoPropiedad } : {}),
     ...(sp.operacion ? { operacion: sp.operacion as TipoOperacion } : {}),
     ...(sp.estado ? { estado: sp.estado as EstadoPropiedad } : {}),
@@ -31,6 +41,11 @@ export default async function PropiedadesPage({ searchParams }: { searchParams: 
       { direccion: { contains: sp.search, mode: "insensitive" as const } },
     ]} : {}),
   };
+
+  const totalPropias = isParticular
+    ? await db.propiedad.count({ where: { agenteId: userId } })
+    : 0;
+  const puedeAgregar = !isParticular || totalPropias < MAX_PROPIEDADES_PARTICULAR;
 
   const [total, propiedadesRaw] = await Promise.all([
     db.propiedad.count({ where }),
@@ -67,11 +82,15 @@ export default async function PropiedadesPage({ searchParams }: { searchParams: 
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-text-primary">Propiedades</h1>
-          <p className="text-sm text-text-muted mt-0.5">{total} propiedades en total</p>
+          <p className="text-sm text-text-muted mt-0.5">
+            {total} propiedades{isParticular ? ` · ${totalPropias}/${MAX_PROPIEDADES_PARTICULAR} usadas` : " en total"}
+          </p>
         </div>
-        <Link href="/propiedades/nueva" className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> Nueva
-        </Link>
+        {puedeAgregar && (
+          <Link href="/propiedades/nueva" className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Nueva
+          </Link>
+        )}
       </div>
 
       {/* Filters */}
@@ -79,13 +98,13 @@ export default async function PropiedadesPage({ searchParams }: { searchParams: 
         <input name="search" defaultValue={sp.search} placeholder="Buscar..." className="input-base text-sm" />
         <select name="tipo" defaultValue={sp.tipo ?? ""} className="input-base text-sm">
           <option value="">Todos los tipos</option>
-          {["CASA","DEPARTAMENTO","LOCAL","GALPON","TERRENO","OFICINA"].map((t) => <option key={t} value={t}>{t}</option>)}
+          {Object.entries(TIPO_PROPIEDAD_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
         <select name="operacion" defaultValue={sp.operacion ?? ""} className="input-base text-sm">
           <option value="">Todas las operaciones</option>
           <option value="VENTA">Venta</option>
           <option value="ALQUILER">Alquiler</option>
-          <option value="ALQUILER_TEMPORARIO">Temporario</option>
+          <option value="ALQUILER_TEMPORARIO">Alquiler temporario</option>
         </select>
         <select name="estado" defaultValue={sp.estado ?? ""} className="input-base text-sm">
           <option value="">Todos los estados</option>

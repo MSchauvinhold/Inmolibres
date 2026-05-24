@@ -3,17 +3,37 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import { ConsultasClient } from "@/components/consultas/ConsultasClient";
+import type { Prisma } from "@prisma/client";
 
 export const metadata = { title: "Consultas" };
 
 export default async function ConsultasPage() {
   const session = await auth();
-  if (!session?.user?.inmobiliariaId) redirect("/login");
+  if (!session?.user) redirect("/login");
 
+  const isParticular = session.user.rol === "PARTICULAR";
   const inmobiliariaId = session.user.inmobiliariaId;
+  if (!isParticular && !inmobiliariaId) redirect("/login");
+
+  const userId = session.user.id;
+
+  let consultasWhere: Prisma.ConsultaWhereInput;
+
+  if (isParticular) {
+    const propiedades = await db.propiedad.findMany({
+      where: { agenteId: userId },
+      select: { id: true },
+    });
+    const propiedadIds = propiedades.map((p) => p.id);
+    consultasWhere = propiedadIds.length
+      ? { propiedadId: { in: propiedadIds } }
+      : { id: "none" };
+  } else {
+    consultasWhere = { inmobiliariaId: inmobiliariaId! };
+  }
 
   const consultas = await db.consulta.findMany({
-    where: { inmobiliariaId },
+    where: consultasWhere,
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {
@@ -62,7 +82,7 @@ export default async function ConsultasPage() {
           </p>
         </div>
       ) : (
-        <ConsultasClient consultas={serialized} inmobiliariaId={inmobiliariaId} />
+        <ConsultasClient consultas={serialized} inmobiliariaId={inmobiliariaId ?? ""} />
       )}
     </div>
   );

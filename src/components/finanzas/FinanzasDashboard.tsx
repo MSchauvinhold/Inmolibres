@@ -207,9 +207,9 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
   // Helper: convierte comisionTotal según vista
   const convertirOp = useCallback(
     (op: Operacion): number | null => {
-      if (vistaMoneda !== "CONSOLIDADO") return op.comisionTotal;
-      if (op.moneda === "ARS") return op.comisionTotal;
-      return cotizacionVenta !== null ? op.comisionTotal * cotizacionVenta : null;
+      if (vistaMoneda !== "CONSOLIDADO") return op.comisionInmob;
+      if (op.moneda === "ARS") return op.comisionInmob;
+      return cotizacionVenta !== null ? op.comisionInmob * cotizacionVenta : null;
     },
     [vistaMoneda, cotizacionVenta]
   );
@@ -253,9 +253,9 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
   // Chart data
   const ingresosPorMes = useMemo(() => {
     return groupByMes(opsVista, (op) => {
-      if (vistaMoneda !== "CONSOLIDADO") return op.comisionTotal;
-      if (op.moneda === "ARS") return op.comisionTotal;
-      return cotizacionVenta !== null ? op.comisionTotal * cotizacionVenta : 0;
+      if (vistaMoneda !== "CONSOLIDADO") return op.comisionInmob;
+      if (op.moneda === "ARS") return op.comisionInmob;
+      return cotizacionVenta !== null ? op.comisionInmob * cotizacionVenta : 0;
     });
   }, [opsVista, vistaMoneda, cotizacionVenta]);
 
@@ -283,8 +283,8 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
     for (const op of opsMesVista) {
       const val =
         vistaMoneda === "CONSOLIDADO" && op.moneda === "USD" && cotizacionVenta !== null
-          ? op.comisionTotal * cotizacionVenta
-          : op.comisionTotal;
+          ? op.comisionInmob * cotizacionVenta
+          : op.comisionInmob;
       if (!val) continue;
       map[op.tipo] = (map[op.tipo] ?? 0) + val;
     }
@@ -482,7 +482,12 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
                 <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "var(--text-muted)" }} />
                 <YAxis
                   tick={{ fontSize: 11, fill: "var(--text-muted)" }}
-                  tickFormatter={(v) => (typeof v === "number" ? `$${(v / 1000).toFixed(0)}k` : "")}
+                  tickFormatter={(v) => {
+                    if (typeof v !== "number") return "";
+                    if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+                    if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}k`;
+                    return `$${v}`;
+                  }}
                 />
                 <Tooltip formatter={(v) => (typeof v === "number" ? formatMonto(v, monedaDisplay) : "")} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -532,7 +537,12 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
                   <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "var(--text-muted)" }} />
                   <YAxis
                     tick={{ fontSize: 11, fill: "var(--text-muted)" }}
-                    tickFormatter={(v) => (typeof v === "number" ? `$${(v / 1000).toFixed(0)}k` : "")}
+                    tickFormatter={(v) => {
+                      if (typeof v !== "number") return "";
+                      if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+                      if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}k`;
+                      return `$${v}`;
+                    }}
                   />
                   <Tooltip formatter={(v) => (typeof v === "number" ? formatMonto(v, monedaDisplay) : "")} />
                   <Line

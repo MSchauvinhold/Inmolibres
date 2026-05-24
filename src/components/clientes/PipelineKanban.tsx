@@ -70,7 +70,7 @@ export function PipelineKanban({ clientes, onUpdate }: Props) {
         <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-orange-50 border border-orange-200">
           <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0" />
           <p className="text-sm text-orange-800 font-medium">
-            {leadsF.length} lead{leadsF.length > 1 ? "s" : ""} frío{leadsF.length > 1 ? "s" : ""} — sin actividad por más de 48 hs:{" "}
+            {leadsF.length} contacto{leadsF.length > 1 ? "s" : ""} frío{leadsF.length > 1 ? "s" : ""} — sin actividad por más de 48 hs:{" "}
             {leadsF.map((c) => c.nombre).join(", ")}
           </p>
         </div>
@@ -119,7 +119,7 @@ export function PipelineKanban({ clientes, onUpdate }: Props) {
 
                         {frio && (
                           <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 font-semibold">
-                            🥶 Lead frío
+                            🥶 Contacto frío
                           </span>
                         )}
 
