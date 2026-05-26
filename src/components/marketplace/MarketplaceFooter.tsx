@@ -1,76 +1,128 @@
 import Link from "next/link";
+import { Logo } from "@/components/crm/Logo";
 
-const NAV_LINKS = [
-  { href: "/?operacion=VENTA", label: "Comprar" },
-  { href: "/?operacion=ALQUILER", label: "Alquilar" },
-  { href: "/?operacion=ALQUILER_TEMPORARIO", label: "Temporario" },
-  { href: "/login", label: "Acceder" },
+const FOOTER_COLS = [
+  {
+    title: "Buscar",
+    links: [
+      { href: "/?operacion=VENTA", label: "Comprar" },
+      { href: "/?operacion=ALQUILER", label: "Alquilar" },
+      { href: "/?operacion=ALQUILER_TEMPORARIO", label: "Temporario" },
+      { href: "/mapa", label: "Por mapa" },
+    ],
+  },
+  {
+    title: "Inmobiliarias",
+    links: [
+      // TODO: apuntar a https://inmolibres.com cuando el sitio esté deployado
+      { href: "https://inmolibres.com", label: "¿Sos inmobiliaria?" },
+      { href: "https://inmolibres.com", label: "Sumate" },
+      { href: "/login", label: "Acceder" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { href: "#", label: "Términos" },
+      { href: "#", label: "Privacidad" },
+      { href: "#", label: "Cookies" },
+    ],
+  },
 ];
 
 export function MarketplaceFooter() {
   return (
-    <footer
-      className="py-8 px-4"
-      style={{ background: "var(--antracite)" }}
-    >
+    <footer style={{ background: "var(--antracita-900, #14110E)", color: "var(--crema-100, #F5EFE5)", padding: "48px 48px 28px" }}>
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          {/* Brand */}
+        {/* Grid: 1.5fr + 3×1fr */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.5fr repeat(3, 1fr)",
+            gap: 48,
+            paddingBottom: 32,
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+          }}
+          className="grid-cols-2 sm:grid-cols-2 lg:[grid-template-columns:1.5fr_repeat(3,1fr)]"
+        >
+          {/* Brand column */}
           <div>
-            <span
-              className="text-xl font-bold text-white"
-              style={{ fontFamily: "var(--font-fraunces)" }}
-            >
-              Inmo<span style={{ color: "#C1694F" }}>Libres</span>
-            </span>
+            <Logo variant="lockup" size={22} onDark />
             <p
-              className="mt-1 text-sm"
               style={{
-                color: "rgba(255,255,255,0.45)",
-                fontFamily: "var(--font-jakarta)",
-              }}
-            >
-              Paso de los Libres, Corrientes, Argentina
-            </p>
-            <p
-              className="mt-1 text-sm italic"
-              style={{
-                color: "rgba(255,255,255,0.3)",
-                fontFamily: "var(--font-fraunces)",
+                fontSize: 13,
+                color: "var(--crema-300, #D9C9B0)",
+                margin: "14px 0 0",
+                fontStyle: "italic",
+                fontFamily: "var(--font-fraunces-display), Georgia, serif",
               }}
             >
               Tu próxima propiedad está acá.
             </p>
+            <p
+              style={{
+                fontSize: 12,
+                color: "var(--crema-300, #D9C9B0)",
+                margin: "10px 0 0",
+                fontFamily: "var(--font-dm-sans), sans-serif",
+              }}
+            >
+              Paso de los Libres, Corrientes · Argentina
+            </p>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex flex-col gap-2">
-            {NAV_LINKS.map(({ href, label }) => (
-              <Link
-                key={label}
-                href={href}
-                className="text-sm transition-all duration-200 hover:opacity-100"
+          {/* Link columns */}
+          {FOOTER_COLS.map((col) => (
+            <div key={col.title}>
+              <h5
                 style={{
-                  color: "rgba(255,255,255,0.45)",
-                  fontFamily: "var(--font-jakarta)",
+                  fontFamily: "var(--font-jetbrains-mono), monospace",
+                  fontSize: 10.5,
+                  color: "var(--crema-300, #D9C9B0)",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  margin: "0 0 12px",
                 }}
               >
-                {label}
-              </Link>
-            ))}
-          </nav>
+                {col.title}
+              </h5>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 7 }}>
+                {col.links.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      style={{
+                        fontSize: 13,
+                        color: "var(--crema-100, #F5EFE5)",
+                        textDecoration: "none",
+                        fontFamily: "var(--font-dm-sans), sans-serif",
+                        opacity: 0.8,
+                        transition: "opacity 200ms",
+                      }}
+  
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
         {/* Bottom bar */}
         <div
-          className="mt-6 pt-4 text-center text-xs"
           style={{
-            borderTop: "1px solid rgba(255,255,255,0.07)",
-            color: "rgba(255,255,255,0.22)",
-            fontFamily: "var(--font-jakarta)",
+            display: "flex",
+            justifyContent: "space-between",
+            paddingTop: 20,
+            fontSize: 11.5,
+            color: "var(--crema-300, #D9C9B0)",
+            fontFamily: "var(--font-jetbrains-mono), monospace",
           }}
         >
-          © {new Date().getFullYear()} InmoLibres · Todos los derechos reservados
+          <span>© {new Date().getFullYear()} InmoLibres</span>
+          <span>Hecho en Corrientes</span>
         </div>
       </div>
     </footer>

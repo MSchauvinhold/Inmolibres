@@ -268,7 +268,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
     <label className="flex items-center gap-3 cursor-pointer select-none">
       <div
         className="relative w-10 h-5 rounded-full transition-colors"
-        style={{ background: checked ? "#8B4513" : "#D4D0CB" }}
+        style={{ background: checked ? "#1B4332" : "#D4D0CB" }}
         onClick={() => onChange(!checked)}
       >
         <div
@@ -373,10 +373,10 @@ function Step0({ onSelect }: { onSelect: (t: Tipo) => void }) {
       <div className="grid grid-cols-2 gap-4">
         <button
           onClick={() => onSelect("alquiler")}
-          className="group p-6 rounded-2xl border-2 text-left space-y-3 transition-all hover:border-[#8B4513] hover:shadow-lg"
+          className="group p-6 rounded-2xl border-2 text-left space-y-3 transition-all hover:border-[#1B4332] hover:shadow-lg"
           style={{ borderColor: "#E8E5E0", background: "#FAFAF8" }}
         >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "#8B4513" }}>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "#1B4332" }}>
             <Home className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -386,10 +386,10 @@ function Step0({ onSelect }: { onSelect: (t: Tipo) => void }) {
         </button>
         <button
           onClick={() => onSelect("compraventa")}
-          className="group p-6 rounded-2xl border-2 text-left space-y-3 transition-all hover:border-[#8B4513] hover:shadow-lg"
+          className="group p-6 rounded-2xl border-2 text-left space-y-3 transition-all hover:border-[#1B4332] hover:shadow-lg"
           style={{ borderColor: "#E8E5E0", background: "#FAFAF8" }}
         >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "#8B4513" }}>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "#1B4332" }}>
             <Gavel className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -846,7 +846,7 @@ function duracionMeses(inicio: string, fin: string): number {
 }
 
 function printAlquiler(data: AlquilerData, propiedades: PropiedadItem[], cfg: WizardConfig | null, inmob: WizardInmobiliaria | null) {
-  const cp = cfg?.colorPrimario ?? "#8B4513";
+  const cp = cfg?.colorPrimario ?? "#1B4332";
   const cs = cfg?.colorSecundario ?? "#2C2C2C";
   const prop = propiedades.find((p) => p.id === data.propiedadId);
   const hoy = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
@@ -905,7 +905,7 @@ ${garanHtml}
 }
 
 export function printCompraventa(data: CompraventaData, cfg: WizardConfig | null, inmob: WizardInmobiliaria | null) {
-  const cp = cfg?.colorPrimario ?? "#8B4513";
+  const cp = cfg?.colorPrimario ?? "#1B4332";
   const cs = cfg?.colorSecundario ?? "#2C2C2C";
   const hoy = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
   const pie = cfg?.piePaginaContrato ?? [cfg?.razonSocial ?? inmob?.nombre ?? "", inmob?.whatsapp && `Tel: ${inmob.whatsapp}`, inmob?.email].filter(Boolean).join(" · ");
@@ -983,7 +983,7 @@ export function NuevoContratoWizard({
   const [errs, setErrs] = useState<Record<string, string>>({});
 
   const { tipo, paso, alquiler, compraventa, saving, done } = state;
-  const primaryColor = config?.colorPrimario ?? "#8B4513";
+  const primaryColor = config?.colorPrimario ?? "#1B4332";
   const color = primaryColor;
   const steps = tipo === "compraventa" ? CV_STEPS : ALQ_STEPS;
   const totalPasos = 4;
@@ -1099,7 +1099,7 @@ export function NuevoContratoWizard({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
         <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 text-center space-y-5">
           <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center" style={{ background: "#F7F5F2" }}>
-            <Check className="w-8 h-8" style={{ color: "#8B4513" }} />
+            <Check className="w-8 h-8" style={{ color }} />
           </div>
           <div>
             <p className="font-bold text-[#1a1a1a]">Boleto generado</p>
@@ -1109,12 +1109,12 @@ export function NuevoContratoWizard({
             <button
               onClick={() => printCompraventa(compraventa, config, inmobiliaria)}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border"
-              style={{ borderColor: "#8B4513", color: "#8B4513" }}
+              style={{ borderColor: color, color }}
             >
               <Printer className="w-4 h-4" />
               Reimprimir
             </button>
-            <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: "#8B4513" }}>
+            <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white" style={{ background: color }}>
               Cerrar
             </button>
           </div>
@@ -1132,7 +1132,7 @@ export function NuevoContratoWizard({
         style={{ maxHeight: "92vh" }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ background: "#8B4513" }}>
+        <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ background: color }}>
           <div className="flex items-center gap-3">
             <FileText className="w-5 h-5 text-white opacity-80" />
             <div>

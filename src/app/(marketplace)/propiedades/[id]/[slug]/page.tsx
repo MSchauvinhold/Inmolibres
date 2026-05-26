@@ -10,6 +10,7 @@ import {
 import { ConsultaForm } from "@/components/marketplace/ConsultaForm";
 import { PropiedadMap } from "@/components/maps/PropiedadMap";
 import { PropiedadGallery } from "@/components/marketplace/PropiedadGallery";
+import { Pill } from "@/components/ui/pill";
 import Image from "next/image";
 import type { Metadata } from "next";
 
@@ -142,80 +143,107 @@ export default async function PropiedadDetailPage({
           {/* Price + title */}
           <div>
             {/* Operation + type badges */}
-            <div className="flex gap-2 mb-3 flex-wrap">
-              <span
-                className="px-3 py-1 rounded-full text-xs font-semibold"
-                style={{
-                  background: "var(--terra-mid)",
-                  color: "white",
-                  fontFamily: "var(--font-jakarta)",
-                }}
-              >
+            <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+              <Pill tone={propiedad.operacion === "VENTA" ? "terra" : propiedad.operacion === "ALQUILER" ? "dark" : "accent"}>
                 {TIPO_OPERACION_LABELS[propiedad.operacion]}
-              </span>
-              <span
-                className="px-3 py-1 rounded-full text-xs font-semibold"
-                style={{
-                  background: "var(--terra-pale)",
-                  color: "var(--terra-dark)",
-                  fontFamily: "var(--font-jakarta)",
-                }}
-              >
-                {TIPO_PROPIEDAD_LABELS[propiedad.tipo]}
-              </span>
+              </Pill>
+              <Pill tone="outline">{TIPO_PROPIEDAD_LABELS[propiedad.tipo]}</Pill>
+              <Pill tone="success">{propiedad.estado === "DISPONIBLE" ? "Disponible" : propiedad.estado === "RESERVADA" ? "Reservada" : "Alquilada"}</Pill>
             </div>
 
-            <p
-              className="text-3xl sm:text-4xl font-semibold leading-none"
-              style={{
-                fontFamily: "var(--font-mono)",
-                color: "var(--antracite)",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {formatPrice(Number(propiedad.precio), propiedad.moneda)}
-            </p>
-
-            <h1
-              className="mt-3 text-2xl sm:text-3xl font-bold leading-snug"
-              style={{
-                fontFamily: "var(--font-fraunces)",
-                color: "var(--antracite)",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              {propiedad.titulo}
-            </h1>
-
-            <div
-              className="flex items-center gap-2 mt-3"
-              style={{ color: "var(--antracite-light)" }}
-            >
-              <MapPin className="w-4 h-4 shrink-0" />
-              <span
-                className="text-sm"
-                style={{ fontFamily: "var(--font-jakarta)" }}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, flexWrap: "wrap", marginBottom: 10 }}>
+              <h1
+                className="display"
+                style={{ fontSize: 34, margin: 0, color: "var(--antracita-900)", lineHeight: 1.1, letterSpacing: "-0.02em", flex: "1 1 300px" }}
               >
-                {propiedad.direccion}
-              </span>
+                {propiedad.titulo}
+              </h1>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div
+                  className="mono"
+                  style={{ fontSize: 36, fontWeight: 600, color: "var(--antracita-900)", letterSpacing: "-0.02em", lineHeight: 1 }}
+                >
+                  {formatPrice(Number(propiedad.precio), propiedad.moneda)}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--antracita-500)", fontSize: 14 }}>
+              <MapPin size={15} style={{ color: "var(--terracota-500)", flexShrink: 0 }} />
+              {propiedad.direccion}
             </div>
           </div>
 
-          {/* Attribute chips */}
-          {atributos.length > 0 && (
-            <div className="flex flex-wrap gap-2.5">
-              {atributos.map(({ icon: Icon, label }) => (
+          {/* Key facts 4-grid */}
+          {(a?.habitaciones != null || a?.banos != null || a?.superficieCubierta != null || a?.superficieTotal != null) && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+              {a?.superficieTotal != null && (
+                <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "16px 18px", background: "var(--crema-100, #F0E9DC)", borderRadius: 14, border: "1px solid var(--border)" }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, background: "#fff", border: "1px solid var(--border)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Square size={16} style={{ color: "var(--terracota-600)" }} />
+                  </span>
+                  <div>
+                    <div className="mono" style={{ fontSize: 19, fontWeight: 600, color: "var(--antracita-900)", lineHeight: 1 }}>{a.superficieTotal}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginTop: 3 }}>m² totales</div>
+                  </div>
+                </div>
+              )}
+              {a?.superficieCubierta != null && (
+                <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "16px 18px", background: "var(--crema-100, #F0E9DC)", borderRadius: 14, border: "1px solid var(--border)" }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, background: "#fff", border: "1px solid var(--border)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Square size={16} style={{ color: "var(--terracota-600)" }} />
+                  </span>
+                  <div>
+                    <div className="mono" style={{ fontSize: 19, fontWeight: 600, color: "var(--antracita-900)", lineHeight: 1 }}>{a.superficieCubierta}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginTop: 3 }}>m² cubiertos</div>
+                  </div>
+                </div>
+              )}
+              {a?.habitaciones != null && (
+                <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "16px 18px", background: "var(--crema-100, #F0E9DC)", borderRadius: 14, border: "1px solid var(--border)" }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, background: "#fff", border: "1px solid var(--border)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Bed size={16} style={{ color: "var(--terracota-600)" }} />
+                  </span>
+                  <div>
+                    <div className="mono" style={{ fontSize: 19, fontWeight: 600, color: "var(--antracita-900)", lineHeight: 1 }}>{a.habitaciones}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginTop: 3 }}>dormitorios</div>
+                  </div>
+                </div>
+              )}
+              {a?.banos != null && (
+                <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "16px 18px", background: "var(--crema-100, #F0E9DC)", borderRadius: 14, border: "1px solid var(--border)" }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 10, background: "#fff", border: "1px solid var(--border)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Bath size={16} style={{ color: "var(--terracota-600)" }} />
+                  </span>
+                  <div>
+                    <div className="mono" style={{ fontSize: 19, fontWeight: 600, color: "var(--antracita-900)", lineHeight: 1 }}>{a.banos}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginTop: 3 }}>baños</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Attribute chips (extras) */}
+          {atributos.filter(({ label }) => !label.includes("m²") && !label.includes("dormitorio") && !label.includes("baño")).length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {atributos.filter(({ label }) => !label.includes("m²") && !label.includes("dormitorio") && !label.includes("baño")).map(({ icon: Icon, label }) => (
                 <div
                   key={label}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm"
                   style={{
-                    background: "var(--terra-pale)",
-                    color: "var(--terra-dark)",
-                    fontFamily: "var(--font-jakarta)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 14px",
+                    borderRadius: 10,
+                    fontSize: 12.5,
+                    background: "var(--crema-100, #F0E9DC)",
+                    color: "var(--antracita-700)",
                     fontWeight: 500,
+                    border: "1px solid var(--border)",
                   }}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon size={14} />
                   {label}
                 </div>
               ))}
@@ -225,7 +253,7 @@ export default async function PropiedadDetailPage({
           {/* Servicios */}
           {servicios.length > 0 && (
             <div>
-              <h2 className="text-base font-semibold mb-2" style={{ fontFamily: "var(--font-fraunces)", color: "var(--antracite)" }}>
+              <h2 className="display" style={{ fontSize: 20, marginBottom: 10, marginTop: 0, color: "var(--antracita-900)" }}>
                 Servicios
               </h2>
               <div className="flex flex-wrap gap-2">
@@ -245,7 +273,7 @@ export default async function PropiedadDetailPage({
           {/* Características custom */}
           {a?.caracteristicasCustom && a.caracteristicasCustom.length > 0 && (
             <div>
-              <h2 className="text-base font-semibold mb-2" style={{ fontFamily: "var(--font-fraunces)", color: "var(--antracite)" }}>
+              <h2 className="display" style={{ fontSize: 20, marginBottom: 10, marginTop: 0, color: "var(--antracita-900)" }}>
                 Características
               </h2>
               <div className="flex flex-wrap gap-2">
@@ -265,13 +293,7 @@ export default async function PropiedadDetailPage({
           {/* Description */}
           {propiedad.descripcion && (
             <div>
-              <h2
-                className="text-lg font-semibold mb-3"
-                style={{
-                  fontFamily: "var(--font-fraunces)",
-                  color: "var(--antracite)",
-                }}
-              >
+              <h2 className="display" style={{ fontSize: 22, marginBottom: 12, marginTop: 0, color: "var(--antracita-900)" }}>
                 Descripción
               </h2>
               <p
@@ -289,13 +311,7 @@ export default async function PropiedadDetailPage({
           {/* Map */}
           {propiedad.latitud && propiedad.longitud && (
             <div>
-              <h2
-                className="text-lg font-semibold mb-3"
-                style={{
-                  fontFamily: "var(--font-fraunces)",
-                  color: "var(--antracite)",
-                }}
-              >
+              <h2 className="display" style={{ fontSize: 22, marginBottom: 12, marginTop: 0, color: "var(--antracita-900)" }}>
                 Ubicación
               </h2>
               <div className="rounded-2xl overflow-hidden">
@@ -313,11 +329,13 @@ export default async function PropiedadDetailPage({
         {/* Sticky sidebar */}
         <div className="min-w-0 lg:pl-6">
           <div
-            className="sticky rounded-2xl p-6 space-y-5"
+            className="il-card sticky"
             style={{
               top: 88,
-              background: "white",
-              boxShadow: "var(--shadow-mp-card)",
+              padding: 24,
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
             }}
           >
             {/* Inmobiliaria / particular branding */}
@@ -370,15 +388,10 @@ export default async function PropiedadDetailPage({
                 href={waLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2.5 w-full py-3.5 rounded-xl font-semibold text-sm transition-opacity hover:opacity-90"
-                style={{
-                  background: "#25D366",
-                  color: "white",
-                  fontFamily: "var(--font-jakarta)",
-                  textDecoration: "none",
-                }}
+                className="il-btn il-btn--whats"
+                style={{ width: "100%", height: 44, fontSize: 14, justifyContent: "center", textDecoration: "none" }}
               >
-                <MessageCircle className="w-5 h-5" />
+                <MessageCircle size={18} />
                 Consultar por WhatsApp
               </a>
             )}
@@ -386,31 +399,17 @@ export default async function PropiedadDetailPage({
             {propiedad.inmobiliaria?.email && (
               <a
                 href={`mailto:${propiedad.inmobiliaria.email}?subject=${encodeURIComponent(`Consulta sobre: ${propiedad.titulo}`)}`}
-                className="flex items-center justify-center gap-2.5 w-full py-3 rounded-xl font-medium text-sm border transition-colors"
-                style={{
-                  color: "var(--antracite-mid)",
-                  borderColor: "var(--cream-border)",
-                  fontFamily: "var(--font-jakarta)",
-                  textDecoration: "none",
-                }}
+                className="il-btn il-btn--ghost"
+                style={{ width: "100%", height: 40, fontSize: 13, justifyContent: "center", textDecoration: "none", color: "var(--antracita-700)" }}
               >
-                <Phone className="w-4 h-4" />
+                <Phone size={14} />
                 Consultar por email
               </a>
             )}
 
-            {/* Divider */}
-            <div
-              className="border-t pt-5"
-              style={{ borderColor: "var(--cream-border)" }}
-            >
-              <p
-                className="text-sm font-medium mb-4"
-                style={{
-                  color: "var(--antracite)",
-                  fontFamily: "var(--font-jakarta)",
-                }}
-              >
+            {/* Divider + form */}
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--antracita-900)", marginBottom: 14, marginTop: 0 }}>
                 Enviá una consulta
               </p>
               <ConsultaForm

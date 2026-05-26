@@ -43,7 +43,7 @@ export function PageLoader() {
               cx={68}
               cy={24}
               r={3 - i * 0.4}
-              fill="#8B4513"
+              fill="#C1694F"
               animate={{
                 y: [0, -18],
                 opacity: [0.75, 0],
@@ -59,12 +59,12 @@ export function PageLoader() {
           ))}
 
           {/* Chimney */}
-          <rect x="62" y="18" width="10" height="24" rx="2.5" fill="#6B3410" />
+          <rect x="62" y="18" width="10" height="24" rx="2.5" fill="#5C2E14" />
 
           {/* Roof */}
-          <polygon points="8,52 48,12 88,52" fill="#8B4513" />
+          <polygon points="8,52 48,12 88,52" fill="#7E3F26" />
           {/* Roof highlight */}
-          <polygon points="8,52 48,14 88,52" fill="#A0522D" opacity="0.3" />
+          <polygon points="8,52 48,14 88,52" fill="#C1694F" opacity="0.3" />
 
           {/* House body */}
           <rect x="16" y="50" width="64" height="40" rx="4" fill="#C1694F" />

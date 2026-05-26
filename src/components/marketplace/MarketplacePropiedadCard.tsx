@@ -6,7 +6,12 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { MapPin, Bed, Bath, Square, Car, MessageCircle } from "lucide-react";
 import { formatPrice, buildWhatsAppLink } from "@/lib/utils";
+import { PropertyIllustration } from "@/components/ui/property-illustration";
 import type { Moneda, TipoOperacion, TipoPropiedad } from "@prisma/client";
+
+const SEED_MAP: Record<string, number> = {
+  CASA: 0, DEPARTAMENTO: 1, TERRENO: 2, LOCAL: 3, GALPON: 3, OFICINA: 3,
+};
 
 interface AtributosInfo {
   habitaciones: number | null;
@@ -58,6 +63,7 @@ export function MarketplacePropiedadCard({
   id,
   titulo,
   slug,
+  tipo,
   operacion,
   precio,
   moneda,
@@ -160,19 +166,7 @@ export function MarketplacePropiedadCard({
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <svg
-                  width="44"
-                  height="44"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <path
-                    d="M3 12L12 3L21 12V20C21 21.1 20.1 22 19 22H5C3.9 22 3 21.1 3 20V12Z"
-                    fill="var(--cream-border)"
-                  />
-                </svg>
-              </div>
+              <PropertyIllustration seed={SEED_MAP[tipo] ?? 0} style={{ width: "100%", height: "100%" }} />
             )}
           </div>
 

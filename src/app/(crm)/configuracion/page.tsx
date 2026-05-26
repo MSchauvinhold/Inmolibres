@@ -54,7 +54,7 @@ export default async function ConfiguracionPage() {
     comisionInmobPct: 70,
     ivaIncluido: true,
     monedaPreferida: "USD" as const,
-    colorPrimario: "#8B4513",
+    colorPrimario: "#1B4332",
     colorSecundario: "#2C2C2C",
     logoEnContrato: false,
     clausulasAdicionales: null,

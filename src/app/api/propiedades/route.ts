@@ -4,6 +4,7 @@ import { propiedadFormSchema } from "@/lib/validations/property";
 import { generateUniqueSlug, buildPaginationMeta } from "@/lib/utils";
 import { auth } from "@/lib/auth";
 import { requireCrmAuth, isNextResponse } from "@/lib/api-auth";
+import { toPlanKey, LIMITES_PLAN } from "@/lib/planes";
 import type { Prisma, TipoPropiedad, TipoOperacion, EstadoPropiedad, Moneda } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
@@ -92,23 +93,34 @@ export async function GET(request: NextRequest) {
   }
 }
 
-const MAX_PROPIEDADES_PARTICULAR = 3;
-
 export async function POST(request: NextRequest) {
   const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
-  const { userId, inmobiliariaId, rol } = session;
+  const { userId, inmobiliariaId, rol, plan } = session;
   const isParticular = rol === "PARTICULAR";
 
   if (!isParticular && rol !== "ADMIN" && rol !== "AGENTE") {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
+  // Verificar límite de propiedades según plan
+  const planKey = toPlanKey(plan);
+  const maxPropiedades = LIMITES_PLAN[planKey].maxPropiedades;
+
   if (isParticular) {
     const total = await db.propiedad.count({ where: { agenteId: userId } });
-    if (total >= MAX_PROPIEDADES_PARTICULAR) {
+    const limite = LIMITES_PLAN.BASICO.maxPropiedades;
+    if (total >= limite) {
       return NextResponse.json(
-        { error: `Límite de ${MAX_PROPIEDADES_PARTICULAR} propiedades alcanzado` },
+        { error: `Límite de ${limite} propiedades alcanzado en tu plan. Actualizá a un plan superior.` },
+        { status: 403 }
+      );
+    }
+  } else if (maxPropiedades !== null && inmobiliariaId) {
+    const total = await db.propiedad.count({ where: { inmobiliariaId } });
+    if (total >= maxPropiedades) {
+      return NextResponse.json(
+        { error: `Límite de ${maxPropiedades} propiedades alcanzado en tu plan. Actualizá a un plan superior.` },
         { status: 403 }
       );
     }

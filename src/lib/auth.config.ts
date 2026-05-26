@@ -23,6 +23,7 @@ export const authConfig = {
           inmobiliariaId: string | null;
           inmobiliariaEstado: EstadoInmobiliaria | null;
           inmobiliariaNombre: string | null;
+          plan: string | null;
         };
         token.id = u.id ?? "";
         token.nombre = u.nombre;
@@ -30,6 +31,7 @@ export const authConfig = {
         token.inmobiliariaId = u.inmobiliariaId ?? null;
         token.inmobiliariaEstado = u.inmobiliariaEstado ?? null;
         token.inmobiliariaNombre = u.inmobiliariaNombre ?? null;
+        token.plan = u.plan ?? null;
       }
       return token;
     },
@@ -44,6 +46,7 @@ export const authConfig = {
           inmobiliariaId: (token.inmobiliariaId ?? null) as string | null,
           inmobiliariaEstado: (token.inmobiliariaEstado ?? null) as EstadoInmobiliaria | null,
           inmobiliariaNombre: (token.inmobiliariaNombre ?? null) as string | null,
+          plan: (token.plan ?? null) as string | null,
         },
       };
     },

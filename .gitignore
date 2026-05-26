@@ -52,3 +52,9 @@ next-env.d.ts
 tests/
 test-results/
 playwright-report/
+
+# capturas de verificación (screenshots de testing)
+capturas/
+
+# design handoff (archivos de referencia de diseño, no producción)
+design_handoff_inmolibres_v2/

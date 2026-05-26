@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Search } from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 import { TIPO_PROPIEDAD_LABELS } from "@/lib/utils";
 import type { TipoPropiedad } from "@prisma/client";
 
@@ -14,187 +14,289 @@ const TIPOS: TipoPropiedad[] = [
   "OFICINA",
 ];
 
+const CHIPS = [
+  { label: "Venta", value: "VENTA" },
+  { label: "Alquiler", value: "ALQUILER" },
+  { label: "Temporario", value: "ALQUILER_TEMPORARIO" },
+  { label: "Comercial", value: "LOCAL" },
+];
+
 interface HeroProps {
   totalPropiedades?: number;
 }
 
 export function HeroSection({ totalPropiedades }: HeroProps) {
   return (
-    <section className="relative overflow-hidden" style={{ minHeight: "70vh" }}>
-      {/* Animated gradient background */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "linear-gradient(135deg, #FAF0E6 0%, #F5DEB3 25%, #E8C49A 50%, #DEB887 75%, #FAF0E6 100%)",
-          backgroundSize: "400% 400%",
-          animation: "gradientShift 8s ease infinite",
-        }}
-      />
-
-      {/* Subtle dot texture */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 2px 2px, rgba(139,69,19,0.07) 1px, transparent 0)",
-          backgroundSize: "28px 28px",
-        }}
-      />
+    <section
+      className="relative overflow-hidden"
+      style={{
+        background: "linear-gradient(180deg, var(--terracota-100, #FAE5D3) 0%, var(--crema-50, #FBF8F2) 100%)",
+        paddingBottom: 0,
+      }}
+    >
+      {/* Architectural grid pattern */}
+      <svg
+        width="100%"
+        height="100%"
+        style={{ position: "absolute", inset: 0, opacity: 0.08, color: "var(--marron-700, #5C2E14)", pointerEvents: "none" }}
+      >
+        <defs>
+          <pattern id="hero-grid" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
+            <path d="M0 80 L40 60 L80 80 M40 60 L40 30" stroke="currentColor" fill="none" strokeWidth="1" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#hero-grid)" />
+      </svg>
 
       {/* Content */}
-      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-32 text-center">
+      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 pt-20 pb-24 text-center">
+        {/* Location badge */}
         <motion.div
-          initial={{ opacity: 0, y: 32 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
-        >
-          <h1
-            style={{
-              fontFamily: "var(--font-fraunces)",
-              color: "var(--antracite)",
-              fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
-              fontWeight: 700,
-              lineHeight: 1.1,
-              letterSpacing: "-0.03em",
-            }}
-          >
-            Encontrá tu{" "}
-            <span style={{ color: "var(--terra-mid)" }}>próximo hogar</span>
-          </h1>
-        </motion.div>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.65, delay: 0.18, ease: "easeOut" }}
-          className="mt-5 text-lg max-w-xl mx-auto leading-relaxed"
+          transition={{ duration: 0.55 }}
+          className="inline-flex items-center gap-2 mb-7"
           style={{
-            color: "var(--antracite-mid)",
-            fontFamily: "var(--font-jakarta)",
+            background: "rgba(255,255,255,0.7)",
+            border: "1px solid var(--terracota-300, #E0A088)",
+            padding: "6px 14px",
+            borderRadius: 999,
+            fontSize: 12.5,
+            color: "var(--terracota-700, #7E3F26)",
+            fontWeight: 500,
+            fontFamily: "var(--font-dm-sans), sans-serif",
           }}
         >
-          Casas, departamentos, terrenos y más.{" "}
-          <span style={{ color: "var(--terra-dark)", fontWeight: 500 }}>
-            Todo en un solo lugar.
+          <MapPin className="w-3.5 h-3.5" style={{ color: "var(--terracota-600, #A85737)" }} />
+          Paso de los Libres, Corrientes
+        </motion.div>
+
+        {/* H1 */}
+        <motion.h1
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, delay: 0.1 }}
+          style={{
+            fontFamily: "var(--font-fraunces-display), Georgia, serif",
+            color: "var(--antracita-900, #14110E)",
+            fontSize: "clamp(3rem, 7vw, 5.25rem)",
+            fontWeight: 700,
+            lineHeight: 1.0,
+            letterSpacing: "-0.03em",
+            margin: "0 0 14px",
+          }}
+        >
+          Encontrá tu
+          <br />
+          próximo{" "}
+          <em style={{ color: "var(--terracota-500, #C1694F)", fontStyle: "italic" }}>
+            hogar.
+          </em>
+        </motion.h1>
+
+        {/* Subtitle */}
+        <motion.p
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.22 }}
+          style={{
+            fontSize: 18,
+            color: "var(--antracita-500, #3A332C)",
+            margin: "0 0 40px",
+            lineHeight: 1.5,
+            fontFamily: "var(--font-dm-sans), sans-serif",
+          }}
+        >
+          Casas, departamentos, terrenos y comercios — publicados por inmobiliarias de confianza.
+          <br />
+          <span style={{ color: "var(--antracita-700, #2A2219)" }}>
+            Tu próxima propiedad está acá.
           </span>
         </motion.p>
 
-        {/* Search form */}
+        {/* Search bar */}
         <motion.div
-          initial={{ opacity: 0, y: 24, scale: 0.98 }}
+          initial={{ opacity: 0, y: 20, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.65, delay: 0.32, ease: "easeOut" }}
-          className="mt-9"
+          transition={{ duration: 0.6, delay: 0.32 }}
         >
           <form
             method="GET"
             action="/"
-            className="flex flex-wrap gap-2 p-2.5 rounded-2xl"
             style={{
-              background: "rgba(255,255,255,0.78)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              boxShadow:
-                "0 4px 32px rgba(139,69,19,0.12), 0 1px 4px rgba(0,0,0,0.06)",
-              border: "1px solid rgba(255,255,255,0.85)",
+              background: "#fff",
+              borderRadius: 20,
+              padding: 8,
+              boxShadow: "var(--shadow-lg, 0 4px 14px rgba(58,35,18,0.08), 0 20px 50px -16px rgba(58,35,18,0.14))",
+              display: "grid",
+              gridTemplateColumns: "1fr 200px 180px auto",
+              gap: 0,
+              maxWidth: 860,
+              margin: "0 auto",
+              border: "1px solid var(--border, #E8DFD0)",
             }}
           >
-            <input
-              name="search"
-              placeholder="Buscá por barrio, calle, tipo..."
-              className="flex-1 min-w-[140px] bg-transparent px-3 py-2 text-sm outline-none"
+            {/* Search input */}
+            <div
               style={{
-                color: "var(--antracite)",
-                fontFamily: "var(--font-jakarta)",
-              }}
-            />
-            <select
-              name="operacion"
-              className="text-sm px-3 py-2 rounded-xl border outline-none cursor-pointer"
-              style={{
-                color: "var(--antracite-mid)",
-                fontFamily: "var(--font-jakarta)",
-                background: "white",
-                borderColor: "var(--cream-border)",
+                display: "flex",
+                alignItems: "center",
+                padding: "0 18px",
+                gap: 10,
+                borderRight: "1px solid var(--border, #E8DFD0)",
               }}
             >
-              <option value="">Todas las operaciones</option>
-              <option value="VENTA">Comprar</option>
-              <option value="ALQUILER">Alquilar</option>
-              <option value="ALQUILER_TEMPORARIO">Temporario</option>
-            </select>
-            <select
-              name="tipo"
-              className="text-sm px-3 py-2 rounded-xl border outline-none cursor-pointer"
+              <Search style={{ width: 17, height: 17, color: "var(--antracita-300, #6F665C)", flexShrink: 0 }} />
+              <input
+                name="search"
+                placeholder="Buscá por barrio, calle, tipo…"
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  fontSize: 14,
+                  color: "var(--antracita-700, #2A2219)",
+                  width: "100%",
+                  padding: "14px 0",
+                  fontFamily: "var(--font-dm-sans), sans-serif",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            {/* Operación select */}
+            <button
+              type="button"
               style={{
-                color: "var(--antracite-mid)",
-                fontFamily: "var(--font-jakarta)",
-                background: "white",
-                borderColor: "var(--cream-border)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                justifyContent: "center",
+                background: "transparent",
+                border: "none",
+                padding: "0 18px",
+                cursor: "pointer",
+                borderRight: "1px solid var(--border, #E8DFD0)",
+                position: "relative",
               }}
             >
-              <option value="">Todos los tipos</option>
-              {TIPOS.map((t) => (
-                <option key={t} value={t}>
-                  {TIPO_PROPIEDAD_LABELS[t]}
-                </option>
-              ))}
-            </select>
+              <span style={{ fontSize: 10, color: "var(--antracita-300, #6F665C)", letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--font-jetbrains-mono), monospace" }}>Operación</span>
+              <select
+                name="operacion"
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--antracita-700, #2A2219)",
+                  fontWeight: 500,
+                  marginTop: 2,
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-dm-sans), sans-serif",
+                  width: "100%",
+                }}
+              >
+                <option value="">Todas</option>
+                <option value="VENTA">Comprar</option>
+                <option value="ALQUILER">Alquilar</option>
+                <option value="ALQUILER_TEMPORARIO">Temporario</option>
+              </select>
+            </button>
+
+            {/* Tipo select */}
+            <button
+              type="button"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                justifyContent: "center",
+                background: "transparent",
+                border: "none",
+                padding: "0 18px",
+                cursor: "pointer",
+                borderRight: "1px solid var(--border, #E8DFD0)",
+              }}
+            >
+              <span style={{ fontSize: 10, color: "var(--antracita-300, #6F665C)", letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--font-jetbrains-mono), monospace" }}>Tipo</span>
+              <select
+                name="tipo"
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--antracita-700, #2A2219)",
+                  fontWeight: 500,
+                  marginTop: 2,
+                  background: "transparent",
+                  border: "none",
+                  outline: "none",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-dm-sans), sans-serif",
+                  width: "100%",
+                }}
+              >
+                <option value="">Todos</option>
+                {TIPOS.map((t) => (
+                  <option key={t} value={t}>
+                    {TIPO_PROPIEDAD_LABELS[t]}
+                  </option>
+                ))}
+              </select>
+            </button>
+
+            {/* Submit */}
             <button
               type="submit"
-              className="btn-terra shrink-0 gap-2 px-5 py-2.5 text-sm rounded-xl"
-              style={{ fontFamily: "var(--font-jakarta)" }}
+              className="btn-terra"
+              style={{ borderRadius: 14, height: 56, padding: "0 24px", display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}
             >
-              <Search className="w-4 h-4" />
+              <Search style={{ width: 15, height: 15 }} />
               Buscar
             </button>
           </form>
 
-          {/* Property count badge */}
-          {totalPropiedades != null && totalPropiedades > 0 && (
-            <motion.p
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.7 }}
-              className="mt-4 text-sm"
-              style={{
-                color: "var(--antracite-light)",
-                fontFamily: "var(--font-jakarta)",
-              }}
-            >
-              Más de{" "}
-              <span
-                style={{ color: "var(--terra-mid)", fontWeight: 600 }}
+          {/* Operation chips */}
+          <div className="flex flex-wrap justify-center gap-2 mt-5">
+            {CHIPS.map((c, i) => (
+              <a
+                key={c.label}
+                href={`/?operacion=${c.value}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  background: i === 0 ? "var(--antracita-900, #14110E)" : "rgba(255,255,255,0.65)",
+                  color: i === 0 ? "var(--crema-50, #FBF8F2)" : "var(--antracita-700, #2A2219)",
+                  border: i === 0 ? "none" : "1px solid var(--border, #E8DFD0)",
+                  padding: "7px 14px",
+                  borderRadius: 999,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  fontFamily: "var(--font-dm-sans), sans-serif",
+                  textDecoration: "none",
+                }}
               >
-                {totalPropiedades}
-              </span>{" "}
-              propiedades disponibles en la plataforma
-            </motion.p>
-          )}
+                {c.label}
+                {totalPropiedades != null && i === 0 && (
+                  <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "var(--font-jetbrains-mono), monospace" }}>
+                    {totalPropiedades}
+                  </span>
+                )}
+              </a>
+            ))}
+          </div>
         </motion.div>
       </div>
 
-      {/* SVG Rooftop skyline — transition to background */}
-      <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0]">
-        <svg
-          viewBox="0 0 1440 88"
-          xmlns="http://www.w3.org/2000/svg"
-          preserveAspectRatio="none"
-          style={{ width: "100%", height: 88, display: "block" }}
-        >
-          {/* Back layer: warm terracota silhouette */}
-          <path
-            d="M0,88 L0,62 L30,62 L30,42 L50,24 L70,42 L70,62 L110,62 L110,48 L130,32 L150,48 L150,62 L180,62 L180,52 L200,36 L212,26 L224,36 L244,52 L244,62 L280,62 L280,44 L302,28 L322,44 L322,62 L360,62 L360,54 L380,40 L392,32 L404,40 L424,54 L424,62 L460,62 L460,48 L482,30 L502,48 L502,62 L540,62 L540,56 L560,44 L572,36 L584,44 L604,56 L604,62 L640,62 L640,44 L662,26 L682,44 L682,62 L720,62 L720,52 L740,38 L752,30 L764,38 L784,52 L784,62 L820,62 L820,48 L842,32 L862,48 L862,62 L900,62 L900,54 L920,42 L930,34 L940,42 L960,54 L960,62 L1000,62 L1000,44 L1022,26 L1042,44 L1042,62 L1080,62 L1080,52 L1100,38 L1112,30 L1124,38 L1144,52 L1144,62 L1180,62 L1180,48 L1200,32 L1220,48 L1220,62 L1260,62 L1260,56 L1280,44 L1292,36 L1304,44 L1324,56 L1324,62 L1360,62 L1360,44 L1382,26 L1402,44 L1402,62 L1440,62 L1440,88 Z"
-            fill="rgba(139,69,19,0.07)"
-          />
-          {/* Front layer: fills with page background color */}
-          <path
-            d="M0,88 L0,68 L28,68 L28,50 L48,32 L68,50 L68,68 L108,68 L108,55 L128,38 L148,55 L148,68 L178,68 L178,58 L196,42 L208,32 L220,42 L240,58 L240,68 L278,68 L278,50 L298,34 L318,50 L318,68 L358,68 L358,60 L376,46 L388,38 L400,46 L420,60 L420,68 L458,68 L458,54 L478,36 L498,54 L498,68 L538,68 L538,62 L556,50 L568,42 L580,50 L600,62 L600,68 L638,68 L638,50 L658,32 L678,50 L678,68 L718,68 L718,58 L736,44 L748,36 L760,44 L780,58 L780,68 L818,68 L818,54 L838,38 L858,54 L858,68 L898,68 L898,60 L916,46 L928,38 L938,46 L958,60 L958,68 L998,68 L998,50 L1018,32 L1038,50 L1038,68 L1078,68 L1078,58 L1096,44 L1108,36 L1120,44 L1140,58 L1140,68 L1178,68 L1178,54 L1196,38 L1216,54 L1216,68 L1258,68 L1258,62 L1276,50 L1288,42 L1300,50 L1320,62 L1320,68 L1358,68 L1358,50 L1378,32 L1398,50 L1398,68 L1440,68 L1440,88 Z"
-            fill="#FAF8F5"
-          />
-        </svg>
-      </div>
+      {/* Skyline SVG at bottom */}
+      <svg
+        viewBox="0 0 1280 60"
+        preserveAspectRatio="none"
+        style={{ display: "block", width: "100%", height: 60, color: "var(--crema-100, #F5EFE5)" }}
+      >
+        <path
+          d="M0 60 L0 38 L60 38 L80 20 L100 38 L160 38 L160 26 L200 26 L200 12 L240 12 L240 26 L300 26 L300 38 L360 38 L380 22 L400 38 L460 38 L460 18 L500 18 L500 38 L560 38 L580 22 L600 38 L660 38 L660 30 L720 30 L720 14 L760 14 L760 30 L820 30 L820 38 L880 38 L900 22 L920 38 L980 38 L980 26 L1020 26 L1020 38 L1080 38 L1100 22 L1120 38 L1180 38 L1180 24 L1220 24 L1220 38 L1280 38 L1280 60 Z"
+          fill="currentColor"
+        />
+      </svg>
     </section>
   );
 }

@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X, Map } from "lucide-react";
+import { Menu, X, Home, Bed, Clock, Map } from "lucide-react";
+import { Logo } from "@/components/crm/Logo";
 
 const NAV_LINKS = [
-  { href: "/?operacion=VENTA", label: "Comprar", icon: null },
-  { href: "/?operacion=ALQUILER", label: "Alquilar", icon: null },
-  { href: "/?operacion=ALQUILER_TEMPORARIO", label: "Temporario", icon: null },
+  { href: "/?operacion=VENTA", label: "Comprar", icon: Home },
+  { href: "/?operacion=ALQUILER", label: "Alquilar", icon: Bed },
+  { href: "/?operacion=ALQUILER_TEMPORARIO", label: "Temporario", icon: Clock },
   { href: "/mapa", label: "Mapa", icon: Map },
 ];
 
@@ -45,21 +46,8 @@ export function MarketplaceHeader() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div
-              className="rounded-xl px-3 py-1.5"
-              style={{ border: "2px solid #8B4513" }}
-            >
-              <span
-                className="text-xl font-bold tracking-tight"
-                style={{
-                  fontFamily: "var(--font-fraunces)",
-                  color: "var(--antracite)",
-                }}
-              >
-                Inmo<span style={{ color: "#8B4513" }}>Libres</span>
-              </span>
-            </div>
+          <Link href="/" className="flex items-center">
+            <Logo variant="lockup" size={22} />
           </Link>
 
           {/* Desktop navigation */}
@@ -70,8 +58,8 @@ export function MarketplaceHeader() {
                 href={href}
                 className="relative text-sm font-medium group flex items-center gap-1.5"
                 style={{
-                  color: "var(--antracite-mid)",
-                  fontFamily: "var(--font-jakarta)",
+                  color: "var(--antracita-500, #3A332C)",
+                  fontFamily: "var(--font-dm-sans), sans-serif",
                 }}
               >
                 {Icon && <Icon className="w-3.5 h-3.5" />}
@@ -79,7 +67,7 @@ export function MarketplaceHeader() {
                 <span
                   className="absolute -bottom-0.5 left-0 h-[1.5px] w-0 group-hover:w-full rounded-full"
                   style={{
-                    background: "var(--terra-mid)",
+                    background: "var(--terracota-500, #C1694F)",
                     transition: "width 280ms cubic-bezier(0.25,0.46,0.45,0.94)",
                   }}
                 />
@@ -146,17 +134,17 @@ export function MarketplaceHeader() {
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors"
                   style={{
-                    color: "var(--antracite)",
-                    fontFamily: "var(--font-jakarta)",
+                    color: "var(--antracita-900, #14110E)",
+                    fontFamily: "var(--font-dm-sans), sans-serif",
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "var(--terra-pale)";
+                    (e.currentTarget as HTMLElement).style.background = "var(--terracota-50, #FBF1EC)";
                   }}
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLElement).style.background = "transparent";
                   }}
                 >
-                  {Icon && <Icon className="w-4 h-4" style={{ color: "var(--terra-mid)" }} />}
+                  {Icon && <Icon className="w-4 h-4" style={{ color: "var(--terracota-500, #C1694F)" }} />}
                   {label}
                 </Link>
               </motion.div>

@@ -37,6 +37,37 @@ export const actualizarPagoSchema = z.object({
 
 export type ActualizarPagoInput = z.infer<typeof actualizarPagoSchema>;
 
+// Actualización general de contrato de alquiler (estadoPago y/o notas)
+export const actualizarContratoAlquilerSchema = z.object({
+  estadoPago: z.enum(["AL_DIA", "ATRASADO"]).optional(),
+  notas: z.string().max(3000, "Máximo 3000 caracteres").optional().nullable(),
+});
+
+export type ActualizarContratoAlquilerInput = z.infer<typeof actualizarContratoAlquilerSchema>;
+
+// Actualización de contrato de venta
+export const actualizarContratoVentaSchema = z.object({
+  notas:        z.string().max(3000).optional().nullable(),
+  vendedorTel:  z.string().max(20).optional().nullable(),
+  compradorTel: z.string().max(20).optional().nullable(),
+});
+
+export type ActualizarContratoVentaInput = z.infer<typeof actualizarContratoVentaSchema>;
+
+// Registro de pago
+export const pagoRegistroSchema = z.object({
+  concepto:   z.string().min(1, "Ingresá el concepto").max(120),
+  monto:      z.number().positive("El monto debe ser mayor a 0"),
+  moneda:     z.enum(["ARS", "USD"]).default("ARS"),
+  metodoPago: z.string().max(60).optional().nullable(),
+  fecha:      z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido")
+    .optional(),
+});
+
+export type PagoRegistroInput = z.infer<typeof pagoRegistroSchema>;
+
 export const consultaPublicaSchema = z.object({
   propiedadId: z.string().uuid("Propiedad inválida"),
   nombreVisitante: z

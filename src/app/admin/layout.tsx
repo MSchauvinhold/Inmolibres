@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div
       className="light-portal h-screen overflow-hidden grid grid-cols-1 grid-rows-[56px_1fr] lg:grid-cols-[256px_1fr]"
-      style={{ background: "#FAF8F5" }}
+      style={{ background: "var(--crema-50, #FBF8F2)" }}
     >
       {/* Sidebar — col 1, rows 1-2 */}
       <div className="hidden lg:block lg:row-span-2">

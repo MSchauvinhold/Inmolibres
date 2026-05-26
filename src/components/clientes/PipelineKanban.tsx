@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Phone } from "lucide-react";
-import { ESTADO_PIPELINE_LABELS, PIPELINE_COLORS, formatRelativeTime, buildWhatsAppLink } from "@/lib/utils";
-import type { EstadoPipeline } from "@prisma/client";
+import { buildWhatsAppLink, formatRelativeTime } from "@/lib/utils";
+import { AvatarInitials } from "@/components/ui/avatar-initials";
+import type { EstadoPipeline, OrigenLead } from "@prisma/client";
 
 interface Cliente {
   id: string;
@@ -12,14 +12,37 @@ interface Cliente {
   telefono: string;
   estadoPipeline: EstadoPipeline;
   ultimaActividad: string;
-  origen: string;
+  origen: OrigenLead;
   notas?: string | null;
   agente?: { nombre: string } | null;
 }
 
-const COLUMNAS: EstadoPipeline[] = [
-  "NUEVO", "CONTACTADO", "VISITA_AGENDADA", "SEGUNDA_VISITA", "CERRADO", "PERDIDO",
+const COLUMNAS: { estado: EstadoPipeline; label: string; tone: string }[] = [
+  { estado: "NUEVO",           label: "Nuevo",           tone: "info" },
+  { estado: "CONTACTADO",      label: "Contactado",      tone: "neutral" },
+  { estado: "VISITA_AGENDADA", label: "Visita agendada", tone: "warning" },
+  { estado: "SEGUNDA_VISITA",  label: "Propuesta",       tone: "accent" },
+  { estado: "CERRADO",         label: "Cerrado",         tone: "success" },
+  { estado: "PERDIDO",         label: "Perdido",         tone: "danger" },
 ];
+
+const TONE_BAR: Record<string, string> = {
+  info:    "var(--info-500, #3B82F6)",
+  neutral: "var(--antracita-500, #6B6459)",
+  warning: "var(--warning-500, #F59E0B)",
+  accent:  "var(--accent, #4A7FA5)",
+  success: "var(--success-500, #22C55E)",
+  danger:  "var(--danger-500, #EF4444)",
+};
+
+const ORIGEN_LABELS: Record<OrigenLead, string> = {
+  INSTAGRAM:     "Instagram",
+  WHATSAPP:      "WhatsApp",
+  CONSULTA_LOCAL:"Consulta",
+  REFERIDO:      "Referido",
+  PORTAL:        "Portal",
+  OTRO:          "Otro",
+};
 
 const FRIO_ESTADOS: EstadoPipeline[] = ["NUEVO", "CONTACTADO"];
 const FRIO_HS = 48;
@@ -27,7 +50,7 @@ const FRIO_HS = 48;
 function esLeadFrio(cliente: Cliente): boolean {
   if (!FRIO_ESTADOS.includes(cliente.estadoPipeline)) return false;
   const diffMs = Date.now() - new Date(cliente.ultimaActividad).getTime();
-  return diffMs > FRIO_HS * 3600_000;
+  return diffMs > FRIO_HS * 3_600_000;
 }
 
 interface Props {
@@ -50,7 +73,9 @@ export function PipelineKanban({ clientes, onUpdate }: Props) {
       if (!res.ok) throw new Error();
       setItems((prev) =>
         prev.map((c) =>
-          c.id === id ? { ...c, estadoPipeline: nuevoEstado, ultimaActividad: new Date().toISOString() } : c
+          c.id === id
+            ? { ...c, estadoPipeline: nuevoEstado, ultimaActividad: new Date().toISOString() }
+            : c
         )
       );
       onUpdate?.();
@@ -61,112 +86,276 @@ export function PipelineKanban({ clientes, onUpdate }: Props) {
     }
   }
 
-  const leadsF = items.filter(esLeadFrio);
+  const frios = items.filter(esLeadFrio);
 
   return (
-    <div className="space-y-4">
-      {/* Lead frío alert */}
-      {leadsF.length > 0 && (
-        <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-orange-50 border border-orange-200">
-          <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0" />
-          <p className="text-sm text-orange-800 font-medium">
-            {leadsF.length} contacto{leadsF.length > 1 ? "s" : ""} frío{leadsF.length > 1 ? "s" : ""} — sin actividad por más de 48 hs:{" "}
-            {leadsF.map((c) => c.nombre).join(", ")}
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+      {/* ── Alerta leads fríos ── */}
+      {frios.length > 0 && (
+        <div
+          className="il-card"
+          style={{
+            padding: "10px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            borderLeft: "3px solid var(--warning-500, #F59E0B)",
+          }}
+        >
+          <span
+            style={{
+              width: 8, height: 8, borderRadius: 999,
+              background: "var(--warning-500, #F59E0B)",
+              flexShrink: 0,
+            }}
+          />
+          <p style={{ fontSize: 12.5, color: "var(--antracita-800, #2C2820)", fontWeight: 500, margin: 0 }}>
+            <strong>{frios.length}</strong>{" "}
+            contacto{frios.length > 1 ? "s" : ""} sin actividad por más de 48 h:{" "}
+            <span style={{ color: "var(--antracita-500)" }}>
+              {frios.map((c) => c.nombre).join(", ")}
+            </span>
           </p>
         </div>
       )}
 
-      <div className="overflow-x-auto pb-4">
-        <div className="flex gap-3 min-w-max">
+      {/* ── Kanban ── */}
+      <div style={{ overflowX: "auto", paddingBottom: 12 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(6, minmax(180px, 1fr))",
+            gap: 12,
+            minHeight: 480,
+          }}
+        >
           {COLUMNAS.map((col) => {
-            const grupo = items.filter((c) => c.estadoPipeline === col);
+            const grupo = items.filter((c) => c.estadoPipeline === col.estado);
+            const bar = TONE_BAR[col.tone];
+
             return (
-              <div key={col} className="w-64 shrink-0">
+              <div
+                key={col.estado}
+                style={{
+                  background: "var(--crema-100, #F0E9DC)",
+                  borderRadius: 12,
+                  padding: 10,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  border: "1px solid var(--border)",
+                  borderTop: `3px solid ${bar}`,
+                }}
+              >
                 {/* Column header */}
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PIPELINE_COLORS[col]}`}>
-                      {ESTADO_PIPELINE_LABELS[col]}
+                <div
+                  style={{
+                    padding: "4px 6px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--antracita-900)" }}>
+                      {col.label}
+                    </span>
+                    <span
+                      className="mono"
+                      style={{ fontSize: 11, color: "var(--antracita-300)", marginLeft: 6 }}
+                    >
+                      {grupo.length}
                     </span>
                   </div>
-                  <span className="text-xs text-text-muted font-medium">{grupo.length}</span>
                 </div>
 
                 {/* Cards */}
-                <div className="space-y-2 min-h-[200px] rounded-xl bg-surface-raised p-2">
-                  {grupo.map((cliente) => {
-                    const frio = esLeadFrio(cliente);
-                    return (
-                      <div
-                        key={cliente.id}
-                        className={`card p-3 space-y-2 cursor-default transition-all ${
-                          frio ? "border-orange-300 bg-orange-50/40" : ""
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            {frio && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse shrink-0" />
-                            )}
-                            <p className="text-sm font-medium text-text-primary leading-tight truncate">
-                              {cliente.nombre}
-                            </p>
+                {grupo.map((cliente) => {
+                  const frio = esLeadFrio(cliente);
+                  const isMoving = moving === cliente.id;
+                  const avatarBg =
+                    cliente.estadoPipeline === "NUEVO"
+                      ? "var(--terracota-500, #C1694F)"
+                      : "var(--antracita-300, #A09890)";
+
+                  return (
+                    <div
+                      key={cliente.id}
+                      className="il-card"
+                      style={{
+                        padding: 12,
+                        paddingBottom: 18,
+                        position: "relative",
+                        cursor: "default",
+                      }}
+                    >
+                      {/* Cold badge */}
+                      {frio && (
+                        <span style={{ position: "absolute", top: 8, right: 8, fontSize: 11 }}>
+                          🥶
+                        </span>
+                      )}
+
+                      {/* Avatar + name */}
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                        <AvatarInitials name={cliente.nombre} size={26} bg={avatarBg} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 12.5, fontWeight: 600,
+                              color: "var(--antracita-900)",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {cliente.nombre}
                           </div>
-                          {moving === cliente.id && (
-                            <div className="w-3 h-3 border-2 border-brand-primary border-t-transparent rounded-full animate-spin shrink-0" />
-                          )}
+                          <div
+                            className="mono"
+                            style={{ fontSize: 10, color: "var(--antracita-300)" }}
+                          >
+                            {cliente.telefono}
+                          </div>
                         </div>
-
-                        {frio && (
-                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 font-semibold">
-                            🥶 Contacto frío
-                          </span>
+                        {isMoving && (
+                          <div
+                            style={{
+                              width: 12, height: 12,
+                              border: "2px solid var(--terracota-400)",
+                              borderTopColor: "transparent",
+                              borderRadius: 999,
+                              flexShrink: 0,
+                            }}
+                          />
                         )}
+                      </div>
 
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-xs text-text-muted flex-1 truncate">{cliente.telefono}</p>
+                      {/* Notas */}
+                      {cliente.notas && (
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "var(--accent-deep, #1B3149)",
+                            padding: "4px 8px",
+                            background: "var(--accent-soft, #DEE5ED)",
+                            borderRadius: 6,
+                            marginBottom: 8,
+                            fontStyle: "italic",
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {cliente.notas}
+                        </div>
+                      )}
+
+                      {/* Footer */}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          paddingTop: 8,
+                          borderTop: "1px solid var(--border)",
+                          marginTop: 4,
+                          gap: 4,
+                        }}
+                      >
+                        <span style={{ fontSize: 10, color: "var(--antracita-400)" }}>
+                          {cliente.agente?.nombre ?? "Sin asignar"}
+                        </span>
+                        <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                          <span style={{ fontSize: 9.5, color: "var(--antracita-400)" }}>
+                            {formatRelativeTime(cliente.ultimaActividad)}
+                          </span>
                           <a
                             href={buildWhatsAppLink(cliente.telefono)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors shrink-0"
+                            style={{
+                              display: "inline-flex",
+                              padding: "2px 6px",
+                              borderRadius: 5,
+                              background: "rgba(37,211,102,0.14)",
+                              color: "#25D366",
+                              fontSize: 9.5,
+                              fontWeight: 700,
+                              textDecoration: "none",
+                            }}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Phone className="w-3 h-3" />
+                            WA
                           </a>
                         </div>
-
-                        {cliente.agente && (
-                          <p className="text-[10px] text-text-muted">
-                            Agente: {cliente.agente.nombre}
-                          </p>
-                        )}
-                        <p className="text-[10px] text-text-muted">
-                          {formatRelativeTime(cliente.ultimaActividad)}
-                        </p>
-
-                        {/* Move buttons */}
-                        <div className="flex gap-1 flex-wrap">
-                          {COLUMNAS.filter((c) => c !== col)
-                            .slice(0, 3)
-                            .map((target) => (
-                              <button
-                                key={target}
-                                onClick={() => moverCliente(cliente.id, target)}
-                                disabled={moving === cliente.id}
-                                className="text-[10px] px-1.5 py-0.5 rounded bg-surface-raised hover:bg-border text-text-secondary transition-colors"
-                              >
-                                → {ESTADO_PIPELINE_LABELS[target]}
-                              </button>
-                            ))}
-                        </div>
                       </div>
-                    );
-                  })}
-                  {grupo.length === 0 && (
-                    <p className="text-xs text-text-muted text-center py-6">Sin clientes</p>
-                  )}
-                </div>
+
+                      {/* Mover select */}
+                      <div style={{ marginTop: 8 }}>
+                        <select
+                          value=""
+                          disabled={isMoving}
+                          onChange={(e) => {
+                            if (e.target.value) moverCliente(cliente.id, e.target.value as EstadoPipeline);
+                          }}
+                          style={{
+                            width: "100%",
+                            fontSize: 10,
+                            padding: "3px 6px",
+                            borderRadius: 6,
+                            border: "1px solid var(--border)",
+                            background: "var(--crema-50, #FBF8F2)",
+                            color: "var(--antracita-500)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <option value="">Mover a…</option>
+                          {COLUMNAS.filter((c) => c.estado !== col.estado).map((target) => (
+                            <option key={target.estado} value={target.estado}>
+                              {target.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Source badge */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: -1,
+                          left: 12,
+                          fontSize: 9,
+                          color: "var(--antracita-300)",
+                          background: "#fff",
+                          padding: "0 6px",
+                          borderRadius: 4,
+                          transform: "translateY(50%)",
+                          lineHeight: "16px",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        {ORIGEN_LABELS[cliente.origen] ?? cliente.origen}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Empty state */}
+                {grupo.length === 0 && (
+                  <div
+                    style={{
+                      padding: "28px 12px",
+                      textAlign: "center",
+                      fontSize: 11.5,
+                      color: "var(--antracita-300)",
+                      border: "1px dashed var(--border)",
+                      borderRadius: 10,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Sin prospectos
+                  </div>
+                )}
               </div>
             );
           })}

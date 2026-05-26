@@ -48,6 +48,7 @@ export default async function AlquileresPage() {
     estadoPago: c.estadoPago as "AL_DIA" | "ATRASADO",
     fechaInicio: c.fechaInicio.toISOString().slice(0, 10),
     fechaFin: c.fechaFin.toISOString().slice(0, 10),
+    notas: c.notas ?? null,
     createdAt: c.createdAt.toISOString(),
     propiedad: c.propiedad,
   }));

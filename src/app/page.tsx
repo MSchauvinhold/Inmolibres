@@ -69,7 +69,7 @@ export default async function MarketplaceHome({
     <div className="min-h-screen flex flex-col" style={{ background: "var(--background-mp)" }}>
       <MarketplaceHeader />
 
-      {!hasFilters && <HeroSection />}
+      {!hasFilters && <HeroSection totalPropiedades={propiedades.length} />}
 
       {/* Active filter bar */}
       {hasFilters && (
@@ -164,6 +164,93 @@ export default async function MarketplaceHome({
       )}
 
       {!hasFilters && <FeaturesSection />}
+
+      {/* Kai banner */}
+      {!hasFilters && (
+        <section style={{ padding: "0 48px 80px" }}>
+          <div
+            style={{
+              background: "var(--crema-100, #F5EFE5)",
+              borderRadius: 22,
+              padding: "40px 48px",
+              display: "grid",
+              gridTemplateColumns: "auto 1fr auto",
+              gap: 32,
+              alignItems: "center",
+              border: "1px solid var(--border, #E8DFD0)",
+              maxWidth: "1152px",
+              margin: "0 auto",
+            }}
+          >
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 999,
+                background: "var(--terracota-500, #C1694F)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontFamily: "var(--font-fraunces-display), Georgia, serif",
+                fontSize: 30,
+                fontWeight: 600,
+                fontStyle: "italic",
+                flexShrink: 0,
+              }}
+            >
+              K
+            </div>
+            <div>
+              <span
+                style={{
+                  fontFamily: "var(--font-jetbrains-mono), monospace",
+                  fontSize: 10.5,
+                  color: "var(--terracota-600, #A85737)",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Asistente · Kai
+              </span>
+              <h3
+                style={{
+                  fontFamily: "var(--font-fraunces-display), Georgia, serif",
+                  fontSize: 26,
+                  margin: "6px 0 4px",
+                  color: "var(--antracita-900, #14110E)",
+                }}
+              >
+                ¿No sabés qué buscar? Conversá con Kai.
+              </h3>
+              <p style={{ fontSize: 14, color: "var(--antracita-500, #3A332C)", margin: 0, fontFamily: "var(--font-dm-sans), sans-serif" }}>
+                Te ayuda a encontrar la propiedad ideal según tu presupuesto y zona favorita.
+              </p>
+            </div>
+            <a
+              href="/?kai=1"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                background: "var(--antracita-900, #14110E)",
+                color: "#fff",
+                border: "none",
+                padding: "12px 22px",
+                borderRadius: 12,
+                fontSize: 14,
+                fontWeight: 600,
+                fontFamily: "var(--font-dm-sans), sans-serif",
+                textDecoration: "none",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Empezar conversación
+            </a>
+          </div>
+        </section>
+      )}
 
       {/* Full-width listings */}
       <div className="flex-1">

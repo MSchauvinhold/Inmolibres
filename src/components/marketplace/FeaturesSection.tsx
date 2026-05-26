@@ -7,8 +7,8 @@ const FEATURES = [
     icon: Home,
     title: "Propiedades locales",
     text: "Todas las inmobiliarias de Paso de los Libres en un solo lugar.",
-    iconBg: "var(--terra-pale)",
-    iconColor: "var(--terra-mid)",
+    iconBg: "var(--terracota-50, #FBF1EC)",
+    iconColor: "var(--terracota-500, #C1694F)",
   },
   {
     icon: Shield,
@@ -21,8 +21,8 @@ const FEATURES = [
     icon: MessageCircle,
     title: "Contacto directo",
     text: "Hablá directamente con la inmobiliaria por WhatsApp sin intermediarios.",
-    iconBg: "var(--terra-pale)",
-    iconColor: "var(--terra-mid)",
+    iconBg: "var(--terracota-50, #FBF1EC)",
+    iconColor: "var(--terracota-500, #C1694F)",
   },
 ];
 
@@ -30,15 +30,15 @@ export function FeaturesSection() {
   return (
     <section
       className="py-16 px-4"
-      style={{ background: "var(--background-mp-alt)" }}
+      style={{ background: "var(--crema-50, #FBF8F2)" }}
     >
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
           <h2
             className="text-2xl sm:text-3xl font-bold"
             style={{
-              fontFamily: "var(--font-fraunces)",
-              color: "var(--antracite)",
+              fontFamily: "var(--font-fraunces-display), Georgia, serif",
+              color: "var(--antracita-900, #14110E)",
               letterSpacing: "-0.02em",
             }}
           >
@@ -46,7 +46,7 @@ export function FeaturesSection() {
           </h2>
           <p
             className="mt-3 text-sm max-w-md mx-auto"
-            style={{ color: "var(--antracite-light)", fontFamily: "var(--font-jakarta)" }}
+            style={{ color: "var(--antracita-300, #6F665C)", fontFamily: "var(--font-dm-sans), sans-serif" }}
           >
             La forma más sencilla de encontrar propiedades en Paso de los Libres.
           </p>
@@ -59,16 +59,17 @@ export function FeaturesSection() {
               className="p-7 rounded-2xl"
               style={{
                 background: "white",
-                boxShadow: "var(--shadow-mp-card)",
+                boxShadow: "var(--shadow-il)",
+                border: "1px solid var(--border, #E8DFD0)",
                 transition: "box-shadow 200ms ease-out, transform 200ms ease-out",
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
-                (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-mp-card-hover)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-lg-il)";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-                (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-mp-card)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-il)";
               }}
             >
               <div
@@ -83,8 +84,8 @@ export function FeaturesSection() {
               <h3
                 className="font-semibold text-base mb-2"
                 style={{
-                  color: "var(--antracite)",
-                  fontFamily: "var(--font-jakarta)",
+                  color: "var(--antracita-900, #14110E)",
+                  fontFamily: "var(--font-dm-sans), sans-serif",
                 }}
               >
                 {feature.title}
@@ -92,8 +93,8 @@ export function FeaturesSection() {
               <p
                 className="text-sm leading-relaxed"
                 style={{
-                  color: "var(--antracite-mid)",
-                  fontFamily: "var(--font-jakarta)",
+                  color: "var(--antracita-500, #3A332C)",
+                  fontFamily: "var(--font-dm-sans), sans-serif",
                 }}
               >
                 {feature.text}

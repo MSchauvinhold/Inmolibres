@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { LayoutDashboard, Building2, User, ShieldCheck, ChevronRight, LogOut, MessageSquare } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
-
+import { Logo } from "@/components/crm/Logo";
 
 
 const navItems = [
@@ -24,23 +24,28 @@ export function AdminSidebar({ email, className }: AdminSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className={cn("flex flex-col w-64 h-full shrink-0 bg-[var(--sidebar-bg)] text-[var(--sidebar-text)]", className)}>
+    <aside
+      className={cn("flex flex-col w-64 h-full shrink-0", className)}
+      style={{ background: "var(--antracita-900, #14110E)", color: "var(--crema-100, #F5EFE5)" }}
+    >
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-[#DDD5C8]">
-        <div>
-          <p className="font-semibold text-sm leading-tight text-[#1C1917]">Inmo<span style={{ color: "#8B4513" }}>Libres</span></p>
-          <span
-            className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full mt-0.5"
-            style={{
-              background: "rgba(139, 69, 19, 0.1)",
-              color: "#8B4513",
-              border: "1px solid rgba(139, 69, 19, 0.25)",
-            }}
-          >
-            <ShieldCheck style={{ width: 9, height: 9 }} />
-            SuperAdmin
-          </span>
-        </div>
+      <div
+        className="flex flex-col px-5 py-5 gap-2"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
+      >
+        <Logo variant="lockup" size={20} onDark />
+        <span
+          className="inline-flex items-center gap-1 self-start text-[10px] font-semibold px-2 py-0.5 rounded-full"
+          style={{
+            background: "var(--terracota-500, #C1694F)",
+            color: "#fff",
+            letterSpacing: "0.08em",
+            fontFamily: "var(--font-jetbrains-mono), monospace",
+          }}
+        >
+          <ShieldCheck style={{ width: 9, height: 9 }} />
+          SUPERADMIN
+        </span>
       </div>
 
       {/* Nav */}
@@ -54,9 +59,15 @@ export function AdminSidebar({ email, className }: AdminSidebarProps) {
             <Link
               key={href}
               href={href}
-              className={cn("sidebar-item group", active && "active")}
+              className={cn("flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all", active ? "text-white" : "text-crema-300")}
+              style={{
+                background: active ? "rgba(193,105,79,0.18)" : "transparent",
+                borderLeft: active ? "3px solid var(--terracota-500, #C1694F)" : "3px solid transparent",
+                paddingLeft: active ? "calc(12px - 2px)" : "12px",
+                color: active ? "white" : "rgba(255,255,255,0.6)",
+              }}
             >
-              <Icon className="w-4 h-4 shrink-0 opacity-80" />
+              <Icon className="w-4 h-4 shrink-0" style={{ opacity: active ? 1 : 0.7 }} />
               <span className="flex-1">{label}</span>
               {active && <ChevronRight className="w-3 h-3 opacity-50" />}
             </Link>
@@ -65,17 +76,20 @@ export function AdminSidebar({ email, className }: AdminSidebarProps) {
       </nav>
 
       {/* User */}
-      <div className="px-3 py-4 border-t border-[#DDD5C8]">
+      <div
+        className="px-3 py-4"
+        style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}
+      >
         <div className="flex items-center gap-3 px-3 py-2 rounded-lg mb-1">
           <div
             className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-            style={{ background: "var(--brand-primary)" }}
+            style={{ background: "var(--terracota-600, #A85737)" }}
           >
             S
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-[#1C1917] truncate">SuperAdmin</p>
-            <p className="text-[10px] truncate" style={{ color: "#9C9590" }}>{email}</p>
+            <p className="text-xs font-medium text-white truncate">SuperAdmin</p>
+            <p className="text-[10px] truncate" style={{ color: "rgba(255,255,255,0.4)" }}>{email}</p>
           </div>
         </div>
         <button
@@ -83,8 +97,10 @@ export function AdminSidebar({ email, className }: AdminSidebarProps) {
             await signOut({ redirect: false });
             window.location.href = "/login";
           }}
-          className="sidebar-item w-full text-xs"
-          style={{ color: "#5C5650" }}
+          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-xs transition-colors"
+          style={{ color: "rgba(255,255,255,0.45)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
         >
           <LogOut className="w-3.5 h-3.5" />
           <span>Cerrar sesión</span>

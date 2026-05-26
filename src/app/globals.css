@@ -1,57 +1,141 @@
 @import "tailwindcss";
 
-/* ─── Design Tokens — CSS Custom Properties ──────────────────────────── */
+/* ─── Tierra Moderna — Full Color Scale ──────────────────────────────── */
 :root {
-  /* Base */
-  --background: #F7F5F2;
+  /* Terracota — color principal de marca */
+  --terracota-50:  #FBF1EC;
+  --terracota-100: #F4D8C9;
+  --terracota-300: #E0A088;
+  --terracota-500: #C1694F;
+  --terracota-600: #A85737;
+  --terracota-700: #7E3F26;
+
+  /* Marrón profundo */
+  --marron-700: #5C2E14;
+  --marron-900: #3A1C0C;
+
+  /* Dorado — acentos secundarios y UI highlights */
+  --dorado-400: #D4A853;
+  --dorado-500: #C9A55C;
+
+  /* Crema — fondos, superficies, neutros cálidos */
+  --crema-50:  #FBF8F2;
+  --crema-100: #F5EFE5;
+  --crema-200: #ECE4D6;
+  --crema-300: #DED2BE;
+
+  /* Antracita — tipografía y elementos oscuros */
+  --antracita-50:  #F4F1ED;
+  --antracita-300: #6F665C;
+  --antracita-500: #3A332C;
+  --antracita-700: #221E19;
+  --antracita-900: #14110E;
+
+  /* Especiales */
+  --whatsapp:     #25D366;
+  --libres-color: #C1694F;  /* color de "Libres" en el logo */
+
+  /* Aliases de retrocompatibilidad para componentes del marketplace */
+  --antracite:          #14110E;   /* → antracita-900 */
+  --antracite-mid:      #3A332C;   /* → antracita-500 */
+  --antracite-light:    #6F665C;   /* → antracita-300 */
+  --terra-mid:          #C1694F;   /* → terracota-500 */
+  --terra-dark:         #A85737;   /* → terracota-600 */
+  --terra-pale:         #FBF1EC;   /* → terracota-50 */
+  --cream-border:       #E8DFD0;   /* → border */
+  --background-mp-alt:  #F5EFE5;   /* → crema-100, sección alternada marketplace */
+  --background-mp:      #FBF8F2;   /* → crema-50, fondo marketplace */
+  --shadow-mp-card:     0 2px 8px rgba(139,69,19,0.08), 0 8px 32px rgba(0,0,0,0.06);
+  --shadow-mp-card-hover: 0 8px 24px rgba(139,69,19,0.15), 0 16px 48px rgba(0,0,0,0.1);
+  --shadow-lg:          0 4px 14px rgba(58,35,18,0.08), 0 20px 50px -16px rgba(58,35,18,0.14);
+
+  /* Acento tinta / ink blue — gráficos y elementos secundarios */
+  --il-accent:      #2D4A6B;
+  --il-accent-soft: #DEE5ED;
+  --il-accent-deep: #1B3149;
+
+  /* Semánticos */
+  --success-500: #4A7C59;
+  --success-100: #DCEAE0;
+  --danger-500:  #B23A2D;
+  --danger-100:  #F5DBD6;
+  --warning-500: #C58B2F;
+  --warning-100: #F4E4C5;
+  --info-500:    #3A6B89;
+  --info-100:    #D7E3EB;
+
+  /* Sombras warm-tinted (base marrón, no negra) */
+  --shadow-sm-il: 0 1px 2px rgba(58,35,18,0.06), 0 1px 1px rgba(58,35,18,0.04);
+  --shadow-il:    0 2px 6px rgba(58,35,18,0.06), 0 8px 24px -8px rgba(58,35,18,0.08);
+  --shadow-lg-il: 0 4px 14px rgba(58,35,18,0.08), 0 20px 50px -16px rgba(58,35,18,0.14);
+
+  /* ─── Semantic aliases ───────────────────────────────────────────────── */
+  --background: #FAF8F5;
   --foreground: #1C1917;
   --surface: #FFFFFF;
   --surface-raised: #F0EDE8;
 
-  /* Brand — CRM/Admin usa terracota, verde reservado para calculadoras */
-  --brand-primary: #8B4513;
-  --brand-secondary: #C1694F;
-  --brand-accent: #D4A853;
-  --brand-accent-light: #FAE5D3;
+  --brand-primary:       #C1694F;   /* terracota-500 — color principal CRM */
+  --brand-secondary:     #A85737;   /* terracota-600 — hover de primary */
+  --brand-accent:        #D4A853;   /* dorado-400 */
+  --brand-accent-light:  #F4D8C9;   /* terracota-100 */
 
-  /* Semantic */
-  --success: #2D6A4F;
-  --warning: #D4A853;
-  --danger: #C0392B;
-  --info: #2980B9;
+  --success: #4A7C59;
+  --warning: #C58B2F;
+  --danger:  #B23A2D;
+  --info:    #3A6B89;
 
-  /* Text */
-  --text-primary: #1C1917;
+  --text-primary:   #1C1917;
   --text-secondary: #5C5650;
-  --text-muted: #9C9590;
+  --text-muted:     #9C9590;
 
-  /* Borders */
-  --border: #DDD5C8;
-  --border-strong: #C5BFB5;
+  --border:        #E8DFD0;
+  --border-strong: #D6C8AF;
 
-  /* Sidebar CRM — fondo crema, activo terracota */
-  --sidebar-bg: #FAF8F5;
-  --sidebar-text: #2C2C2C;
-  --sidebar-active: rgba(139, 69, 19, 0.10);
-  --sidebar-hover: rgba(139, 69, 19, 0.06);
+  /* Sidebar CRM */
+  --sidebar-bg:     #F5EFE5;               /* crema-100 */
+  --sidebar-text:   #221E19;               /* antracita-700 */
+  --sidebar-active: rgba(193,105,79,0.10); /* terracota-500/10 */
+  --sidebar-hover:  rgba(193,105,79,0.06); /* terracota-500/6 */
+
+  /* Radii — escala completa del diseño */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 28px;
+  --space-7: 40px;
+  --space-8: 56px;
+  --space-9: 80px;
+
+  /* Shadows — nombres cortos del README */
+  --shadow-sm: 0 1px 2px rgba(58,35,18,0.06), 0 1px 1px rgba(58,35,18,0.04);
+  --shadow:    0 2px 6px rgba(58,35,18,0.06), 0 8px 24px -8px rgba(58,35,18,0.08);
 
   /* Shadcn/UI compatibility */
-  --primary: #8B4513;
-  --primary-foreground: #FFFFFF;
-  --secondary: #F0EDE8;
+  --primary:              #C1694F;
+  --primary-foreground:   #FFFFFF;
+  --secondary:            #F0EDE8;
   --secondary-foreground: #1C1917;
-  --muted: #F0EDE8;
-  --muted-foreground: #9C9590;
-  --accent: #F0EDE8;
-  --accent-foreground: #1C1917;
-  --destructive: #C0392B;
-  --card: #FFFFFF;
-  --card-foreground: #1C1917;
-  --popover: #FFFFFF;
-  --popover-foreground: #1C1917;
-  --input: #E5E0D8;
-  --ring: #8B4513;
-  --radius: 0.75rem;
+  --muted:                #F0EDE8;
+  --muted-foreground:     #9C9590;
+  --accent:               #F0EDE8;
+  --accent-foreground:    #1C1917;
+  --destructive:          #B23A2D;
+  --card:                 #FFFFFF;
+  --card-foreground:      #1C1917;
+  --popover:              #FFFFFF;
+  --popover-foreground:   #1C1917;
+  --input:                #FFFFFF;
+  --ring:                 #C1694F;
+  --radius:               0.75rem;
 }
 
 .dark {
@@ -61,7 +145,7 @@
   --surface-raised: #2D2723;
 
   --brand-primary: #C1694F;
-  --brand-secondary: #E8A87C;
+  --brand-secondary: #E0A088;
   --brand-accent: #D4A853;
   --brand-accent-light: #3D2E0A;
 
@@ -76,12 +160,11 @@
   --text-secondary: #A8A29E;
   --text-muted: #6B6560;
 
-  --sidebar-bg: #FAF8F5;
-  --sidebar-text: #2C2C2C;
-  --sidebar-active: rgba(139, 69, 19, 0.10);
-  --sidebar-hover: rgba(139, 69, 19, 0.06);
+  --sidebar-bg: #F5EFE5;
+  --sidebar-text: #221E19;
+  --sidebar-active: rgba(193,105,79,0.10);
+  --sidebar-hover: rgba(193,105,79,0.06);
 
-  /* Shadcn dark mode */
   --primary: #C1694F;
   --primary-foreground: #FFFFFF;
   --secondary: #2D2723;
@@ -101,74 +184,114 @@
 
 /* ─── Tailwind v4 Theme Mapping ──────────────────────────────────────── */
 @theme inline {
-  /* Semantic color utilities — dynamic with dark mode support */
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
+  /* Semantic tokens */
+  --color-background:    var(--background);
+  --color-foreground:    var(--foreground);
+  --color-surface:       var(--surface);
   --color-surface-raised: var(--surface-raised);
 
-  --color-brand-primary: var(--brand-primary);
-  --color-brand-secondary: var(--brand-secondary);
-  --color-brand-accent: var(--brand-accent);
-  --color-brand-accent-light: var(--brand-accent-light);
+  --color-brand-primary:       var(--brand-primary);
+  --color-brand-secondary:     var(--brand-secondary);
+  --color-brand-accent:        var(--brand-accent);
+  --color-brand-accent-light:  var(--brand-accent-light);
 
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-danger: var(--danger);
-  --color-info: var(--info);
+  /* Tierra Moderna palette — raw scale */
+  --color-terracota-50:  #FBF1EC;
+  --color-terracota-100: #F4D8C9;
+  --color-terracota-300: #E0A088;
+  --color-terracota-500: #C1694F;
+  --color-terracota-600: #A85737;
+  --color-terracota-700: #7E3F26;
+  --color-marron-700:    #5C2E14;
+  --color-marron-900:    #3A1C0C;
+  --color-dorado-400:    #D4A853;
+  --color-dorado-500:    #C9A55C;
+  --color-crema-50:      #FBF8F2;
+  --color-crema-100:     #F5EFE5;
+  --color-crema-200:     #ECE4D6;
+  --color-crema-300:     #DED2BE;
+  --color-antracita-50:  #F4F1ED;
+  --color-antracita-300: #6F665C;
+  --color-antracita-500: #3A332C;
+  --color-antracita-700: #221E19;
+  --color-antracita-900: #14110E;
+  --color-whatsapp:      #25D366;
+  --color-il-accent:     #2D4A6B;
+  --color-il-accent-soft: #DEE5ED;
 
-  --color-text-primary: var(--text-primary);
+  /* Semantic */
+  --color-success:       var(--success);
+  --color-warning:       var(--warning);
+  --color-danger:        var(--danger);
+  --color-info:          var(--info);
+  --color-success-500:   #4A7C59;
+  --color-success-100:   #DCEAE0;
+  --color-danger-500:    #B23A2D;
+  --color-danger-100:    #F5DBD6;
+  --color-warning-500:   #C58B2F;
+  --color-warning-100:   #F4E4C5;
+  --color-info-500:      #3A6B89;
+  --color-info-100:      #D7E3EB;
+
+  --color-text-primary:   var(--text-primary);
   --color-text-secondary: var(--text-secondary);
-  --color-text-muted: var(--text-muted);
+  --color-text-muted:     var(--text-muted);
 
-  --color-border: var(--border);
+  --color-border:        var(--border);
   --color-border-strong: var(--border-strong);
 
-  --color-sidebar-bg: var(--sidebar-bg);
-  --color-sidebar-text: var(--sidebar-text);
+  --color-sidebar-bg:     var(--sidebar-bg);
+  --color-sidebar-text:   var(--sidebar-text);
   --color-sidebar-active: var(--sidebar-active);
 
-  /* Font families — injected by next/font/google via CSS variables on <html> */
-  --font-display: var(--font-playfair-display), Georgia, serif;
-  --font-body: var(--font-dm-sans), system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
-
-  /* Static brand colors for non-theme-sensitive contexts */
-  --color-brand-static: #8B4513;
-  --color-accent-static: #D4A853;
-  --color-cream-static: #F7F5F2;
+  /* Font families — next/font inyecta CSS variables en <html> */
+  --font-display: var(--font-fraunces-display), Georgia, serif;     /* Fraunces para el CRM */
+  --font-body:    var(--font-dm-sans), system-ui, sans-serif;
+  --font-mono:    var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-fraunces: var(--font-fraunces-display), Georgia, serif;
+  --font-jakarta:  var(--font-plus-jakarta), system-ui, sans-serif;
 
   /* Shadcn @theme mappings */
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
+  --color-primary:              var(--primary);
+  --color-primary-foreground:   var(--primary-foreground);
+  --color-secondary:            var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-muted:                var(--muted);
+  --color-muted-foreground:     var(--muted-foreground);
+  --color-accent:               var(--accent);
+  --color-accent-foreground:    var(--accent-foreground);
+  --color-destructive:          var(--destructive);
+  --color-card:                 var(--card);
+  --color-card-foreground:      var(--card-foreground);
+  --color-popover:              var(--popover);
+  --color-popover-foreground:   var(--popover-foreground);
+  --color-input:                var(--input);
+  --color-ring:                 var(--ring);
 
-  /* Shadow tokens */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
-  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.1), 0 8px 24px rgba(0, 0, 0, 0.08);
-  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  /* Static brand colors */
+  --color-brand-static:  #C1694F;
+  --color-accent-static: #D4A853;
+  --color-cream-static:  #FAF8F5;
 
-  /* Border radius tokens */
-  --radius-card: 1rem;
-  --radius-input: 0.75rem;
+  /* Shadows — warm-tinted */
+  --shadow-card:       var(--shadow-sm-il);
+  --shadow-card-hover: var(--shadow-il);
+  --shadow-elevated:   var(--shadow-lg-il);
+
+  /* Border radius */
+  --radius-card:   1rem;
+  --radius-input:  0.75rem;
   --radius-button: 0.75rem;
-  --radius-badge: 9999px;
+  --radius-badge:  9999px;
+
+  /* Radii del design system */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
 }
 
 /* ─── Light Portal — CRM y Admin siempre en modo claro ──────────────── */
-/* Sobreescribe variables de dark mode dentro de los layouts de CRM/Admin */
 .light-portal,
 .light-portal * {
   --background: #FAF8F5;
@@ -179,8 +302,8 @@
   --card-foreground: #1C1917;
   --popover: #FFFFFF;
   --popover-foreground: #1C1917;
-  --border: #DDD5C8;
-  --border-strong: #C5BFB5;
+  --border: #E8DFD0;
+  --border-strong: #D6C8AF;
   --input: #FFFFFF;
   --muted: #F0EDE8;
   --muted-foreground: #9C9590;
@@ -191,6 +314,8 @@
   --secondary-foreground: #1C1917;
   --accent: #F0EDE8;
   --accent-foreground: #1C1917;
+  --primary: #C1694F;
+  --ring: #C1694F;
   color-scheme: light;
 }
 
@@ -216,10 +341,10 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Display headings use Playfair Display */
+  /* Display headings — Fraunces */
   h1,
   h2 {
-    font-family: var(--font-playfair-display), Georgia, serif;
+    font-family: var(--font-fraunces-display), Georgia, serif;
     line-height: 1.2;
     letter-spacing: -0.02em;
   }
@@ -233,7 +358,7 @@
     line-height: 1.3;
   }
 
-  /* Numeric data uses JetBrains Mono */
+  /* Datos numéricos — JetBrains Mono + tabular nums */
   .price,
   .metric,
   [data-price],
@@ -261,7 +386,7 @@
     transform: translateY(-1px);
   }
 
-  /* Precios / datos numéricos */
+  /* Precios y datos numéricos */
   .font-price {
     font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
@@ -285,15 +410,17 @@
   .sidebar-item {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.625rem 0.75rem;
-    border-radius: 0.75rem;
+    gap: 0.625rem;
+    padding: 0.5rem 0.625rem;
+    border-radius: 0.625rem;
+    border: 1px solid transparent;
     color: var(--sidebar-text);
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     font-weight: 500;
-    transition: background-color 150ms ease-out, color 150ms ease-out;
+    transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out;
     text-decoration: none;
     position: relative;
+    cursor: pointer;
   }
 
   .sidebar-item:hover {
@@ -301,11 +428,13 @@
   }
 
   .sidebar-item.active {
-    background-color: var(--sidebar-active);
-    border-left: 3px solid var(--brand-primary);
-    padding-left: calc(0.75rem - 3px);
-    color: var(--brand-primary);
+    background-color: var(--surface);
+    border-color: var(--border);
+    border-left: 3px solid #C1694F;
+    padding-left: calc(0.625rem - 2px);
+    color: #A85737;
     font-weight: 600;
+    box-shadow: var(--shadow-sm-il);
   }
 
   /* Transición base para todos los interactivos */
@@ -313,7 +442,7 @@
     transition: all 200ms ease-out;
   }
 
-  /* Botón primario */
+  /* Botón primario — terracota */
   .btn-primary {
     background-color: var(--brand-primary);
     color: #ffffff;
@@ -324,20 +453,25 @@
     min-height: 2.75rem;
     display: inline-flex;
     align-items: center;
-    transition: background-color 200ms ease-out, box-shadow 200ms ease-out;
+    gap: 0.5rem;
+    transition: background-color 200ms ease-out, box-shadow 200ms ease-out, transform 100ms ease-out;
     border: none;
     cursor: pointer;
   }
 
   .btn-primary:hover {
-    background-color: #6B3410;
-    box-shadow: 0 4px 12px rgba(139, 69, 19, 0.35);
+    background-color: var(--brand-secondary);
+    box-shadow: 0 4px 12px rgba(193,105,79,0.35);
   }
 
-  /* Botón de acento */
+  .btn-primary:active {
+    transform: scale(0.97);
+  }
+
+  /* Botón de acento dorado */
   .btn-accent {
     background-color: var(--brand-accent);
-    color: var(--foreground);
+    color: var(--antracita-700, #221E19);
     border-radius: 0.75rem;
     padding: 0.625rem 1.25rem;
     font-weight: 600;
@@ -345,14 +479,15 @@
     min-height: 2.75rem;
     display: inline-flex;
     align-items: center;
+    gap: 0.5rem;
     transition: background-color 200ms ease-out, box-shadow 200ms ease-out;
     border: none;
     cursor: pointer;
   }
 
   .btn-accent:hover {
-    background-color: #c49843;
-    box-shadow: 0 4px 12px rgba(212, 168, 83, 0.35);
+    background-color: var(--dorado-500, #C9A55C);
+    box-shadow: 0 4px 12px rgba(212,168,83,0.35);
   }
 
   /* Botón outline */
@@ -367,6 +502,7 @@
     min-height: 2.75rem;
     display: inline-flex;
     align-items: center;
+    gap: 0.5rem;
     transition: background-color 200ms ease-out, border-color 200ms ease-out;
     cursor: pointer;
   }
@@ -390,8 +526,8 @@
   }
 
   .input-base:focus {
-    border-color: #8B4513;
-    box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.14);
+    border-color: #C1694F;
+    box-shadow: 0 0 0 3px rgba(193,105,79,0.14);
   }
 
   .input-base::placeholder {
@@ -425,7 +561,7 @@
     background-clip: text;
   }
 
-  /* Surface glass effect */
+  /* Surface glass */
   .glass {
     background-color: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(12px);
@@ -437,154 +573,10 @@
     background-color: rgba(36, 31, 28, 0.8);
     border: 1px solid rgba(55, 47, 43, 0.5);
   }
-}
 
-/* ─── Keyframe Animations ────────────────────────────────────────────── */
-@keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.6;
-    transform: scale(1.4);
-  }
-}
-
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slide-down {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% center;
-  }
-
-  100% {
-    background-position: 200% center;
-  }
-}
-
-/* ─── Typography Scale (Marketplace) ────────────────────────────────── */
-.display-xl {
-  font-family: var(--font-playfair-display), Georgia, serif;
-  font-size: clamp(2.25rem, 5vw, 3.75rem);
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-}
-
-.display-lg {
-  font-family: var(--font-playfair-display), Georgia, serif;
-  font-size: clamp(1.75rem, 4vw, 2.75rem);
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-
-.display-md {
-  font-family: var(--font-playfair-display), Georgia, serif;
-  font-size: clamp(1.375rem, 3vw, 2rem);
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.015em;
-}
-
-/* ─── Marketplace Design System — Tierra Moderna ────────────────────────── */
-:root {
-  /* Terracota palette */
-  --terra-dark: #8B4513;
-  --terra-mid: #C1694F;
-  --terra-light: #E8A87C;
-  --terra-pale: #FAE5D3;
-
-  /* Antracite */
-  --antracite: #2C2C2C;
-  --antracite-mid: #4A4A4A;
-  --antracite-light: #7A7A7A;
-
-  /* Marketplace backgrounds */
-  --background-mp: #FAF8F5;
-  --background-mp-alt: #F2EDE6;
-  --cream-dark: #E8E0D4;
-  --cream-border: #DDD5C8;
-
-  /* Badge colors */
-  --badge-disponible: #2D6A4F;
-  --badge-dorado: #C9A84C;
-
-  /* Marketplace shadows */
-  --shadow-mp-card: 0 2px 8px rgba(139, 69, 19, 0.08), 0 8px 32px rgba(0, 0, 0, 0.06);
-  --shadow-mp-card-hover: 0 8px 24px rgba(139, 69, 19, 0.15), 0 16px 48px rgba(0, 0, 0, 0.1);
-  --shadow-mp-hero: 0 4px 32px rgba(139, 69, 19, 0.12);
-}
-
-@theme inline {
-  /* Marketplace fonts */
-  --font-fraunces: var(--font-fraunces-display), Georgia, serif;
-  --font-jakarta: var(--font-plus-jakarta), system-ui, sans-serif;
-
-  /* Marketplace color utilities */
-  --color-terra-dark: #8B4513;
-  --color-terra-mid: #C1694F;
-  --color-terra-light: #E8A87C;
-  --color-terra-pale: #FAE5D3;
-  --color-antracite: #2C2C2C;
-  --color-antracite-mid: #4A4A4A;
-  --color-antracite-light: #7A7A7A;
-  --color-background-mp: #FAF8F5;
-  --color-background-mp-alt: #F2EDE6;
-  --color-cream-border: #DDD5C8;
-}
-
-/* Marketplace keyframes */
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-@keyframes underline-grow {
-  from { width: 0; }
-  to { width: 100%; }
-}
-
-/* Marketplace utilities */
-@layer utilities {
+  /* Marketplace cards */
   .btn-terra {
-    background-color: var(--terra-mid);
+    background-color: var(--terracota-500, #C1694F);
     color: #ffffff;
     border-radius: 0.75rem;
     padding: 0.625rem 1.25rem;
@@ -600,8 +592,8 @@
   }
 
   .btn-terra:hover {
-    background-color: var(--terra-dark);
-    box-shadow: 0 4px 12px rgba(193, 105, 79, 0.35);
+    background-color: var(--terracota-600, #A85737);
+    box-shadow: 0 4px 12px rgba(193,105,79,0.35);
   }
 
   .btn-terra:active {
@@ -611,44 +603,235 @@
   .mp-card {
     background-color: var(--surface);
     border-radius: 1rem;
-    box-shadow: var(--shadow-mp-card);
+    box-shadow: 0 2px 8px rgba(139,69,19,0.08), 0 8px 32px rgba(0,0,0,0.06);
     transition: box-shadow 200ms ease-out, transform 200ms ease-out;
     overflow: hidden;
   }
 
   .mp-card:hover {
-    box-shadow: var(--shadow-mp-card-hover);
+    box-shadow: 0 8px 24px rgba(139,69,19,0.15), 0 16px 48px rgba(0,0,0,0.1);
     transform: translateY(-2px);
   }
 
   .font-fraunces {
-    font-family: var(--font-fraunces);
+    font-family: var(--font-fraunces-display), Georgia, serif;
   }
 
   .font-jakarta {
-    font-family: var(--font-jakarta);
+    font-family: var(--font-plus-jakarta), system-ui, sans-serif;
   }
 
-  /* Shimmer skeleton effect */
+  /* Shimmer skeleton */
   .shimmer {
     background: linear-gradient(
       90deg,
-      var(--cream-dark) 25%,
-      var(--cream-border) 37%,
-      var(--cream-dark) 63%
+      var(--crema-200, #ECE4D6) 25%,
+      var(--crema-300, #DED2BE) 37%,
+      var(--crema-200, #ECE4D6) 63%
     );
     background-size: 400% 100%;
     animation: shimmer 1.4s ease infinite;
   }
 }
 
+/* ─── Keyframe Animations ────────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(1.4); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 @keyframes shimmer {
-  0% { background-position: 100% 50%; }
+  0%   { background-position: 100% 50%; }
   100% { background-position: -100% 50%; }
 }
 
-/* ⚠️ REGLA DE COLOR — NO USAR VERDE COMO COLOR DE MARCA
-   Verde (#2D6A4F, #1B4332, #52B788) = SOLO estados de éxito,
-   badges "Completado/Activo/Firmado" y botón WhatsApp.
-   Para headers, botones primarios y elementos de marca
-   usar SIEMPRE var(--brand-primary) = #8B4513 */
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes underline-grow {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+/* ─── Typography Scale ───────────────────────────────────────────────── */
+.display-xl {
+  font-family: var(--font-fraunces-display), Georgia, serif;
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.display-lg {
+  font-family: var(--font-fraunces-display), Georgia, serif;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.display-md {
+  font-family: var(--font-fraunces-display), Georgia, serif;
+  font-size: clamp(1.375rem, 3vw, 2rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+/* ─── Marketplace Design System ──────────────────────────────────────── */
+:root {
+  --terra-dark:  #7E3F26;
+  --terra-mid:   #C1694F;
+  --terra-light: #E0A088;
+  --terra-pale:  #F4D8C9;
+
+  --antracite:       #221E19;
+  --antracite-mid:   #3A332C;
+  --antracite-light: #6F665C;
+
+  --background-mp:     #FAF8F5;
+  --background-mp-alt: #F2EDE6;
+  --cream-dark:        #ECE4D6;
+  --cream-border:      #E8DFD0;
+
+  --badge-disponible: #4A7C59;
+  --badge-dorado:     #C9A84C;
+
+  --shadow-mp-card:       0 2px 8px rgba(139,69,19,0.08), 0 8px 32px rgba(0,0,0,0.06);
+  --shadow-mp-card-hover: 0 8px 24px rgba(139,69,19,0.15), 0 16px 48px rgba(0,0,0,0.1);
+  --shadow-mp-hero:       0 4px 32px rgba(139,69,19,0.12);
+}
+
+@theme inline {
+  --color-terra-dark:       #7E3F26;
+  --color-terra-mid:        #C1694F;
+  --color-terra-light:      #E0A088;
+  --color-terra-pale:       #F4D8C9;
+  --color-antracite:        #221E19;
+  --color-antracite-mid:    #3A332C;
+  --color-antracite-light:  #6F665C;
+  --color-background-mp:    #FAF8F5;
+  --color-background-mp-alt: #F2EDE6;
+  --color-cream-border:     #E8DFD0;
+}
+
+/* ⚠️ REGLA DE COLOR
+   Verde = SOLO estados de éxito, badges "Completado/Activo" y botón WhatsApp.
+   Para CTAs y elementos de marca usar SIEMPRE var(--brand-primary) = #C1694F */
+
+/* ─── Design System Utilities (il-*) ────────────────────────────────── */
+@layer utilities {
+
+  /* Tipografía helpers */
+  .mono {
+    font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .display {
+    font-family: var(--font-fraunces-display), Georgia, serif;
+    letter-spacing: -0.02em;
+  }
+
+  /* Card base — il-card */
+  .il-card {
+    background: #ffffff;
+    border: 1px solid var(--border, #E8DFD0);
+    border-radius: var(--radius-lg, 16px);
+    box-shadow: var(--shadow, 0 2px 6px rgba(58,35,18,0.06), 0 8px 24px -8px rgba(58,35,18,0.08));
+    transition: box-shadow 200ms ease-out, transform 200ms ease-out;
+  }
+
+  .il-card:hover {
+    box-shadow: var(--shadow-lg-il, 0 4px 14px rgba(58,35,18,0.08), 0 20px 50px -16px rgba(58,35,18,0.14));
+    transform: translateY(-1px);
+  }
+
+  /* ── il-btn base ── */
+  .il-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 20px;
+    border-radius: var(--radius-md, 12px);
+    font-family: var(--font-dm-sans), system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 150ms ease-out, box-shadow 150ms ease-out, transform 100ms ease-out;
+    white-space: nowrap;
+  }
+
+  .il-btn:hover { transform: translateY(-1px); }
+  .il-btn:active { transform: scale(0.97); }
+
+  /* Variantes */
+  .il-btn--primary {
+    background: var(--terracota-500, #C1694F);
+    color: #fff;
+  }
+  .il-btn--primary:hover {
+    background: var(--terracota-600, #A85737);
+    box-shadow: 0 4px 12px rgba(193,105,79,0.35);
+  }
+
+  .il-btn--dark {
+    background: var(--antracita-900, #14110E);
+    color: #fff;
+  }
+  .il-btn--dark:hover {
+    background: var(--antracita-700, #221E19);
+    box-shadow: 0 4px 12px rgba(20,17,14,0.3);
+  }
+
+  .il-btn--ghost {
+    background: transparent;
+    color: var(--antracita-700, #221E19);
+    border: 1px solid var(--border, #E8DFD0);
+  }
+  .il-btn--ghost:hover {
+    background: var(--crema-100, #F5EFE5);
+    border-color: var(--border-strong, #D6C8AF);
+  }
+
+  .il-btn--accent {
+    background: var(--il-accent, #2D4A6B);
+    color: #fff;
+  }
+  .il-btn--accent:hover {
+    background: var(--il-accent-deep, #1B3149);
+    box-shadow: 0 4px 12px rgba(45,74,107,0.3);
+  }
+
+  .il-btn--whats {
+    background: #25D366;
+    color: #07331A;
+    font-weight: 700;
+  }
+  .il-btn--whats:hover {
+    background: #20BA5A;
+    box-shadow: 0 4px 12px rgba(37,211,102,0.35);
+  }
+}

@@ -25,28 +25,28 @@ const CALCULADORAS: Calc[] = [
     icon: DollarSign,
     titulo: "Comisiones",
     descripcion: "Calculá tu comisión por venta o alquiler al instante. Con desglose por parte y IVA opcional.",
-    color: "#1B4332",
+    color: "var(--terracota-600, #A0553D)",
   },
   {
     id: "escrituracion",
     icon: FileSignature,
     titulo: "Escrituración",
     descripcion: "Estimá los gastos de cierre para tu cliente. Sellos, escribano, ITI y comisión desglosados.",
-    color: "#2D6A4F",
+    color: "var(--antracita-700, #4A443E)",
   },
   {
     id: "icl",
     icon: TrendingUp,
-    titulo: "Ajuste ICL",
-    descripcion: "Calculá el nuevo valor del alquiler según el Índice para Contratos de Locación del BCRA.",
-    color: "#D4A853",
+    titulo: "Ajuste ICL / IPC",
+    descripcion: "Calculá el nuevo valor del alquiler según el ICL (BCRA) o el IPC (INDEC). Compará ambos índices.",
+    color: "var(--dorado-500, #C9A55C)",
   },
   {
     id: "divisas",
     icon: ArrowLeftRight,
     titulo: "Conversor de divisas",
     descripcion: "USD ↔ ARS con cotización en tiempo real. Blue, oficial, MEP y mayorista.",
-    color: "#2980B9",
+    color: "var(--accent, #4A7FA5)",
   },
 ];
 
@@ -56,9 +56,6 @@ const COMPONENTES: Record<CalcId, React.ComponentType> = {
   icl: CalculadoraICL,
   divisas: CalculadoraDivisas,
 };
-
-const TERRA = "#C0624F";
-const TERRA_BG = "#FDF1EE";
 
 export function CalculadorasPanel() {
   const [activa, setActiva] = useState<CalcId>("comisiones");
@@ -70,36 +67,46 @@ export function CalculadorasPanel() {
       {/* ── DESKTOP: split panel ── */}
       <div
         className="hidden md:grid"
-        style={{ gridTemplateColumns: "380px 1fr", height: "calc(100vh - 196px)", minHeight: "520px" }}
+        style={{ gridTemplateColumns: "320px 1fr", gap: 18 }}
       >
-        {/* Left: calculator list */}
-        <div className="flex flex-col gap-2 overflow-y-auto pr-4 py-0.5">
+        {/* Left: calculator picker */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {CALCULADORAS.map(({ id, icon: Icon, titulo, descripcion, color }) => {
             const isActive = activa === id;
             return (
               <button
                 key={id}
                 onClick={() => setActiva(id)}
-                className="w-full text-left rounded-xl border transition-all duration-200 p-4 flex items-start gap-3"
+                className="il-card w-full text-left"
                 style={{
-                  borderColor: isActive ? TERRA : "var(--border)",
-                  background: isActive ? TERRA_BG : "var(--surface)",
-                  boxShadow: isActive ? `inset 3px 0 0 ${TERRA}` : "none",
+                  padding: 16,
+                  cursor: "pointer",
+                  background: isActive ? "var(--terracota-100, #FAE8E2)" : "#fff",
+                  border: isActive ? "1px solid var(--terracota-300, #E8A888)" : "1px solid var(--border)",
+                  transition: "all 150ms",
                 }}
               >
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ background: `${color}18` }}
-                >
-                  <Icon className="w-4 h-4" style={{ color }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold" style={{ color: isActive ? TERRA : "var(--text-primary)" }}>
-                    {titulo}
-                  </p>
-                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                    {descripcion}
-                  </p>
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <span
+                    style={{
+                      width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                      background: isActive ? "#fff" : "var(--crema-100, #F0E9DC)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    <Icon
+                      size={15}
+                      style={{ color: isActive ? "var(--terracota-600, #A0553D)" : "var(--antracita-500)" }}
+                    />
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: isActive ? "var(--terracota-700, #7E3F26)" : "var(--antracita-900)" }}>
+                      {titulo}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginTop: 2, lineHeight: 1.4 }}>
+                      {descripcion}
+                    </div>
+                  </div>
                 </div>
               </button>
             );
@@ -107,10 +114,7 @@ export function CalculadorasPanel() {
         </div>
 
         {/* Right: active calculator */}
-        <div
-          className="overflow-y-auto"
-          style={{ borderLeft: "1px solid #DDD5C8", background: "var(--surface)" }}
-        >
+        <div className="il-card" style={{ padding: 28, overflow: "hidden" }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={activa}
@@ -118,13 +122,15 @@ export function CalculadorasPanel() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -14 }}
               transition={{ duration: 0.18, ease: "easeInOut" }}
-              className="p-6"
             >
-              <div className="mb-5">
-                <h2 className="text-base font-bold" style={{ color: "var(--text-primary)" }}>
+              <div style={{ marginBottom: 20 }}>
+                <h2
+                  className="display"
+                  style={{ fontSize: 22, margin: "0 0 4px", color: "var(--antracita-900)" }}
+                >
                   {calc.titulo}
                 </h2>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                <p style={{ fontSize: 13, color: "var(--antracita-500)", margin: 0 }}>
                   {calc.descripcion}
                 </p>
               </div>
@@ -137,8 +143,15 @@ export function CalculadorasPanel() {
       {/* ── MOBILE: tabs ── */}
       <div className="md:hidden flex flex-col gap-4">
         <div
-          className="flex overflow-x-auto gap-1 p-1 rounded-xl border"
-          style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}
+          style={{
+            display: "flex",
+            overflowX: "auto",
+            gap: 4,
+            padding: 4,
+            borderRadius: 12,
+            border: "1px solid var(--border)",
+            background: "var(--crema-100, #F0E9DC)",
+          }}
         >
           {CALCULADORAS.map(({ id, icon: Icon, titulo }) => {
             const isActive = activa === id;
@@ -146,14 +159,24 @@ export function CalculadorasPanel() {
               <button
                 key={id}
                 onClick={() => setActiva(id)}
-                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap"
                 style={{
-                  background: isActive ? "var(--surface)" : "transparent",
-                  color: isActive ? TERRA : "var(--text-muted)",
-                  boxShadow: isActive ? "var(--shadow-card)" : "none",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  whiteSpace: "nowrap",
+                  background: isActive ? "#fff" : "transparent",
+                  color: isActive ? "var(--antracita-900)" : "var(--antracita-500)",
+                  border: isActive ? "1px solid var(--border)" : "1px solid transparent",
+                  cursor: "pointer",
+                  boxShadow: isActive ? "0 1px 4px rgba(58,35,18,0.08)" : "none",
                 }}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon size={13} style={{ color: isActive ? "var(--terracota-500)" : "var(--antracita-300)" }} />
                 {titulo}
               </button>
             );
@@ -167,9 +190,10 @@ export function CalculadorasPanel() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18 }}
-            className="card p-5"
           >
-            <Componente />
+            <div className="il-card" style={{ padding: 20 }}>
+              <Componente />
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>

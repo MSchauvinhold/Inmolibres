@@ -1,11 +1,12 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { Plus, CalendarCheck } from "lucide-react";
-import { ESTADO_VISITA_LABELS } from "@/lib/utils";
+import { Plus } from "lucide-react";
 import { VisitaForm } from "@/components/visitas/VisitaForm";
 import { VisitasCalendar } from "@/components/visitas/VisitasCalendar";
+import { VisitasSemana } from "@/components/visitas/VisitasSemana";
 import { VisitasToggle } from "@/components/visitas/VisitasToggle";
+import { VisitaListClient } from "@/components/visitas/VisitaListClient";
 
 export const metadata = { title: "Visitas" };
 
@@ -25,13 +26,17 @@ export default async function VisitasPage({
   const userId = session.user.id;
 
   const sp = await searchParams;
-  const vista = sp.vista === "calendario" ? "calendario" : "lista";
+  const vista =
+    sp.vista === "calendario" ? "calendario"
+    : sp.vista === "semana"   ? "semana"
+    : "lista";
 
   const ahora = new Date();
-  const desde = vista === "calendario"
+  const esVistaExtensa = vista === "calendario" || vista === "semana";
+  const desde = esVistaExtensa
     ? new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1)
     : new Date(ahora.getTime() - 7 * 86400_000);
-  const hasta = vista === "calendario"
+  const hasta = esVistaExtensa
     ? new Date(ahora.getFullYear(), ahora.getMonth() + 3, 0)
     : undefined;
 
@@ -74,73 +79,74 @@ export default async function VisitasPage({
     agente: v.agente,
   }));
 
-  const ESTADO_COLORS = {
-    PENDIENTE: "bg-amber-100 text-amber-800",
-    REALIZADA: "bg-green-100 text-green-800",
-    CANCELADA: "bg-red-100 text-red-800",
-  } as const;
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="w-full max-w-[1060px] mx-auto" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+      {/* ── Header ── */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
-          <h1 className="text-xl font-bold text-text-primary">Visitas</h1>
-          <p className="text-sm text-text-muted">
-            {vista === "lista" ? "Últimos 7 días + próximas" : "Vista mensual"}
+          <p
+            className="mono"
+            style={{ fontSize: 11, color: "var(--antracita-300)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 2 }}
+          >
+            Módulo · Operaciones
+          </p>
+          <h1
+            className="display"
+            style={{ fontSize: 26, color: "var(--antracita-900)", margin: 0 }}
+          >
+            Visitas
+          </h1>
+          <p style={{ fontSize: 12, color: "var(--antracita-400)", marginTop: 2 }}>
+            {vista === "lista" ? "Últimos 7 días + próximas" : vista === "semana" ? "Semana actual" : "Vista mensual"} · {visitas.length} visita{visitas.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <VisitasToggle vista={vista} />
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <VisitasToggle vista={vista} />
+          {!isParticular && (
+            <a
+              href="#agendar"
+              className="il-btn il-btn--primary"
+              style={{ height: 36, fontSize: 13, gap: 6, textDecoration: "none" }}
+            >
+              <Plus size={14} color="#fff" />
+              Agendar visita
+            </a>
+          )}
+        </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Main content */}
-        <div className="lg:col-span-2">
-          {vista === "calendario" ? (
-            <div className="card p-5">
+      {/* ── Grid content ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 18, alignItems: "start" }}>
+
+        {/* ── Main: list / semana / calendario ── */}
+        <div>
+          {vista === "semana" ? (
+            <VisitasSemana visitas={visitasSerialized} />
+          ) : vista === "calendario" ? (
+            <div className="il-card" style={{ padding: 20 }}>
               <VisitasCalendar visitas={visitasSerialized} />
             </div>
           ) : (
-            <div className="space-y-3">
-              {visitas.length === 0 ? (
-                <div className="card p-8 text-center">
-                  <CalendarCheck className="w-10 h-10 text-text-muted mx-auto mb-3" />
-                  <p className="text-text-muted">Sin visitas agendadas</p>
-                </div>
-              ) : (
-                visitas.map((v) => (
-                  <div key={v.id} className="card p-4 flex items-start gap-4">
-                    <div className="text-center min-w-[52px] shrink-0">
-                      <p className="font-price text-xl font-bold text-brand-primary leading-none">{v.fechaHora.getDate()}</p>
-                      <p className="text-xs text-text-muted uppercase">{v.fechaHora.toLocaleString("es-AR", { month: "short" })}</p>
-                      <p className="text-xs font-medium text-text-secondary mt-0.5">{v.fechaHora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</p>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-medium text-text-primary">{v.propiedad.titulo}</p>
-                          <p className="text-xs text-text-muted">{v.propiedad.direccion}</p>
-                        </div>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${ESTADO_COLORS[v.estado]}`}>
-                          {ESTADO_VISITA_LABELS[v.estado]}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-text-secondary">
-                        <span>👤 {v.cliente.nombre}</span>
-                        <span>🏠 {v.agente.nombre}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <VisitaListClient visitas={visitasSerialized} />
           )}
         </div>
 
-        {/* Form */}
-        <div className="card p-5">
-          <h2 className="font-semibold text-text-primary mb-4 flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Agendar visita
-          </h2>
+        {/* ── Side: quick form ── */}
+        <div
+          className="il-card"
+          style={{ padding: 18, background: "var(--crema-100, #F0E9DC)" }}
+        >
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 16 }}>
+            <Plus size={14} style={{ color: "var(--terracota-500)" }} />
+            <h2
+              className="display"
+              style={{ fontSize: 16, margin: 0, color: "var(--antracita-900)" }}
+            >
+              Agendar visita
+            </h2>
+          </div>
           <VisitaForm
             propiedades={propiedades.map((p) => ({ id: p.id, label: p.titulo }))}
             clientes={clientes.map((c) => ({ id: c.id, label: c.nombre }))}

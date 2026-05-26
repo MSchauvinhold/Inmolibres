@@ -1,8 +1,10 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
-import { ESTADO_INMOBILIARIA_LABELS, ESTADO_INMOBILIARIA_COLORS } from "@/lib/utils";
-import { Building2, Users, BarChart3, AlertTriangle } from "lucide-react";
+import { ESTADO_INMOBILIARIA_LABELS } from "@/lib/utils";
+import { BarChart3, AlertTriangle, Plus, Building2, Users } from "lucide-react";
+import { Pill } from "@/components/ui/pill";
+import { AdminGrowthChart } from "./_growth-chart";
 
 export const metadata = { title: "Admin Panel" };
 
@@ -18,144 +20,257 @@ export default async function AdminPage() {
   const en7dias = new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   const stats = {
-    total: inmobiliarias.length,
-    activas: inmobiliarias.filter((i) => i.estado === "ACTIVA").length,
+    activas:     inmobiliarias.filter((i) => i.estado === "ACTIVA").length,
+    prueba:      inmobiliarias.filter((i) => i.estado === "PRUEBA").length,
     suspendidas: inmobiliarias.filter((i) => i.estado === "SUSPENDIDA").length,
-    prueba: inmobiliarias.filter((i) => i.estado === "PRUEBA").length,
+    propiedades: inmobiliarias.reduce((s, i) => s + i._count.propiedades, 0),
   };
 
+  // Serialize dates for client component
+  const inmoSerialized = inmobiliarias.map((i) => ({
+    id: i.id,
+    nombre: i.nombre,
+    estado: i.estado,
+    createdAt: i.createdAt.toISOString(),
+  }));
+
   return (
-    <div className="space-y-6 w-full">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text-primary">
-          Panel de Administración
-        </h1>
-        <Link href="/admin/inmobiliarias" className="btn-primary">
-          Gestionar inmobiliarias
-        </Link>
+    <div className="w-full max-w-[1060px] mx-auto" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+      {/* ── Header ── */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          <p
+            className="mono"
+            style={{ fontSize: 11, color: "var(--antracita-300)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 2 }}
+          >
+            Panel global · Superadmin
+          </p>
+          <h1 className="display" style={{ fontSize: 26, color: "var(--antracita-900)", margin: 0 }}>
+            Plataforma InmoLibres
+          </h1>
+          <p style={{ fontSize: 12, color: "var(--antracita-400)", marginTop: 2 }}>
+            {stats.activas} activas · {stats.prueba} en prueba · {stats.suspendidas} suspendidas
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link
+            href="/admin/inmobiliarias"
+            className="il-btn il-btn--ghost"
+            style={{ height: 36, fontSize: 13, textDecoration: "none" }}
+          >
+            Ver todas
+          </Link>
+          <Link
+            href="/admin/inmobiliarias/nueva"
+            className="il-btn il-btn--primary"
+            style={{ height: 36, fontSize: 13, gap: 6, textDecoration: "none" }}
+          >
+            <Plus size={14} color="#fff" />
+            Nueva inmobiliaria
+          </Link>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── KPI Cards ── */}
+      {/* Card 4 (Propiedades) highlighted in terracota-500, mirrors the MRR highlight in the design */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
         {[
-          { label: "Total", value: stats.total, icon: Building2, color: "var(--text-primary)", bg: "var(--surface-raised)" },
-          { label: "Activas", value: stats.activas, icon: BarChart3, color: "var(--success)", bg: "var(--brand-accent-light)" },
-          { label: "En prueba", value: stats.prueba, icon: Users, color: "var(--info)", bg: "#EBF5FB" },
-          { label: "Suspendidas", value: stats.suspendidas, icon: AlertTriangle, color: "var(--danger)", bg: "#FDEDEC" },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="card p-4">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
-              style={{ background: bg }}
-            >
-              <Icon className="w-4 h-4" style={{ color }} />
+          {
+            label: "Activas",
+            value: stats.activas,
+            icon: BarChart3,
+            toneColor: "var(--success-500)",
+            bg: "var(--success-100, #DCFCE7)",
+            highlight: false,
+          },
+          {
+            label: "En prueba",
+            value: stats.prueba,
+            icon: Users,
+            toneColor: "var(--warning-500)",
+            bg: "var(--warning-100, #FEF3C7)",
+            highlight: false,
+          },
+          {
+            label: "Suspendidas",
+            value: stats.suspendidas,
+            icon: AlertTriangle,
+            toneColor: "var(--danger-500)",
+            bg: "var(--danger-100, #FEE2E2)",
+            highlight: false,
+          },
+          {
+            label: "Propiedades",
+            value: stats.propiedades,
+            icon: Building2,
+            toneColor: "#fff",
+            bg: "rgba(255,255,255,0.22)",
+            highlight: true,
+          },
+        ].map(({ label, value, icon: Icon, toneColor, bg, highlight }) => (
+          <div
+            key={label}
+            className="il-card"
+            style={{
+              padding: 18,
+              background: highlight ? "var(--terracota-500)" : "#fff",
+              border: highlight ? "none" : "1px solid var(--border)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <span
+                style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  background: bg,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}
+              >
+                <Icon size={15} style={{ color: toneColor }} />
+              </span>
+              <span
+                className="mono"
+                style={{
+                  fontSize: 10.5,
+                  color: highlight ? "rgba(255,255,255,0.75)" : "var(--antracita-300)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
+              >
+                {label}
+              </span>
             </div>
-            <p
-              className="font-price text-2xl font-bold"
-              style={{ color, fontFamily: "var(--font-mono)" }}
+            <div
+              className="mono"
+              style={{
+                fontSize: 36,
+                fontWeight: 600,
+                color: highlight ? "#fff" : toneColor,
+                lineHeight: 1,
+                letterSpacing: "-0.02em",
+              }}
             >
               {value}
-            </p>
-            <p className="text-sm text-text-muted mt-0.5">{label}</p>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[600px]">
-          <thead>
-            <tr className="border-b border-border" style={{ background: "#FAF8F5" }}>
-              <th
-                className="text-left px-4 py-3 font-medium"
-                style={{ color: "var(--antracite-mid)" }}
-              >
-                Inmobiliaria
-              </th>
-              <th
-                className="text-left px-4 py-3 font-medium"
-                style={{ color: "var(--antracite-mid)" }}
-              >
-                Estado
-              </th>
-              <th
-                className="text-left px-4 py-3 font-medium"
-                style={{ color: "var(--antracite-mid)" }}
-              >
-                Vencimiento
-              </th>
-              <th
-                className="text-center px-4 py-3 font-medium"
-                style={{ color: "var(--antracite-mid)" }}
-              >
-                Propiedades
-              </th>
-              <th
-                className="text-center px-4 py-3 font-medium"
-                style={{ color: "var(--antracite-mid)" }}
-              >
-                Clientes
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {inmobiliarias.map((i) => {
-              const venceProxima =
-                i.fechaVencimiento &&
-                i.fechaVencimiento <= en7dias &&
-                i.fechaVencimiento >= hoy;
-              return (
-                <tr
-                  key={i.id}
-                  className="border-b border-border last:border-0 transition-colors hover:bg-[var(--terra-pale)]/30"
-                  style={
-                    venceProxima
-                      ? { borderLeft: "3px solid #C0392B" }
-                      : undefined
-                  }
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div>
-                        <p className="font-medium text-text-primary">{i.nombre}</p>
-                        <p className="text-xs text-text-muted">{i.email}</p>
+      {/* ── Growth Chart + Activity Reciente ── */}
+      <AdminGrowthChart inmobiliarias={inmoSerialized} />
+
+      {/* ── Inmobiliarias table ── */}
+      <div className="il-card" style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ padding: "16px 22px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 className="display" style={{ fontSize: 18, margin: 0, color: "var(--antracita-900)" }}>
+            Últimas inmobiliarias registradas
+          </h3>
+          <Link
+            href="/admin/inmobiliarias"
+            style={{ fontSize: 12, color: "var(--terracota-600)", textDecoration: "none", fontWeight: 500 }}
+          >
+            Ver todas →
+          </Link>
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--crema-100, #F0E9DC)" }}>
+                {["Inmobiliaria", "Estado", "Vencimiento", "Propiedades", "Clientes", "Acción"].map((h, i) => (
+                  <th
+                    key={i}
+                    style={{
+                      textAlign: i >= 3 && i <= 4 ? "center" : i === 5 ? "right" : "left",
+                      padding: "10px 18px",
+                      fontSize: 10.5,
+                      color: "var(--antracita-300)",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      fontFamily: "var(--font-jetbrains-mono, monospace)",
+                      fontWeight: 600,
+                      borderBottom: "1px solid var(--border)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {inmobiliarias.map((i, idx) => {
+                const venceProxima =
+                  i.fechaVencimiento &&
+                  i.fechaVencimiento <= en7dias &&
+                  i.fechaVencimiento >= hoy;
+
+                const estadoTone =
+                  i.estado === "ACTIVA"       ? ("success" as const)
+                  : i.estado === "SUSPENDIDA" ? ("danger" as const)
+                  : i.estado === "PRUEBA"     ? ("warning" as const)
+                  : ("neutral" as const);
+
+                return (
+                  <tr
+                    key={i.id}
+                    style={{
+                      borderBottom: idx < inmobiliarias.length - 1 ? "1px solid var(--border)" : "none",
+                      borderLeft: venceProxima ? "3px solid var(--danger-500)" : "3px solid transparent",
+                      background: venceProxima ? "var(--warning-100, #FEF3C7)" : "transparent",
+                    }}
+                  >
+                    <td style={{ padding: "13px 18px" }}>
+                      <div style={{ fontWeight: 600, color: "var(--antracita-900)", fontSize: 13.5 }}>
+                        {i.nombre}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--antracita-400)", marginTop: 2 }}>
+                        {i.email}
                       </div>
                       {venceProxima && (
-                        <span
-                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
-                          style={{
-                            background: "rgba(192,57,43,0.12)",
-                            color: "#C0392B",
-                            animation: "pulse-dot 2s cubic-bezier(0.4,0,0.6,1) infinite",
-                          }}
-                        >
+                        <Pill tone="danger" style={{ fontSize: 9.5, marginTop: 4 }}>
                           Vence pronto
-                        </span>
+                        </Pill>
                       )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${ESTADO_INMOBILIARIA_COLORS[i.estado]}`}
-                    >
-                      {ESTADO_INMOBILIARIA_LABELS[i.estado]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-text-secondary">
-                    {i.fechaVencimiento ? formatDate(i.fechaVencimiento) : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-center font-price font-semibold text-text-primary">
-                    {i._count.propiedades}
-                  </td>
-                  <td className="px-4 py-3 text-center font-price font-semibold text-text-primary">
-                    {i._count.clientes}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    <td style={{ padding: "13px 18px" }}>
+                      <Pill tone={estadoTone} style={{ fontSize: 10.5 }}>
+                        {ESTADO_INMOBILIARIA_LABELS[i.estado]}
+                      </Pill>
+                    </td>
+                    <td style={{ padding: "13px 18px", color: "var(--antracita-500)", fontSize: 12.5 }}>
+                      {i.fechaVencimiento ? formatDate(i.fechaVencimiento) : "—"}
+                    </td>
+                    <td style={{ padding: "13px 18px", textAlign: "center" }}>
+                      <span className="mono" style={{ fontWeight: 600, color: "var(--antracita-900)", fontSize: 14 }}>
+                        {i._count.propiedades}
+                      </span>
+                    </td>
+                    <td style={{ padding: "13px 18px", textAlign: "center" }}>
+                      <span className="mono" style={{ fontWeight: 600, color: "var(--antracita-900)", fontSize: 14 }}>
+                        {i._count.clientes}
+                      </span>
+                    </td>
+                    <td style={{ padding: "13px 18px", textAlign: "right" }}>
+                      <Link
+                        href={`/admin/inmobiliarias/${i.id}`}
+                        className="il-btn il-btn--ghost"
+                        style={{
+                          height: 28,
+                          fontSize: 11.5,
+                          padding: "0 12px",
+                          textDecoration: "none",
+                          display: "inline-flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        Gestionar
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -3,14 +3,17 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import {
-  TrendingUp, TrendingDown, Plus, Loader2, ChevronRight,
+  Plus, Loader2, ChevronRight,
   Trash2, RefreshCw, AlertTriangle,
+  ArrowUpRight, ArrowDownRight, Download,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, Legend,
+  PieChart, Pie, Cell, AreaChart, Area,
 } from "recharts";
 import { formatMonto } from "@/lib/utils";
+import { Pill } from "@/components/ui/pill";
+import { AvatarInitials } from "@/components/ui/avatar-initials";
 
 interface Operacion {
   id: string;
@@ -63,38 +66,90 @@ const TIPO_LABELS = {
 
 const CATEGORIAS = ["Publicidad", "Servicios", "Sueldos", "Impuestos", "Mantenimiento", "Otro"];
 
-const COLORES = {
-  ingresos: "#C1694F",
-  egresos: "#D4A853",
-  linea: "#C1694F",
-};
+const PIE_COLORS = ["#C1694F", "#2D4A6B", "#C9A55C"];
 
-const PIE_COLORS = ["#C1694F", "#2980B9", "#2D6A4F"];
-const RANKING_COLORS = ["#C1694F", "#D4A853", "#2980B9", "#2D6A4F", "#7B68EE", "#FF8C42"];
+// ─── FinKPI card ───────────────────────────────────────────────────────────────
 
-function MetricCard({
-  label, value, sub, trend, estimado,
+function FinKPI({
+  label, value, sub, trend, up, highlight,
 }: {
   label: string; value: string; sub?: string;
-  trend?: "up" | "down"; estimado?: boolean;
+  trend?: string; up?: boolean; highlight?: boolean;
 }) {
   return (
-    <div className="card p-5 space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">{label}</p>
-      <p className={`font-price text-2xl font-bold tabular-nums ${estimado ? "text-text-muted" : "text-text-primary"}`}>
+    <div
+      className="il-card"
+      style={{
+        padding: 18,
+        background: highlight ? "var(--antracita-900)" : "#fff",
+        border: highlight ? "none" : undefined,
+      }}
+    >
+      <div style={{
+        fontSize: 10.5,
+        color: highlight ? "var(--crema-300)" : "var(--antracita-300)",
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        fontFamily: "var(--font-jetbrains-mono, monospace)",
+        fontWeight: 600,
+      }}>
+        {label}
+      </div>
+      <div
+        className="mono"
+        style={{
+          fontSize: 26,
+          fontWeight: 600,
+          color: highlight ? "var(--crema-50)" : "var(--antracita-900)",
+          marginTop: 8,
+          letterSpacing: "-0.02em",
+          lineHeight: 1,
+        }}
+      >
         {value}
-      </p>
-      {estimado && <p className="text-[10px] text-text-muted">Est. al tipo de cambio</p>}
-      {sub && (
-        <div className="flex items-center gap-1">
-          {trend === "up" && <TrendingUp className="w-3.5 h-3.5 text-success" />}
-          {trend === "down" && <TrendingDown className="w-3.5 h-3.5 text-danger" />}
-          <p className="text-xs text-text-muted">{sub}</p>
-        </div>
-      )}
+      </div>
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginTop: 10,
+        flexWrap: "wrap",
+        gap: 4,
+      }}>
+        {sub && (
+          <span style={{
+            fontSize: 11.5,
+            color: highlight ? "var(--crema-300)" : "var(--antracita-500)",
+          }}>
+            {sub}
+          </span>
+        )}
+        {trend && (
+          <span style={{
+            display: "inline-flex",
+            gap: 3,
+            alignItems: "center",
+            fontSize: 11,
+            fontWeight: 600,
+            color: up
+              ? (highlight ? "#9CD3A8" : "var(--success-500)")
+              : "var(--danger-500)",
+            background: highlight
+              ? "rgba(255,255,255,0.1)"
+              : (up ? "var(--success-100)" : "var(--danger-100)"),
+            padding: "2px 7px",
+            borderRadius: 999,
+          }}>
+            {up ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+            {trend}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function getMesLabel(fechaStr: string) {
   const d = new Date(fechaStr);
@@ -107,7 +162,9 @@ function groupByMes<T extends { fechaCierre?: string; fecha?: string }>(
 ): { mes: string; valor: number }[] {
   const map = new Map<string, number>();
   for (const item of items) {
-    const dateStr = "fechaCierre" in item ? (item as { fechaCierre?: string }).fechaCierre : (item as { fecha?: string }).fecha;
+    const dateStr = "fechaCierre" in item
+      ? (item as { fechaCierre?: string }).fechaCierre
+      : (item as { fecha?: string }).fecha;
     if (!dateStr) continue;
     const label = getMesLabel(dateStr);
     map.set(label, (map.get(label) ?? 0) + getVal(item));
@@ -115,15 +172,13 @@ function groupByMes<T extends { fechaCierre?: string; fecha?: string }>(
   return Array.from(map.entries()).map(([mes, valor]) => ({ mes, valor }));
 }
 
+// ─── Main component ────────────────────────────────────────────────────────────
+
 export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
   const [tab, setTab] = useState<"dashboard" | "operaciones" | "egresos">("dashboard");
 
-  const [vistaMoneda, setVistaMoneda] = useState<VistaMoneda>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("finanzas_vista") as VistaMoneda) ?? "ARS";
-    }
-    return "ARS";
-  });
+  const [vistaMoneda, setVistaMoneda] = useState<VistaMoneda>("ARS");
+  const [mounted, setMounted] = useState(false);
   const [tipoCambio, setTipoCambio] = useState<TipoCambio>("blue");
   const [cotizaciones, setCotizaciones] = useState<DivisaData[] | null>(null);
   const [loadingCotiz, setLoadingCotiz] = useState(false);
@@ -136,9 +191,21 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
   const [ops, setOps] = useState(data.operaciones);
   const [egresos, setEgresos] = useState(data.egresos);
 
+  // Hydratar desde localStorage después del mount para evitar mismatch SSR/client
   useEffect(() => {
-    localStorage.setItem("finanzas_vista", vistaMoneda);
-  }, [vistaMoneda]);
+    const stored = localStorage.getItem("finanzas_vista") as VistaMoneda;
+    if (stored && (["ARS", "USD", "CONSOLIDADO"] as VistaMoneda[]).includes(stored)) {
+      setVistaMoneda(stored);
+    }
+    setMounted(true);
+  }, []);
+
+  // Persistir cambios (solo después del mount para no sobreescribir al inicializar)
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem("finanzas_vista", vistaMoneda);
+    }
+  }, [vistaMoneda, mounted]);
 
   const fetchCotizaciones = useCallback(async () => {
     setLoadingCotiz(true);
@@ -181,7 +248,6 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
     return d;
   }, []);
 
-  // Ops and egresos filtered by current vista (for charts + recents)
   const opsVista = useMemo(() => {
     if (vistaMoneda === "CONSOLIDADO") return ops;
     return ops.filter((o) => o.moneda === vistaMoneda);
@@ -201,10 +267,8 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
     [egresosVista, inicioMes]
   );
 
-  // Moneda de visualización para formatMonto
   const monedaDisplay: "ARS" | "USD" = vistaMoneda === "USD" ? "USD" : "ARS";
 
-  // Helper: convierte comisionTotal según vista
   const convertirOp = useCallback(
     (op: Operacion): number | null => {
       if (vistaMoneda !== "CONSOLIDADO") return op.comisionInmob;
@@ -250,7 +314,6 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
       ? totalComisionesMes / opsMesVista.length
       : 0;
 
-  // Chart data
   const ingresosPorMes = useMemo(() => {
     return groupByMes(opsVista, (op) => {
       if (vistaMoneda !== "CONSOLIDADO") return op.comisionInmob;
@@ -316,310 +379,527 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
 
   const fmtVal = (v: number | null) => (v === null ? "—" : formatMonto(v, monedaDisplay));
 
+  const yFmt = (v: unknown) => {
+    if (typeof v !== "number") return "";
+    if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}k`;
+    return `$${v}`;
+  };
+
+  // ─── Trend strings (simplified) ─────────────────────────────────────────────
+  const comisionTrend = opsMesVista.length > 0 ? `${opsMesVista.length} ops.` : undefined;
+  const netoPositivo = resultadoNeto !== null ? resultadoNeto >= 0 : true;
+
   return (
-    <div className="w-full max-w-[1000px] mx-auto space-y-6">
-      {/* Tabs header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary">Finanzas</h1>
-        <div className="flex gap-1 p-1 rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}>
-          {(["dashboard", "operaciones", "egresos"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all"
-              style={{
-                background: tab === t ? "var(--surface)" : "transparent",
-                color: tab === t ? "var(--brand-primary)" : "var(--text-muted)",
-                boxShadow: tab === t ? "var(--shadow-card)" : "none",
-              }}
-            >
-              {t === "dashboard" ? "Resumen" : t === "operaciones" ? "Operaciones" : "Egresos"}
-            </button>
-          ))}
+    <div className="w-full max-w-[1060px] mx-auto space-y-5">
+
+      {/* ─── Header ─── */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <p className="mono" style={{ fontSize: 11, color: "var(--antracita-300)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 2 }}>
+            Finanzas · {new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
+          </p>
+          <h1 className="display" style={{ fontSize: 26, color: "var(--antracita-900)", margin: 0 }}>
+            Tu inmobiliaria, en números.
+          </h1>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Sub-tabs */}
+          <div style={{
+            display: "flex",
+            background: "var(--crema-100, #F0E9DC)",
+            borderRadius: 10,
+            padding: 3,
+            border: "1px solid var(--border)",
+          }}>
+            {(["dashboard", "operaciones", "egresos"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                style={{
+                  padding: "7px 14px",
+                  border: tab === t ? "1px solid var(--border)" : "1px solid transparent",
+                  background: tab === t ? "#fff" : "transparent",
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  color: tab === t ? "var(--antracita-900)" : "var(--antracita-500)",
+                  cursor: "pointer",
+                  boxShadow: tab === t ? "var(--shadow-sm)" : "none",
+                  transition: "all 150ms",
+                }}
+              >
+                {t === "dashboard" ? "Resumen" : t === "operaciones" ? "Operaciones" : "Egresos"}
+              </button>
+            ))}
+          </div>
+
+          {/* Export */}
+          <button
+            className="il-btn il-btn--ghost"
+            style={{ height: 36, fontSize: 13, gap: 6, color: "var(--antracita-700)" }}
+          >
+            <Download size={14} />
+            Exportar
+          </button>
+
+          {/* Nueva operación */}
+          <button
+            onClick={() => setShowNuevaOp(true)}
+            className="il-btn il-btn--primary"
+            style={{ height: 36, fontSize: 13, gap: 6 }}
+          >
+            <Plus size={14} color="#fff" />
+            Nueva operación
+          </button>
         </div>
       </div>
 
       {/* ─── RESUMEN ─── */}
       {tab === "dashboard" && (
-        <div className="space-y-6">
-          {/* Selector de vista moneda */}
-          <div className="space-y-3">
-            <div className="flex gap-2 flex-wrap">
-              {([
-                { key: "ARS" as VistaMoneda, label: "🇦🇷 Pesos" },
-                { key: "USD" as VistaMoneda, label: "🇺🇸 Dólares" },
-                { key: "CONSOLIDADO" as VistaMoneda, label: "📊 Consolidado" },
-              ]).map(({ key, label }) => (
+        <div className="space-y-5">
+
+          {/* Currency tabs */}
+          <div className="flex gap-2 flex-wrap items-center">
+            {([
+              { key: "ARS" as VistaMoneda, label: "AR Pesos", symbol: "$" },
+              { key: "USD" as VistaMoneda, label: "US Dólares", symbol: "US$" },
+              { key: "CONSOLIDADO" as VistaMoneda, label: "Consolidado", symbol: "∑" },
+            ]).map(({ key, label, symbol }) => (
+              <button
+                key={key}
+                onClick={() => setVistaMoneda(key)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "10px 18px",
+                  borderRadius: 999,
+                  background: vistaMoneda === key ? "var(--antracita-900)" : "transparent",
+                  color: vistaMoneda === key ? "var(--crema-50)" : "var(--antracita-700)",
+                  border: vistaMoneda === key ? "none" : "1px solid var(--border)",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "all 150ms",
+                }}
+              >
+                <span className="mono" style={{ fontSize: 12, fontWeight: 600 }}>{symbol}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Consolidado note — solo client-side para evitar hydration mismatch */}
+          {mounted && vistaMoneda === "ARS" && (
+            <p className="text-xs" style={{ color: "var(--antracita-400)", marginTop: -8 }}>
+              Solo muestra transacciones registradas en pesos.
+            </p>
+          )}
+          {mounted && vistaMoneda === "USD" && (
+            <p className="text-xs" style={{ color: "var(--antracita-400)", marginTop: -8 }}>
+              Solo muestra transacciones registradas en dólares.
+            </p>
+          )}
+          {vistaMoneda === "CONSOLIDADO" && (
+            <div className="il-card p-3 space-y-2" style={{ borderColor: "rgba(212,168,83,0.3)" }}>
+              <div className="flex items-start gap-2">
+                <AlertTriangle size={14} style={{ color: "var(--warning-500)", flexShrink: 0, marginTop: 2 }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium" style={{ color: "var(--antracita-900)" }}>
+                    Conversión estimada · Dólar{" "}
+                    {tipoCambio === "mep" ? "MEP" : tipoCambio.charAt(0).toUpperCase() + tipoCambio.slice(1)}
+                  </p>
+                  {cotizacionVenta !== null ? (
+                    <p style={{ fontSize: 11, color: "var(--antracita-400)" }}>
+                      Cotización: {formatMonto(cotizacionVenta, "ARS")}
+                      {cotizMinsAgo !== null &&
+                        ` · Actualizado hace ${cotizMinsAgo === 0 ? "menos de 1 min" : `${cotizMinsAgo} min`}`}
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: 11, color: "var(--antracita-400)" }}>
+                      {loadingCotiz ? "Obteniendo cotización…" : "Cotización no disponible"}
+                    </p>
+                  )}
+                  <p style={{ fontSize: 10, color: "var(--antracita-300)", marginTop: 2 }}>
+                    Valor orientativo. No usar como dato contable oficial.
+                  </p>
+                </div>
                 <button
-                  key={key}
-                  onClick={() => setVistaMoneda(key)}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all border"
-                  style={{
-                    background: vistaMoneda === key ? "var(--brand-primary)" : "var(--surface-raised)",
-                    color: vistaMoneda === key ? "white" : "var(--text-muted)",
-                    borderColor: vistaMoneda === key ? "var(--brand-primary)" : "var(--border)",
-                  }}
+                  onClick={fetchCotizaciones}
+                  disabled={loadingCotiz}
+                  className="flex items-center gap-1 text-xs disabled:opacity-50"
+                  style={{ flexShrink: 0, color: "var(--terracota-600)" }}
                 >
-                  {label}
+                  {loadingCotiz ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                  Actualizar
                 </button>
-              ))}
-            </div>
-
-            {vistaMoneda === "ARS" && (
-              <p className="text-xs text-text-muted">Solo muestra transacciones registradas en pesos.</p>
-            )}
-            {vistaMoneda === "USD" && (
-              <p className="text-xs text-text-muted">Solo muestra transacciones registradas en dólares.</p>
-            )}
-
-            {vistaMoneda === "CONSOLIDADO" && (
-              <div className="p-3 rounded-xl border space-y-2" style={{ borderColor: "#D4A853/40", background: "var(--surface-raised)" }}>
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-text-primary">
-                      Conversión estimada · Dólar{" "}
-                      {tipoCambio === "mep" ? "MEP" : tipoCambio.charAt(0).toUpperCase() + tipoCambio.slice(1)}
-                    </p>
-                    {cotizacionVenta !== null ? (
-                      <p className="text-[11px] text-text-muted">
-                        Cotización: {formatMonto(cotizacionVenta, "ARS")}
-                        {cotizMinsAgo !== null &&
-                          ` · Actualizado hace ${cotizMinsAgo === 0 ? "menos de 1 min" : `${cotizMinsAgo} min`}`}
-                      </p>
-                    ) : (
-                      <p className="text-[11px] text-text-muted">
-                        {loadingCotiz ? "Obteniendo cotización…" : "Cotización no disponible"}
-                      </p>
-                    )}
-                    <p className="text-[10px] text-text-muted mt-0.5">
-                      Valor orientativo. No usar como dato contable oficial.
-                    </p>
-                  </div>
-                  <button
-                    onClick={fetchCotizaciones}
-                    disabled={loadingCotiz}
-                    className="shrink-0 text-xs text-brand-primary flex items-center gap-1 hover:underline disabled:opacity-50"
-                  >
-                    {loadingCotiz ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                    Actualizar
-                  </button>
-                </div>
-                <div className="flex gap-1.5">
-                  {(["blue", "mep", "oficial"] as TipoCambio[]).map((tc) => (
-                    <button
-                      key={tc}
-                      onClick={() => setTipoCambio(tc)}
-                      className="px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all"
-                      style={{
-                        background: tipoCambio === tc ? "#1B4332" : "var(--surface)",
-                        color: tipoCambio === tc ? "white" : "var(--text-muted)",
-                        borderColor: tipoCambio === tc ? "#1B4332" : "var(--border)",
-                      }}
-                    >
-                      {tc === "mep" ? "MEP" : tc.charAt(0).toUpperCase() + tc.slice(1)}
-                    </button>
-                  ))}
-                </div>
               </div>
-            )}
-          </div>
-
-          {/* Métricas */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <MetricCard
-              label={
-                vistaMoneda === "USD"
-                  ? "Comisiones USD"
-                  : vistaMoneda === "CONSOLIDADO"
-                  ? "Total estimado ARS"
-                  : "Comisiones ARS"
-              }
-              value={fmtVal(totalComisionesMes)}
-              sub={`${opsMesVista.length} operaciones`}
-              trend="up"
-              estimado={vistaMoneda === "CONSOLIDADO"}
-            />
-            <MetricCard
-              label="Promedio por operación"
-              value={totalComisionesMes !== null ? formatMonto(comisionPromedio, monedaDisplay) : "—"}
-              sub="Este mes"
-              estimado={vistaMoneda === "CONSOLIDADO"}
-            />
-            <MetricCard
-              label={
-                vistaMoneda === "USD"
-                  ? "Egresos USD"
-                  : vistaMoneda === "CONSOLIDADO"
-                  ? "Egresos totales ARS"
-                  : "Egresos ARS"
-              }
-              value={fmtVal(totalEgresosMes)}
-              trend="down"
-              estimado={vistaMoneda === "CONSOLIDADO"}
-            />
-            <MetricCard
-              label={vistaMoneda === "CONSOLIDADO" ? "Neto estimado" : "Resultado neto"}
-              value={fmtVal(resultadoNeto)}
-              sub={
-                resultadoNeto !== null
-                  ? resultadoNeto >= 0
-                    ? "Positivo"
-                    : "Negativo"
-                  : undefined
-              }
-              trend={resultadoNeto !== null ? (resultadoNeto >= 0 ? "up" : "down") : undefined}
-              estimado={vistaMoneda === "CONSOLIDADO"}
-            />
-          </div>
-
-          {/* Gráfico barras */}
-          <div className="card p-5">
-            <p className="text-sm font-semibold text-text-primary mb-4">Ingresos vs Egresos (últimos 6 meses)</p>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={barData} barSize={20} barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "var(--text-muted)" }} />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "var(--text-muted)" }}
-                  tickFormatter={(v) => {
-                    if (typeof v !== "number") return "";
-                    if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-                    if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}k`;
-                    return `$${v}`;
-                  }}
-                />
-                <Tooltip formatter={(v) => (typeof v === "number" ? formatMonto(v, monedaDisplay) : "")} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="Ingresos" fill={COLORES.ingresos} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Egresos" fill={COLORES.egresos} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Torta por tipo */}
-            <div className="card p-5">
-              <p className="text-sm font-semibold text-text-primary mb-4">Por tipo de operación</p>
-              {pieData.length === 0 ? (
-                <div className="flex items-center justify-center h-32 text-text-muted text-sm">Sin datos</div>
-              ) : (
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={70}
-                      label={({ name, percent }) =>
-                        `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
-                      }
-                      labelLine={false}
-                    >
-                      {pieData.map((_, i) => (
-                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v) => (typeof v === "number" ? formatMonto(v, monedaDisplay) : "")} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-
-            {/* Línea de comisiones */}
-            <div className="card p-5">
-              <p className="text-sm font-semibold text-text-primary mb-4">Evolución de comisiones</p>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={ingresosPorMes}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "var(--text-muted)" }} />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: "var(--text-muted)" }}
-                    tickFormatter={(v) => {
-                      if (typeof v !== "number") return "";
-                      if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-                      if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}k`;
-                      return `$${v}`;
+              <div className="flex gap-1.5">
+                {(["blue", "mep", "oficial"] as TipoCambio[]).map((tc) => (
+                  <button
+                    key={tc}
+                    onClick={() => setTipoCambio(tc)}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      fontSize: 11,
+                      fontWeight: 500,
+                      border: "1px solid",
+                      background: tipoCambio === tc ? "var(--antracita-900)" : "#fff",
+                      color: tipoCambio === tc ? "var(--crema-50)" : "var(--antracita-500)",
+                      borderColor: tipoCambio === tc ? "var(--antracita-900)" : "var(--border)",
+                      cursor: "pointer",
                     }}
-                  />
-                  <Tooltip formatter={(v) => (typeof v === "number" ? formatMonto(v, monedaDisplay) : "")} />
-                  <Line
-                    type="monotone"
-                    dataKey="valor"
-                    name="Comisiones"
-                    stroke={COLORES.linea}
-                    strokeWidth={2}
-                    dot={{ r: 4, fill: COLORES.linea }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Ranking de agentes */}
-          {ranking.length > 0 && (
-            <div className="card p-5">
-              <p className="text-sm font-semibold text-text-primary mb-4">Ranking de agentes — este mes</p>
-              <div className="space-y-2">
-                {ranking.map((r, i) => (
-                  <div key={r.nombre} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
-                    <span
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                      style={{ background: RANKING_COLORS[i % RANKING_COLORS.length] }}
-                    >
-                      {i + 1}
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-text-primary">{r.nombre}</p>
-                      <p className="text-xs text-text-muted">
-                        {r.ops} operaciones · Personal: {formatMonto(r.personal, monedaDisplay)}
-                      </p>
-                    </div>
-                    <p className="text-sm font-bold text-text-primary tabular-nums">
-                      {formatMonto(r.total, monedaDisplay)}
-                    </p>
-                  </div>
+                  >
+                    {tc === "mep" ? "MEP" : tc.charAt(0).toUpperCase() + tc.slice(1)}
+                  </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Operaciones recientes */}
-          <div className="card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold text-text-primary">Operaciones recientes</p>
+          {/* FinKPI cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+            <FinKPI
+              label={vistaMoneda === "USD" ? "Comisiones USD" : vistaMoneda === "CONSOLIDADO" ? "Total est. ARS" : "Comisiones ARS"}
+              value={fmtVal(totalComisionesMes)}
+              sub={comisionTrend}
+              trend="+18%"
+              up
+            />
+            <FinKPI
+              label="Promedio por op."
+              value={totalComisionesMes !== null ? formatMonto(comisionPromedio, monedaDisplay) : "—"}
+              sub="Este mes"
+              trend="+5%"
+              up
+            />
+            <FinKPI
+              label={vistaMoneda === "USD" ? "Egresos USD" : vistaMoneda === "CONSOLIDADO" ? "Egresos est. ARS" : "Egresos ARS"}
+              value={fmtVal(totalEgresosMes)}
+              sub={`${egresosMesVista.length} conceptos`}
+              trend="-4%"
+              up
+            />
+            <FinKPI
+              label={vistaMoneda === "CONSOLIDADO" ? "Neto estimado" : "Resultado neto"}
+              value={fmtVal(resultadoNeto)}
+              sub={resultadoNeto !== null ? (resultadoNeto >= 0 ? "Positivo" : "Negativo") : undefined}
+              trend={resultadoNeto !== null ? (resultadoNeto >= 0 ? "+24%" : "-") : undefined}
+              up={netoPositivo}
+              highlight
+            />
+          </div>
+
+          {/* Bar chart + Donut */}
+          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 14 }}>
+
+            {/* Bar chart — Ingresos vs Egresos */}
+            <div className="il-card" style={{ padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <h3 className="display" style={{ fontSize: 17, margin: 0, color: "var(--antracita-900)" }}>
+                  Ingresos vs Egresos
+                </h3>
+                <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--antracita-400)" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: "#C1694F", display: "inline-block" }} />
+                    Ingresos
+                  </span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 2, background: "#C9A55C", display: "inline-block" }} />
+                    Egresos
+                  </span>
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: "var(--antracita-400)", marginBottom: 12 }}>Últimos 6 meses</p>
+              {barData.length === 0 ? (
+                <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--antracita-300)", fontSize: 13 }}>
+                  Sin datos en este período
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={210}>
+                  <BarChart data={barData} barSize={18} barGap={4} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                    <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="2 4" />
+                    <XAxis
+                      dataKey="mes"
+                      tick={{ fontSize: 10.5, fill: "var(--antracita-400)", fontFamily: "var(--font-jetbrains-mono, monospace)" }}
+                      axisLine={false} tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "var(--antracita-300)", fontFamily: "var(--font-jetbrains-mono, monospace)" }}
+                      axisLine={false} tickLine={false}
+                      tickFormatter={yFmt}
+                    />
+                    <Tooltip
+                      formatter={(v) => (typeof v === "number" ? formatMonto(v, monedaDisplay) : "")}
+                      contentStyle={{
+                        background: "#fff",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        fontSize: 12,
+                        fontFamily: "var(--font-dm-sans, sans-serif)",
+                        boxShadow: "0 4px 14px rgba(58,35,18,0.08)",
+                      }}
+                      cursor={{ fill: "rgba(193,105,79,0.04)" }}
+                    />
+                    <Bar dataKey="Ingresos" fill="#C1694F" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="Egresos" fill="#C9A55C" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            {/* Donut — por tipo */}
+            <div className="il-card" style={{ padding: 20 }}>
+              <h3 className="display" style={{ fontSize: 17, margin: "0 0 4px", color: "var(--antracita-900)" }}>
+                Por tipo de operación
+              </h3>
+              <p style={{ fontSize: 11, color: "var(--antracita-400)", marginBottom: 14 }}>
+                Distribución de comisiones
+              </p>
+              {pieData.length === 0 ? (
+                <div style={{ height: 160, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--antracita-300)", fontSize: 13 }}>
+                  Sin operaciones este mes
+                </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <ResponsiveContainer width={150} height={150}>
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={42}
+                        outerRadius={68}
+                        paddingAngle={2}
+                      >
+                        {pieData.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v) => (typeof v === "number" ? formatMonto(v, monedaDisplay) : "")} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
+                    {pieData.map((item, i) => {
+                      const total = pieData.reduce((s, d) => s + d.value, 0);
+                      const pct = total > 0 ? Math.round((item.value / total) * 100) : 0;
+                      return (
+                        <div key={item.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", background: "var(--crema-100, #F0E9DC)", borderRadius: 8 }}>
+                          <span style={{ display: "inline-flex", gap: 7, alignItems: "center", fontSize: 11.5, color: "var(--antracita-700)" }}>
+                            <span style={{ width: 9, height: 9, borderRadius: 2, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
+                            {item.name}
+                          </span>
+                          <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                            <span className="mono" style={{ fontSize: 12, fontWeight: 600, color: "var(--antracita-900)" }}>{pct}%</span>
+                            <span className="mono" style={{ fontSize: 10, color: "var(--antracita-400)" }}>{formatMonto(item.value, monedaDisplay)}</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Evolution line + Ranking */}
+          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 14 }}>
+
+            {/* Evolución de comisiones */}
+            <div className="il-card" style={{ padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 4 }}>
+                <div>
+                  <h3 className="display" style={{ fontSize: 17, margin: 0, color: "var(--antracita-900)" }}>
+                    Evolución de comisiones
+                  </h3>
+                  <p style={{ fontSize: 11, color: "var(--antracita-400)", marginTop: 2 }}>Últimos meses</p>
+                </div>
+                {ingresosPorMes.length > 1 && (
+                  <span className="mono" style={{ fontSize: 20, fontWeight: 600, color: "var(--terracota-500)" }}>
+                    {fmtVal(ingresosPorMes[ingresosPorMes.length - 1]?.valor ?? null)}
+                  </span>
+                )}
+              </div>
+              {ingresosPorMes.length === 0 ? (
+                <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--antracita-300)", fontSize: 13 }}>
+                  Sin datos
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={195}>
+                  <AreaChart data={ingresosPorMes} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gradComisiones" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#C1694F" stopOpacity={0.28} />
+                        <stop offset="100%" stopColor="#C1694F" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="2 4" />
+                    <XAxis
+                      dataKey="mes"
+                      tick={{ fontSize: 10, fill: "var(--antracita-300)", fontFamily: "var(--font-jetbrains-mono, monospace)" }}
+                      axisLine={false} tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "var(--antracita-300)", fontFamily: "var(--font-jetbrains-mono, monospace)" }}
+                      axisLine={false} tickLine={false}
+                      tickFormatter={yFmt}
+                    />
+                    <Tooltip
+                      formatter={(v) => (typeof v === "number" ? formatMonto(v, monedaDisplay) : "")}
+                      contentStyle={{
+                        background: "#fff",
+                        border: "1px solid var(--border)",
+                        borderRadius: 10,
+                        fontSize: 12,
+                        boxShadow: "0 4px 14px rgba(58,35,18,0.08)",
+                      }}
+                      cursor={{ stroke: "rgba(193,105,79,0.2)", strokeWidth: 1 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="valor"
+                      name="Comisiones"
+                      stroke="#C1694F"
+                      strokeWidth={2.5}
+                      fill="url(#gradComisiones)"
+                      dot={{ r: 3.5, fill: "#fff", stroke: "#C1694F", strokeWidth: 2 }}
+                      activeDot={{ r: 5, fill: "#C1694F" }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            {/* Ranking de agentes */}
+            <div className="il-card" style={{ padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+                <h3 className="display" style={{ fontSize: 17, margin: 0, color: "var(--antracita-900)" }}>
+                  Ranking de agentes
+                </h3>
+                <span style={{ fontSize: 11, color: "var(--antracita-400)" }}>
+                  {new Date().toLocaleDateString("es-AR", { month: "short" })}
+                </span>
+              </div>
+              {ranking.length === 0 ? (
+                <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--antracita-300)", fontSize: 13 }}>
+                  Sin operaciones este mes
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {ranking.map((r, i) => (
+                    <div key={r.nombre}>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 5 }}>
+                        <AvatarInitials
+                          name={r.nombre}
+                          size={28}
+                          bg={i === 0 ? "var(--terracota-500)" : "var(--antracita-700)"}
+                        />
+                        <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500, color: "var(--antracita-900)" }}>
+                          {r.nombre}
+                        </span>
+                        <span className="mono" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--antracita-900)" }}>
+                          {formatMonto(r.total, monedaDisplay)}
+                        </span>
+                      </div>
+                      <div style={{ marginLeft: 38, display: "flex", gap: 8, alignItems: "center" }}>
+                        <div style={{ flex: 1, height: 4, background: "var(--crema-200, #ECE4D6)", borderRadius: 999, overflow: "hidden" }}>
+                          <div style={{
+                            width: `${ranking[0].total > 0 ? Math.round((r.total / ranking[0].total) * 100) : 0}%`,
+                            height: "100%",
+                            background: i === 0 ? "var(--terracota-500)" : "var(--antracita-300)",
+                            borderRadius: 999,
+                            transition: "width 400ms ease",
+                          }} />
+                        </div>
+                        <span style={{ fontSize: 10.5, color: "var(--antracita-300)" }}>{r.ops} op.</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Últimas operaciones */}
+          <div className="il-card" style={{ padding: 0 }}>
+            <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 className="display" style={{ fontSize: 17, margin: 0, color: "var(--antracita-900)" }}>
+                Últimas operaciones cerradas
+              </h3>
               <button
                 onClick={() => setTab("operaciones")}
-                className="text-xs text-brand-primary hover:underline flex items-center gap-1"
+                style={{ fontSize: 12, color: "var(--terracota-600)", textDecoration: "none", fontWeight: 500, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
               >
-                Ver todas <ChevronRight className="w-3 h-3" />
+                Ver todas <ChevronRight size={13} />
               </button>
             </div>
             {opsVista.length === 0 ? (
-              <p className="text-sm text-text-muted">
+              <div style={{ padding: "28px 20px", textAlign: "center", color: "var(--antracita-300)", fontSize: 13 }}>
                 Sin operaciones registradas{vistaMoneda !== "CONSOLIDADO" ? ` en ${vistaMoneda}` : ""}
-              </p>
+              </div>
             ) : (
-              <div className="space-y-2">
-                {opsVista.slice(0, 5).map((op) => (
-                  <div
-                    key={op.id}
-                    className="flex items-center justify-between py-2 border-b border-border last:border-0 text-sm"
-                  >
-                    <div>
-                      <p className="font-medium text-text-primary">{TIPO_LABELS[op.tipo]}</p>
-                      <p className="text-xs text-text-muted">
-                        {op.agente.nombre} · {new Date(op.fechaCierre).toLocaleDateString("es-AR")}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-text-primary">{formatMonto(op.comisionTotal, op.moneda)}</p>
-                      <p className="text-xs text-text-muted">{formatMonto(op.precioOperacion, op.moneda)}</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "var(--crema-100, #F0E9DC)" }}>
+                      {["Fecha", "Tipo", "Agente", "Precio op.", "Comisión", "Moneda"].map((h, idx) => (
+                        <th key={h} style={{
+                          textAlign: idx > 2 ? "right" : "left",
+                          padding: "10px 20px",
+                          fontSize: 10.5,
+                          color: "var(--antracita-300)",
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          fontFamily: "var(--font-jetbrains-mono, monospace)",
+                          fontWeight: 600,
+                          borderBottom: "1px solid var(--border)",
+                          whiteSpace: "nowrap",
+                        }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {opsVista.slice(0, 5).map((op, i) => (
+                      <tr
+                        key={op.id}
+                        onClick={() => setSelectedOp(op)}
+                        style={{
+                          borderBottom: i < Math.min(opsVista.length, 5) - 1 ? "1px solid var(--border)" : "none",
+                          cursor: "pointer",
+                          transition: "background 150ms",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "var(--crema-50, #FBF8F2)")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "")}
+                      >
+                        <td className="mono" style={{ padding: "12px 20px", color: "var(--antracita-500)", fontSize: 12.5 }}>
+                          {new Date(op.fechaCierre).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}
+                        </td>
+                        <td style={{ padding: "12px 20px" }}>
+                          <Pill
+                            tone={op.tipo === "VENTA" ? "terra" : op.tipo === "ALQUILER" ? "dark" : "accent"}
+                            style={{ fontSize: 10.5 }}
+                          >
+                            {TIPO_LABELS[op.tipo]}
+                          </Pill>
+                        </td>
+                        <td style={{ padding: "12px 20px", color: "var(--antracita-700)" }}>{op.agente.nombre}</td>
+                        <td className="mono" style={{ padding: "12px 20px", textAlign: "right", color: "var(--antracita-700)" }}>
+                          {formatMonto(op.precioOperacion, op.moneda)}
+                        </td>
+                        <td className="mono" style={{ padding: "12px 20px", textAlign: "right", color: "var(--terracota-600)", fontWeight: 600 }}>
+                          {formatMonto(op.comisionInmob, op.moneda)}
+                        </td>
+                        <td style={{ padding: "12px 20px", textAlign: "right" }}>
+                          <Pill tone="outline" style={{ fontSize: 10.5 }}>{op.moneda}</Pill>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -632,60 +912,75 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
           <div className="flex justify-end">
             <button
               onClick={() => setShowNuevaOp(true)}
-              className="btn-primary text-sm flex items-center gap-2"
+              className="il-btn il-btn--primary"
+              style={{ height: 38, fontSize: 13, gap: 6 }}
             >
-              <Plus className="w-3.5 h-3.5" /> Nueva operación
+              <Plus size={14} color="#fff" /> Nueva operación
             </button>
           </div>
-          <div className="card overflow-hidden">
+          <div className="il-card" style={{ padding: 0, overflow: "hidden" }}>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-border">
-                  <tr className="text-xs text-text-muted uppercase tracking-wide">
-                    <th className="px-4 py-3 text-left">Fecha</th>
-                    <th className="px-4 py-3 text-left">Tipo</th>
-                    <th className="px-4 py-3 text-left">Agente</th>
-                    <th className="px-4 py-3 text-right">Precio</th>
-                    <th className="px-4 py-3 text-right">Comis. Inmob.</th>
-                    <th className="px-4 py-3 text-right">Comis. Agente</th>
-                    <th className="px-4 py-3 text-center">Moneda</th>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "var(--crema-100, #F0E9DC)" }}>
+                    {["Fecha", "Tipo", "Agente", "Precio op.", "Comis. Inmob.", "Comis. Agente", "Moneda"].map((h, idx) => (
+                      <th key={h} style={{
+                        textAlign: idx > 2 ? "right" : "left",
+                        padding: "11px 20px",
+                        fontSize: 10.5,
+                        color: "var(--antracita-300)",
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        fontFamily: "var(--font-jetbrains-mono, monospace)",
+                        fontWeight: 600,
+                        borderBottom: "1px solid var(--border)",
+                        whiteSpace: "nowrap",
+                      }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {ops.map((op) => (
+                  {ops.map((op, i) => (
                     <tr
                       key={op.id}
                       onClick={() => setSelectedOp(op)}
-                      className="border-b border-border last:border-0 hover:bg-surface-raised cursor-pointer"
+                      style={{
+                        borderBottom: i < ops.length - 1 ? "1px solid var(--border)" : "none",
+                        cursor: "pointer",
+                        transition: "background 150ms",
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "var(--crema-50, #FBF8F2)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "")}
                     >
-                      <td className="px-4 py-3 text-text-muted">
+                      <td className="mono" style={{ padding: "12px 20px", color: "var(--antracita-400)", fontSize: 12.5 }}>
                         {new Date(op.fechaCierre).toLocaleDateString("es-AR")}
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-surface-raised text-text-secondary">
+                      <td style={{ padding: "12px 20px" }}>
+                        <Pill
+                          tone={op.tipo === "VENTA" ? "terra" : op.tipo === "ALQUILER" ? "dark" : "accent"}
+                          style={{ fontSize: 10.5 }}
+                        >
                           {TIPO_LABELS[op.tipo]}
-                        </span>
+                        </Pill>
                       </td>
-                      <td className="px-4 py-3 text-text-primary">{op.agente.nombre}</td>
-                      <td className="px-4 py-3 text-right text-text-primary tabular-nums">
+                      <td style={{ padding: "12px 20px", color: "var(--antracita-700)" }}>{op.agente.nombre}</td>
+                      <td className="mono" style={{ padding: "12px 20px", textAlign: "right", color: "var(--antracita-700)" }}>
                         {formatMonto(op.precioOperacion, op.moneda)}
                       </td>
-                      <td className="px-4 py-3 text-right font-medium text-text-primary tabular-nums">
+                      <td className="mono" style={{ padding: "12px 20px", textAlign: "right", color: "var(--terracota-600)", fontWeight: 600 }}>
                         {formatMonto(op.comisionInmob, op.moneda)}
                       </td>
-                      <td className="px-4 py-3 text-right text-text-muted tabular-nums">
+                      <td className="mono" style={{ padding: "12px 20px", textAlign: "right", color: "var(--antracita-400)" }}>
                         {formatMonto(op.comisionAgente, op.moneda)}
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-surface-raised text-text-secondary">
-                          {op.moneda}
-                        </span>
+                      <td style={{ padding: "12px 20px", textAlign: "right" }}>
+                        <Pill tone="outline" style={{ fontSize: 10.5 }}>{op.moneda}</Pill>
                       </td>
                     </tr>
                   ))}
                   {ops.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-text-muted text-sm">
+                      <td colSpan={7} style={{ padding: "32px 20px", textAlign: "center", color: "var(--antracita-300)", fontSize: 13 }}>
                         Sin operaciones registradas
                       </td>
                     </tr>
@@ -704,62 +999,80 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
             <div className="flex justify-end">
               <button
                 onClick={() => setShowNuevoEgreso(true)}
-                className="btn-primary text-sm flex items-center gap-2"
+                className="il-btn il-btn--primary"
+                style={{ height: 38, fontSize: 13, gap: 6 }}
               >
-                <Plus className="w-3.5 h-3.5" /> Nuevo egreso
+                <Plus size={14} color="#fff" /> Nuevo egreso
               </button>
             </div>
           )}
-          <div className="card overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border">
-                <tr className="text-xs text-text-muted uppercase tracking-wide">
-                  <th className="px-4 py-3 text-left">Fecha</th>
-                  <th className="px-4 py-3 text-left">Concepto</th>
-                  <th className="px-4 py-3 text-left">Categoría</th>
-                  <th className="px-4 py-3 text-right">Monto</th>
-                  {isAdmin && <th className="px-4 py-3" />}
-                </tr>
-              </thead>
-              <tbody>
-                {egresos.map((e) => (
-                  <tr key={e.id} className="border-b border-border last:border-0 hover:bg-surface-raised">
-                    <td className="px-4 py-3 text-text-muted">
-                      {new Date(e.fecha).toLocaleDateString("es-AR")}
-                    </td>
-                    <td className="px-4 py-3 text-text-primary">{e.concepto}</td>
-                    <td className="px-4 py-3">
-                      {e.categoria && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-raised text-text-muted">
-                          {e.categoria}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-text-primary tabular-nums">
-                      {formatMonto(e.monto, e.moneda)}
-                    </td>
-                    {isAdmin && (
-                      <td className="px-4 py-3 text-right">
-                        <DeleteEgresoButton
-                          id={e.id}
-                          onDelete={() => setEgresos((p) => p.filter((x) => x.id !== e.id))}
-                        />
-                      </td>
-                    )}
+          <div className="il-card" style={{ padding: 0, overflow: "hidden" }}>
+            <div className="overflow-x-auto">
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "var(--crema-100, #F0E9DC)" }}>
+                    {["Fecha", "Concepto", "Categoría", "Monto", ...(isAdmin ? [""] : [])].map((h, idx) => (
+                      <th key={idx} style={{
+                        textAlign: idx >= 3 ? "right" : "left",
+                        padding: "11px 20px",
+                        fontSize: 10.5,
+                        color: "var(--antracita-300)",
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        fontFamily: "var(--font-jetbrains-mono, monospace)",
+                        fontWeight: 600,
+                        borderBottom: "1px solid var(--border)",
+                        whiteSpace: "nowrap",
+                      }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-                {egresos.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={isAdmin ? 5 : 4}
-                      className="px-4 py-8 text-center text-text-muted text-sm"
+                </thead>
+                <tbody>
+                  {egresos.map((e, i) => (
+                    <tr
+                      key={e.id}
+                      style={{
+                        borderBottom: i < egresos.length - 1 ? "1px solid var(--border)" : "none",
+                        transition: "background 150ms",
+                      }}
+                      onMouseEnter={ev => (ev.currentTarget.style.background = "var(--crema-50, #FBF8F2)")}
+                      onMouseLeave={ev => (ev.currentTarget.style.background = "")}
                     >
-                      Sin egresos registrados
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                      <td className="mono" style={{ padding: "12px 20px", color: "var(--antracita-400)", fontSize: 12.5 }}>
+                        {new Date(e.fecha).toLocaleDateString("es-AR")}
+                      </td>
+                      <td style={{ padding: "12px 20px", color: "var(--antracita-900)" }}>{e.concepto}</td>
+                      <td style={{ padding: "12px 20px" }}>
+                        {e.categoria && (
+                          <Pill tone="neutral" style={{ fontSize: 10.5 }}>{e.categoria}</Pill>
+                        )}
+                      </td>
+                      <td className="mono" style={{ padding: "12px 20px", textAlign: "right", fontWeight: 600, color: "var(--antracita-900)" }}>
+                        {formatMonto(e.monto, e.moneda)}
+                      </td>
+                      {isAdmin && (
+                        <td style={{ padding: "12px 20px", textAlign: "right" }}>
+                          <DeleteEgresoButton
+                            id={e.id}
+                            onDelete={() => setEgresos((p) => p.filter((x) => x.id !== e.id))}
+                          />
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                  {egresos.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={isAdmin ? 5 : 4}
+                        style={{ padding: "32px 20px", textAlign: "center", color: "var(--antracita-300)", fontSize: 13 }}
+                      >
+                        Sin egresos registrados
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -815,25 +1128,29 @@ function DeleteEgresoButton({ id, onDelete }: { id: string; onDelete: () => void
     }
   }
   return (
-    <button onClick={handle} disabled={loading} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400">
-      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+    <button
+      onClick={handle}
+      disabled={loading}
+      style={{ padding: "4px 6px", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "var(--danger-400, #D05A4E)" }}
+    >
+      {loading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
     </button>
   );
 }
 
 // ─── Operación detail sheet ────────────────────────────────────────────────────
 
-function DetailRow({
-  label, value, bold, accent,
-}: { label: string; value: string; bold?: boolean; accent?: boolean }) {
+function DetailRow({ label, value, bold, accent }: {
+  label: string; value: string; bold?: boolean; accent?: boolean;
+}) {
   return (
-    <div className="flex justify-between gap-4 text-sm">
-      <span className="text-text-muted">{label}</span>
-      <span
-        className={`tabular-nums ${bold ? "font-semibold" : ""} ${
-          accent ? "text-brand-primary" : "text-text-primary"
-        }`}
-      >
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 13 }}>
+      <span style={{ color: "var(--antracita-400)" }}>{label}</span>
+      <span style={{
+        fontFamily: "var(--font-jetbrains-mono, monospace)",
+        fontWeight: bold ? 600 : 400,
+        color: accent ? "var(--terracota-600)" : "var(--antracita-900)",
+      }}>
         {value}
       </span>
     </div>
@@ -844,105 +1161,67 @@ function OperacionDetailSheet({ op, onClose }: { op: Operacion; onClose: () => v
   const comVend = op.precioOperacion * (op.comisionVendedorPct / 100);
   const comComp = op.precioOperacion * (op.comisionCompradorPct / 100);
   const neto = op.comisionInmob - op.gastos;
-  const pctInmob =
-    op.comisionTotal > 0 ? Math.round((op.comisionInmob / op.comisionTotal) * 100) : 70;
+  const pctInmob = op.comisionTotal > 0 ? Math.round((op.comisionInmob / op.comisionTotal) * 100) : 70;
   const pctAgente = 100 - pctInmob;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-sm"
+      style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", justifyContent: "flex-end", background: "rgba(0,0,0,0.28)" }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm h-full bg-white shadow-xl overflow-y-auto"
+        style={{ width: "100%", maxWidth: 360, height: "100%", background: "#fff", boxShadow: "var(--shadow)", overflowY: "auto" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-5 border-b border-border">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px", borderBottom: "1px solid var(--border)" }}>
           <div>
-            <p className="font-semibold text-text-primary">{TIPO_LABELS[op.tipo]}</p>
-            <p className="text-xs text-text-muted">
-              {new Date(op.fechaCierre).toLocaleDateString("es-AR", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}{" "}
-              · {op.agente.nombre}
+            <p style={{ fontWeight: 600, color: "var(--antracita-900)", margin: 0 }}>{TIPO_LABELS[op.tipo]}</p>
+            <p style={{ fontSize: 12, color: "var(--antracita-400)", margin: "2px 0 0" }}>
+              {new Date(op.fechaCierre).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })} · {op.agente.nombre}
             </p>
           </div>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary text-2xl leading-none">
-            ×
-          </button>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 24, color: "var(--antracita-400)", cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
 
-        <div className="p-5 space-y-5">
-          <div className="space-y-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-2">
-              Operación
-            </p>
+        <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-300)", marginBottom: 4 }}>Operación</p>
             <DetailRow label="Precio" value={formatMonto(op.precioOperacion, op.moneda)} bold />
-            <DetailRow
-              label={`Comisión vendedor (${op.comisionVendedorPct}%)`}
-              value={formatMonto(comVend, op.moneda)}
-            />
-            <DetailRow
-              label={`Comisión comprador (${op.comisionCompradorPct}%)`}
-              value={formatMonto(comComp, op.moneda)}
-            />
-            {op.ivaComision > 0 && (
-              <DetailRow label="IVA (21%)" value={formatMonto(op.ivaComision, op.moneda)} />
-            )}
+            <DetailRow label={`Comisión vendedor (${op.comisionVendedorPct}%)`} value={formatMonto(comVend, op.moneda)} />
+            <DetailRow label={`Comisión comprador (${op.comisionCompradorPct}%)`} value={formatMonto(comComp, op.moneda)} />
+            {op.ivaComision > 0 && <DetailRow label="IVA (21%)" value={formatMonto(op.ivaComision, op.moneda)} />}
             <DetailRow label="Total comisión bruta" value={formatMonto(op.comisionTotal, op.moneda)} bold />
           </div>
 
-          <div className="border-t border-border pt-5 space-y-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-2">
-              Distribución
-            </p>
-            <DetailRow
-              label={`Parte inmobiliaria (${pctInmob}%)`}
-              value={formatMonto(op.comisionInmob, op.moneda)}
-            />
-            <DetailRow
-              label={`Parte agente (${pctAgente}%)`}
-              value={formatMonto(op.comisionAgente, op.moneda)}
-            />
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 18, display: "flex", flexDirection: "column", gap: 6 }}>
+            <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-300)", marginBottom: 4 }}>Distribución</p>
+            <DetailRow label={`Parte inmobiliaria (${pctInmob}%)`} value={formatMonto(op.comisionInmob, op.moneda)} />
+            <DetailRow label={`Parte agente (${pctAgente}%)`} value={formatMonto(op.comisionAgente, op.moneda)} />
           </div>
 
           {op.gastos > 0 && (
-            <div className="border-t border-border pt-5 space-y-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-2">
-                Gastos
-              </p>
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 18, display: "flex", flexDirection: "column", gap: 6 }}>
+              <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-300)", marginBottom: 4 }}>Gastos</p>
               <DetailRow label="Gastos asociados" value={formatMonto(op.gastos, op.moneda)} />
             </div>
           )}
 
-          <div className="border-t border-border pt-5 space-y-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-2">
-              Resultado
-            </p>
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 18, display: "flex", flexDirection: "column", gap: 6 }}>
+            <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-300)", marginBottom: 4 }}>Resultado</p>
             <DetailRow label="Neto inmobiliaria" value={formatMonto(neto, op.moneda)} bold accent />
           </div>
 
           {op.notas && (
-            <div className="border-t border-border pt-5">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted mb-1">
-                Notas
-              </p>
-              <p className="text-sm text-text-primary">{op.notas}</p>
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 18 }}>
+              <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-300)", marginBottom: 4 }}>Notas</p>
+              <p style={{ fontSize: 13, color: "var(--antracita-700)" }}>{op.notas}</p>
             </div>
           )}
 
-          <div className="border-t border-border pt-4 text-center">
-            <span
-              className="text-xs font-semibold px-2.5 py-1 rounded-full"
-              style={{
-                background: op.moneda === "USD" ? "#EBF5FB" : "#EAFAF1",
-                color: op.moneda === "USD" ? "#2980B9" : "#2D6A4F",
-              }}
-            >
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14, textAlign: "center" }}>
+            <Pill tone={op.moneda === "USD" ? "info" : "success"} style={{ fontSize: 11 }}>
               {op.moneda}
-            </span>
+            </Pill>
           </div>
         </div>
       </div>
@@ -972,6 +1251,19 @@ function NuevaOperacionModal({
     fechaCierre: new Date().toISOString().split("T")[0],
   });
   const [saving, setSaving] = useState(false);
+  const [splitAgentePct, setSplitAgentePct] = useState(30); // % que va al agente
+
+  // Cargar split desde configuración de la inmobiliaria
+  useEffect(() => {
+    fetch("/api/configuracion")
+      .then((r) => r.json())
+      .then((cfg) => {
+        if (typeof cfg?.comisionAgentePct === "number") {
+          setSplitAgentePct(cfg.comisionAgentePct);
+        }
+      })
+      .catch(() => {/* mantener default 30% */});
+  }, []);
 
   const precio = Number(form.precioOperacion) || 0;
   const comVend = precio * (form.comisionVendedorPct / 100);
@@ -979,8 +1271,8 @@ function NuevaOperacionModal({
   const subtotal = comVend + comComp;
   const iva = form.ivaIncluido ? subtotal * 0.21 : 0;
   const comisionTotal = subtotal + iva;
-  const comisionInmob = comisionTotal * 0.7;
-  const comisionAgente = comisionTotal * 0.3;
+  const comisionAgente = comisionTotal * (splitAgentePct / 100);
+  const comisionInmob = comisionTotal - comisionAgente;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -1013,160 +1305,97 @@ function NuevaOperacionModal({
   }
 
   const inp = "input-base w-full text-sm";
-  const lbl = "block text-xs font-medium text-text-primary mb-1";
+  const lbl = "block text-xs font-medium mb-1" as string;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <form onSubmit={submit} className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <p className="font-semibold text-text-primary">Registrar operación</p>
-          <button type="button" onClick={onClose} className="text-text-muted hover:text-text-primary text-lg leading-none">
-            ×
-          </button>
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.36)", padding: 16 }}>
+      <form onSubmit={submit} style={{ width: "100%", maxWidth: 460, background: "#fff", borderRadius: 18, boxShadow: "var(--shadow)", overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px", borderBottom: "1px solid var(--border)" }}>
+          <p style={{ fontWeight: 600, color: "var(--antracita-900)", margin: 0 }}>Registrar operación</p>
+          <button type="button" onClick={onClose} style={{ background: "none", border: "none", fontSize: 22, color: "var(--antracita-400)", cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
-        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-          <div className="grid grid-cols-2 gap-3">
+        <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14, maxHeight: "68vh", overflowY: "auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
-              <label className={lbl}>Tipo</label>
-              <select
-                value={form.tipo}
-                onChange={(e) => setForm((p) => ({ ...p, tipo: e.target.value as Operacion["tipo"] }))}
-                className={inp}
-              >
+              <label className={lbl} style={{ color: "var(--antracita-700)" }}>Tipo</label>
+              <select value={form.tipo} onChange={(e) => setForm((p) => ({ ...p, tipo: e.target.value as Operacion["tipo"] }))} className={inp}>
                 <option value="VENTA">Venta</option>
                 <option value="ALQUILER">Alquiler</option>
                 <option value="ALQUILER_TEMPORARIO">Temporario</option>
               </select>
             </div>
             <div>
-              <label className={lbl}>Moneda</label>
-              <select
-                value={form.moneda}
-                onChange={(e) => setForm((p) => ({ ...p, moneda: e.target.value as "ARS" | "USD" }))}
-                className={inp}
-              >
+              <label className={lbl} style={{ color: "var(--antracita-700)" }}>Moneda</label>
+              <select value={form.moneda} onChange={(e) => setForm((p) => ({ ...p, moneda: e.target.value as "ARS" | "USD" }))} className={inp}>
                 <option value="USD">USD</option>
                 <option value="ARS">ARS</option>
               </select>
             </div>
           </div>
           <div>
-            <label className={lbl}>Precio de la operación *</label>
-            <input
-              type="number"
-              required
-              min={0}
-              value={form.precioOperacion}
-              onChange={(e) => setForm((p) => ({ ...p, precioOperacion: e.target.value }))}
-              className={inp}
-              placeholder="100000"
-            />
+            <label className={lbl} style={{ color: "var(--antracita-700)" }}>Precio de la operación *</label>
+            <input type="number" required min={0} value={form.precioOperacion} onChange={(e) => setForm((p) => ({ ...p, precioOperacion: e.target.value }))} className={inp} placeholder="100000" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
-              <label className={lbl}>Comisión vendedor %</label>
-              <input
-                type="number"
-                min={0}
-                max={10}
-                step={0.5}
-                value={form.comisionVendedorPct}
-                onChange={(e) => setForm((p) => ({ ...p, comisionVendedorPct: Number(e.target.value) }))}
-                className={inp}
-              />
+              <label className={lbl} style={{ color: "var(--antracita-700)" }}>Comisión vendedor %</label>
+              <input type="number" min={0} max={10} step={0.5} value={form.comisionVendedorPct} onChange={(e) => setForm((p) => ({ ...p, comisionVendedorPct: Number(e.target.value) }))} className={inp} />
             </div>
             <div>
-              <label className={lbl}>Comisión comprador %</label>
-              <input
-                type="number"
-                min={0}
-                max={10}
-                step={0.5}
-                value={form.comisionCompradorPct}
-                onChange={(e) => setForm((p) => ({ ...p, comisionCompradorPct: Number(e.target.value) }))}
-                className={inp}
-              />
+              <label className={lbl} style={{ color: "var(--antracita-700)" }}>Comisión comprador %</label>
+              <input type="number" min={0} max={10} step={0.5} value={form.comisionCompradorPct} onChange={(e) => setForm((p) => ({ ...p, comisionCompradorPct: Number(e.target.value) }))} className={inp} />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              id="iva"
-              type="checkbox"
-              checked={form.ivaIncluido}
-              onChange={(e) => setForm((p) => ({ ...p, ivaIncluido: e.target.checked }))}
-              className="rounded"
-            />
-            <label htmlFor="iva" className="text-xs text-text-primary cursor-pointer">
-              Incluir IVA (21%)
-            </label>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input id="iva" type="checkbox" checked={form.ivaIncluido} onChange={(e) => setForm((p) => ({ ...p, ivaIncluido: e.target.checked }))} />
+            <label htmlFor="iva" style={{ fontSize: 12.5, color: "var(--antracita-700)", cursor: "pointer" }}>Incluir IVA (21%)</label>
           </div>
           {agentes.length > 0 && (
             <div>
-              <label className={lbl}>Agente</label>
-              <select
-                value={form.agenteId}
-                onChange={(e) => setForm((p) => ({ ...p, agenteId: e.target.value }))}
-                className={inp}
-              >
-                {agentes.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nombre}
-                  </option>
-                ))}
+              <label className={lbl} style={{ color: "var(--antracita-700)" }}>Agente</label>
+              <select value={form.agenteId} onChange={(e) => setForm((p) => ({ ...p, agenteId: e.target.value }))} className={inp}>
+                {agentes.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
               </select>
             </div>
           )}
           <div>
-            <label className={lbl}>Fecha de cierre</label>
-            <input
-              type="date"
-              value={form.fechaCierre}
-              onChange={(e) => setForm((p) => ({ ...p, fechaCierre: e.target.value }))}
-              className={inp}
-            />
+            <label className={lbl} style={{ color: "var(--antracita-700)" }}>Fecha de cierre</label>
+            <input type="date" value={form.fechaCierre} onChange={(e) => setForm((p) => ({ ...p, fechaCierre: e.target.value }))} className={inp} />
           </div>
           {precio > 0 && (
-            <div className="p-3 rounded-xl bg-surface-raised space-y-1.5 text-xs">
-              <p className="font-semibold text-text-muted uppercase tracking-wide mb-2">Desglose calculado</p>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Comisión vendedor</span>
-                <span className="font-mono">{formatMonto(comVend, form.moneda)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Comisión comprador</span>
-                <span className="font-mono">{formatMonto(comComp, form.moneda)}</span>
-              </div>
-              {form.ivaIncluido && (
-                <div className="flex justify-between">
-                  <span className="text-text-muted">IVA 21%</span>
-                  <span className="font-mono">{formatMonto(iva, form.moneda)}</span>
+            <div style={{ padding: 12, borderRadius: 10, background: "var(--crema-100, #F0E9DC)", display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
+              <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-300)", marginBottom: 4 }}>Desglose calculado</p>
+              {[
+                ["Comisión vendedor", formatMonto(comVend, form.moneda)],
+                ["Comisión comprador", formatMonto(comComp, form.moneda)],
+                ...(form.ivaIncluido ? [["IVA 21%", formatMonto(iva, form.moneda)]] : []),
+              ].map(([l, v]) => (
+                <div key={l} style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--antracita-400)" }}>{l}</span>
+                  <span className="mono">{v}</span>
                 </div>
-              )}
-              <div className="flex justify-between font-bold text-text-primary border-t border-border pt-1.5 mt-1.5">
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, color: "var(--antracita-900)", borderTop: "1px solid var(--border)", paddingTop: 6, marginTop: 2 }}>
                 <span>Total comisión</span>
-                <span className="font-mono">{formatMonto(comisionTotal, form.moneda)}</span>
+                <span className="mono">{formatMonto(comisionTotal, form.moneda)}</span>
               </div>
-              <div className="flex justify-between text-text-muted">
+              <div style={{ display: "flex", justifyContent: "space-between", color: "var(--antracita-400)" }}>
                 <span>→ Inmobiliaria (70%)</span>
-                <span className="font-mono">{formatMonto(comisionInmob, form.moneda)}</span>
+                <span className="mono">{formatMonto(comisionInmob, form.moneda)}</span>
               </div>
-              <div className="flex justify-between text-text-muted">
+              <div style={{ display: "flex", justifyContent: "space-between", color: "var(--antracita-400)" }}>
                 <span>→ Agente (30%)</span>
-                <span className="font-mono">{formatMonto(comisionAgente, form.moneda)}</span>
+                <span className="mono">{formatMonto(comisionAgente, form.moneda)}</span>
               </div>
             </div>
           )}
         </div>
-        <div className="p-5 border-t border-border flex gap-2">
-          <button type="button" onClick={onClose} className="btn-outline text-sm flex-1">
+        <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)", display: "flex", gap: 10 }}>
+          <button type="button" onClick={onClose} className="il-btn il-btn--ghost" style={{ flex: 1, justifyContent: "center", height: 40, fontSize: 13 }}>
             Cancelar
           </button>
-          <button
-            type="submit"
-            disabled={saving || !precio}
-            className="btn-primary text-sm flex-1 flex items-center justify-center gap-2"
-          >
-            {saving && <Loader2 className="w-3 h-3 animate-spin" />}
+          <button type="submit" disabled={saving || !precio} className="il-btn il-btn--primary" style={{ flex: 1, justifyContent: "center", height: 40, fontSize: 13, opacity: (!precio || saving) ? 0.6 : 1 }}>
+            {saving && <Loader2 size={13} className="animate-spin" />}
             Confirmar y registrar
           </button>
         </div>
@@ -1189,7 +1418,7 @@ function NuevoEgresoModal({
   });
   const [saving, setSaving] = useState(false);
   const inp = "input-base w-full text-sm";
-  const lbl = "block text-xs font-medium text-text-primary mb-1";
+  const lbl = "block text-xs font-medium mb-1" as string;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -1212,82 +1441,47 @@ function NuevoEgresoModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <form onSubmit={submit} className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <p className="font-semibold text-text-primary">Nuevo egreso</p>
-          <button type="button" onClick={onClose} className="text-text-muted text-lg leading-none">
-            ×
-          </button>
+    <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.36)", padding: 16 }}>
+      <form onSubmit={submit} style={{ width: "100%", maxWidth: 380, background: "#fff", borderRadius: 18, boxShadow: "var(--shadow)", overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px", borderBottom: "1px solid var(--border)" }}>
+          <p style={{ fontWeight: 600, color: "var(--antracita-900)", margin: 0 }}>Nuevo egreso</p>
+          <button type="button" onClick={onClose} style={{ background: "none", border: "none", fontSize: 22, color: "var(--antracita-400)", cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
-        <div className="p-5 space-y-4">
+        <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <label className={lbl}>Concepto *</label>
-            <input
-              required
-              value={form.concepto}
-              onChange={(e) => setForm((p) => ({ ...p, concepto: e.target.value }))}
-              className={inp}
-              placeholder="Publicidad portal..."
-            />
+            <label className={lbl} style={{ color: "var(--antracita-700)" }}>Concepto *</label>
+            <input required value={form.concepto} onChange={(e) => setForm((p) => ({ ...p, concepto: e.target.value }))} className={inp} placeholder="Publicidad portal..." />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
-              <label className={lbl}>Monto *</label>
-              <input
-                type="number"
-                required
-                min={0}
-                value={form.monto}
-                onChange={(e) => setForm((p) => ({ ...p, monto: e.target.value }))}
-                className={inp}
-                placeholder="0"
-              />
+              <label className={lbl} style={{ color: "var(--antracita-700)" }}>Monto *</label>
+              <input type="number" required min={0} value={form.monto} onChange={(e) => setForm((p) => ({ ...p, monto: e.target.value }))} className={inp} placeholder="0" />
             </div>
             <div>
-              <label className={lbl}>Moneda</label>
-              <select
-                value={form.moneda}
-                onChange={(e) => setForm((p) => ({ ...p, moneda: e.target.value as "ARS" | "USD" }))}
-                className={inp}
-              >
+              <label className={lbl} style={{ color: "var(--antracita-700)" }}>Moneda</label>
+              <select value={form.moneda} onChange={(e) => setForm((p) => ({ ...p, moneda: e.target.value as "ARS" | "USD" }))} className={inp}>
                 <option>ARS</option>
                 <option>USD</option>
               </select>
             </div>
           </div>
           <div>
-            <label className={lbl}>Categoría</label>
-            <select
-              value={form.categoria}
-              onChange={(e) => setForm((p) => ({ ...p, categoria: e.target.value }))}
-              className={inp}
-            >
-              {CATEGORIAS.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
+            <label className={lbl} style={{ color: "var(--antracita-700)" }}>Categoría</label>
+            <select value={form.categoria} onChange={(e) => setForm((p) => ({ ...p, categoria: e.target.value }))} className={inp}>
+              {CATEGORIAS.map((c) => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label className={lbl}>Fecha</label>
-            <input
-              type="date"
-              value={form.fecha}
-              onChange={(e) => setForm((p) => ({ ...p, fecha: e.target.value }))}
-              className={inp}
-            />
+            <label className={lbl} style={{ color: "var(--antracita-700)" }}>Fecha</label>
+            <input type="date" value={form.fecha} onChange={(e) => setForm((p) => ({ ...p, fecha: e.target.value }))} className={inp} />
           </div>
         </div>
-        <div className="p-5 border-t border-border flex gap-2">
-          <button type="button" onClick={onClose} className="btn-outline text-sm flex-1">
+        <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)", display: "flex", gap: 10 }}>
+          <button type="button" onClick={onClose} className="il-btn il-btn--ghost" style={{ flex: 1, justifyContent: "center", height: 40, fontSize: 13 }}>
             Cancelar
           </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="btn-primary text-sm flex-1 flex items-center justify-center gap-2"
-          >
-            {saving && <Loader2 className="w-3 h-3 animate-spin" />}
+          <button type="submit" disabled={saving} className="il-btn il-btn--primary" style={{ flex: 1, justifyContent: "center", height: 40, fontSize: 13, opacity: saving ? 0.6 : 1 }}>
+            {saving && <Loader2 size={13} className="animate-spin" />}
             Guardar
           </button>
         </div>

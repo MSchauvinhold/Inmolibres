@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { auth } from "@/lib/auth";
+import { toPlanKey, LIMITES_PLAN } from "@/lib/planes";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -37,11 +38,19 @@ export async function POST(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Contraseña mínimo 8 caracteres" }, { status: 400 });
   }
 
+  // Obtener el plan de la inmobiliaria para verificar el límite de agentes
+  const inmo = await db.inmobiliaria.findUnique({ where: { id }, select: { plan: true } });
+  const planKey = toPlanKey(inmo?.plan);
+  const maxAgentes = LIMITES_PLAN[planKey].maxAgentes;
+
   const agentCount = await db.usuario.count({
     where: { inmobiliariaId: id, rol: "AGENTE", activo: true },
   });
-  if (agentCount >= 3) {
-    return NextResponse.json({ error: "Límite de 3 agentes por inmobiliaria" }, { status: 409 });
+  if (agentCount >= maxAgentes) {
+    return NextResponse.json(
+      { error: `Límite de ${maxAgentes} agentes alcanzado en tu plan. Actualizá a un plan superior.` },
+      { status: 409 }
+    );
   }
 
   const existing = await db.usuario.findUnique({ where: { email } });

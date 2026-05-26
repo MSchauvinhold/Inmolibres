@@ -25,11 +25,22 @@ export function VisitaForm({ propiedades, clientes, agentes }: Props) {
     defaultValues: { tipo: "VISITA_COMPRADOR" },
   });
 
+  /** Formatea la fecha actual como "YYYY-MM-DDTHH:MM" en hora LOCAL del cliente.
+   *  Necesario para el atributo `min` de <input type="datetime-local">,
+   *  que compara contra la hora local (no UTC). */
+  function localNow(): string {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
   async function onSubmit(data: VisitaInput) {
     setLoading(true);
     try {
       const payload = {
         ...data,
+        // new Date(data.fechaHora) en el browser interpreta el string sin zona
+        // como hora LOCAL → .toISOString() lo convierte correctamente a UTC
         fechaHora: new Date(data.fechaHora).toISOString(),
       };
       const res = await fetch("/api/visitas", {
@@ -92,7 +103,7 @@ export function VisitaForm({ propiedades, clientes, agentes }: Props) {
             {...register("fechaHora")}
             type="datetime-local"
             className={inputCls}
-            min={new Date().toISOString().slice(0, 16)}
+            min={localNow()}
           />
           {errors.fechaHora && <p className={errorCls}>{errors.fechaHora.message}</p>}
         </div>

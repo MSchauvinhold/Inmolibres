@@ -18,8 +18,15 @@ export const visitaSchema = z.object({
 export type VisitaInput = z.infer<typeof visitaSchema>;
 
 export const actualizarVisitaSchema = z.object({
-  estado: z.enum(["PENDIENTE", "REALIZADA", "CANCELADA"]),
+  estado: z.enum(["PENDIENTE", "REALIZADA", "CANCELADA"]).optional(),
   notasPost: z.string().max(1000, "Máximo 1000 caracteres").optional(),
-});
+  fechaHora: z
+    .string()
+    .refine((val) => !isNaN(new Date(val).getTime()), { message: "Fecha y hora inválidas" })
+    .optional(),
+}).refine(
+  (data) => data.estado !== undefined || data.fechaHora !== undefined || data.notasPost !== undefined,
+  { message: "Se requiere al menos un campo para actualizar" }
+);
 
 export type ActualizarVisitaInput = z.infer<typeof actualizarVisitaSchema>;

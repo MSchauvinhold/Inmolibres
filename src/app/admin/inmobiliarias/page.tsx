@@ -23,7 +23,7 @@ export default function AdminInmobiliariasPage() {
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
-    nombre: "", whatsapp: "", email: "", plan: "BASE",
+    nombre: "", whatsapp: "", email: "", plan: "AVANZADO",
     adminNombre: "", adminEmail: "", adminPassword: "",
     fechaVencimiento: "",
   });
@@ -50,7 +50,7 @@ export default function AdminInmobiliariasPage() {
       if (!res.ok) { toast.error((await res.json()).error); return; }
       toast.success("Inmobiliaria creada");
       setShowForm(false);
-      setForm({ nombre: "", whatsapp: "", email: "", plan: "BASE", adminNombre: "", adminEmail: "", adminPassword: "", fechaVencimiento: "" });
+      setForm({ nombre: "", whatsapp: "", email: "", plan: "AVANZADO", adminNombre: "", adminEmail: "", adminPassword: "", fechaVencimiento: "" });
       load();
     } catch { toast.error("Error inesperado"); }
     finally { setSubmitting(false); }
@@ -102,8 +102,9 @@ export default function AdminInmobiliariasPage() {
             <div>
               <label className={lbl}>Plan</label>
               <select value={form.plan} onChange={(e) => setForm((p) => ({ ...p, plan: e.target.value }))} className={inp}>
-                <option value="BASE">BASE</option>
-                <option value="PRO">PRO</option>
+                <option value="BASICO">Básico — Particulares</option>
+                <option value="AVANZADO">Avanzado — CRM completo</option>
+                <option value="PRO">Pro — Contratos + Finanzas</option>
               </select>
             </div>
             <div>
@@ -140,6 +141,7 @@ export default function AdminInmobiliariasPage() {
             <thead>
               <tr className="border-b border-border bg-surface-raised">
                 <th className="text-left px-4 py-3 text-text-muted font-medium">Inmobiliaria</th>
+                <th className="text-left px-4 py-3 text-text-muted font-medium">Plan</th>
                 <th className="text-left px-4 py-3 text-text-muted font-medium">Estado</th>
                 <th className="text-left px-4 py-3 text-text-muted font-medium">Vencimiento</th>
                 <th className="text-center px-4 py-3 text-text-muted font-medium">Propiedades</th>
@@ -152,6 +154,25 @@ export default function AdminInmobiliariasPage() {
                   <td className="px-4 py-3">
                     <p className="font-medium text-text-primary">{i.nombre}</p>
                     <p className="text-xs text-text-muted">{i.email}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                      style={{
+                        background: i.plan === "PRO"
+                          ? "rgba(212,168,83,0.15)"
+                          : i.plan === "AVANZADO"
+                          ? "rgba(59,130,246,0.10)"
+                          : "rgba(100,100,100,0.10)",
+                        color: i.plan === "PRO"
+                          ? "#A0790A"
+                          : i.plan === "AVANZADO"
+                          ? "#1D4ED8"
+                          : "#555",
+                      }}
+                    >
+                      {i.plan === "PRO" ? "Pro" : i.plan === "AVANZADO" ? "Avanzado" : i.plan === "BASICO" ? "Básico" : i.plan}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ESTADO_INMOBILIARIA_COLORS[i.estado]}`}>

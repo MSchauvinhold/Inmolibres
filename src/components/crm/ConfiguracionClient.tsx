@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Loader2, Plus, Eye, EyeOff, UserCheck, UserX, AlertTriangle,
   Settings, Shield, ChevronDown, ChevronUp, ImageIcon, Upload, Trash2,
+  Volume2, VolumeX,
 } from "lucide-react";
 import { formatDate, ESTADO_INMOBILIARIA_LABELS, ESTADO_INMOBILIARIA_COLORS } from "@/lib/utils";
 import { uploadToCloudinary } from "@/lib/cloudinary";
@@ -96,6 +97,13 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
 
   const [permisosAgentId, setPermisosAgentId] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [sonidoActivo, setSonidoActivo] = useState(true);
+
+  // Leer preferencia de sonido del localStorage al montar
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    setSonidoActivo(localStorage.getItem("inmolibres_sonido_notif") !== "false");
+  }, []);
   const [logoProgress, setLogoProgress] = useState(0);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -431,6 +439,42 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
             />
           </div>
         )}
+      </div>
+
+      {/* Preferencias */}
+      <div className="card p-5 space-y-3">
+        <h2 className="font-semibold text-text-primary border-b border-border pb-2">Preferencias</h2>
+        <div className="flex items-center justify-between py-1">
+          <div className="flex items-center gap-2.5">
+            {sonidoActivo
+              ? <Volume2 className="w-4 h-4" style={{ color: "var(--antracita-500)" }} />
+              : <VolumeX className="w-4 h-4" style={{ color: "var(--antracita-300)" }} />
+            }
+            <div>
+              <p className="text-sm font-medium text-text-primary">Sonido de notificaciones</p>
+              <p className="text-xs text-text-muted">
+                Reproducir sonido al recibir nuevas notificaciones
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const nuevo = !sonidoActivo;
+              setSonidoActivo(nuevo);
+              localStorage.setItem("inmolibres_sonido_notif", nuevo ? "true" : "false");
+            }}
+            className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
+            style={{
+              background: sonidoActivo ? "var(--terracota-500, #C1694F)" : "var(--antracita-200, #C5BDB4)",
+            }}
+            aria-label="Toggle sonido de notificaciones"
+          >
+            <span
+              className="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+              style={{ transform: sonidoActivo ? "translateX(22px)" : "translateX(4px)" }}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Stats */}

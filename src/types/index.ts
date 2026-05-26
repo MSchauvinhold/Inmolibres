@@ -73,6 +73,7 @@ export type PropiedadCard = Pick<
   | "latitud"
   | "longitud"
   | "estado"
+  | "publicada"
   | "inmobiliariaId"
 > & {
   fotos: Pick<FotoPropiedad, "urlCloudinary" | "esPortada">[];
@@ -137,6 +138,7 @@ export type SessionUser = {
   inmobiliariaId: string | null;
   inmobiliariaEstado: EstadoInmobiliaria | null;
   inmobiliariaNombre: string | null;
+  plan: string | null;
 };
 
 // ─── API Response Types ───────────────────────────────────────────────────────

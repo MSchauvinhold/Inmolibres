@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
-  const { inmobiliariaId, rol } = session;
+  const { userId, inmobiliariaId, rol } = session;
   const isParticular = rol === "PARTICULAR";
 
   let body: unknown;
@@ -86,9 +86,37 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // SEGURIDAD: verificar que propiedadId pertenezca a la inmobiliaria autenticada
+    // Para PARTICULAR se permite cualquier propiedad pública; para CRM se restringe al tenant
+    const propiedad = await db.propiedad.findFirst({
+      where: {
+        id: parsed.data.propiedadId,
+        ...(isParticular ? {} : { inmobiliariaId: inmobiliariaId! }),
+      },
+      select: { id: true },
+    });
+    if (!propiedad) {
+      return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
+    }
+
+    // SEGURIDAD: verificar que clienteId pertenezca al tenant (solo para CRM, no PARTICULAR)
+    if (!isParticular && parsed.data.clienteId) {
+      const cliente = await db.cliente.findFirst({
+        where: { id: parsed.data.clienteId, inmobiliariaId: inmobiliariaId! },
+        select: { id: true },
+      });
+      if (!cliente) {
+        return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+      }
+    }
+
+    // SEGURIDAD: para PARTICULAR, forzar agenteId = propio userId (evita suplantación)
+    const agenteIdFinal = isParticular ? userId : parsed.data.agenteId;
+
     const visita = await db.visita.create({
       data: {
         ...parsed.data,
+        agenteId: agenteIdFinal,
         fechaHora: new Date(parsed.data.fechaHora),
         inmobiliariaId: isParticular ? null : inmobiliariaId!,
       },
@@ -99,17 +127,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const notif = NotifMessages.visitaProxima(
-      visita.propiedad.titulo,
-      visita.fechaHora
-    );
-    await notifyAgente(
-      visita.agenteId,
-      "VISITA_PROXIMA",
-      notif.titulo,
-      notif.mensaje,
-      notif.url
-    );
+    // Solo notificar de inmediato si la visita es en las próximas 2 horas
+    // (el cron /api/cron/alertas se encarga del resto)
+    const ahora = new Date();
+    const en2h = new Date(ahora.getTime() + 2 * 60 * 60 * 1000);
+    if (visita.fechaHora >= ahora && visita.fechaHora <= en2h) {
+      const notif = NotifMessages.visitaProxima(
+        visita.propiedad.titulo,
+        visita.fechaHora
+      );
+      await notifyAgente(visita.agenteId, "VISITA_PROXIMA", notif.titulo, notif.mensaje, notif.url);
+      await db.visita.update({ where: { id: visita.id }, data: { alertaEnviada: true } });
+    }
 
     return NextResponse.json({ data: visita }, { status: 201 });
   } catch {
@@ -165,9 +194,15 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    const updateData = {
+      ...(parsed.data.estado !== undefined ? { estado: parsed.data.estado } : {}),
+      ...(parsed.data.notasPost !== undefined ? { notasPost: parsed.data.notasPost } : {}),
+      ...(parsed.data.fechaHora !== undefined ? { fechaHora: new Date(parsed.data.fechaHora), alertaEnviada: false } : {}),
+    };
+
     const visita = await db.visita.update({
       where: { id },
-      data: parsed.data,
+      data: updateData,
     });
 
     return NextResponse.json({ data: visita });

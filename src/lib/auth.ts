@@ -15,6 +15,7 @@ declare module "next-auth" {
     inmobiliariaId: string | null;
     inmobiliariaEstado: EstadoInmobiliaria | null;
     inmobiliariaNombre: string | null;
+    plan: string | null;
   }
 
   interface Session {
@@ -26,6 +27,7 @@ declare module "next-auth" {
       inmobiliariaId: string | null;
       inmobiliariaEstado: EstadoInmobiliaria | null;
       inmobiliariaNombre: string | null;
+      plan: string | null;
     };
   }
 }
@@ -38,6 +40,7 @@ declare module "@auth/core/jwt" {
     inmobiliariaId: string | null;
     inmobiliariaEstado: EstadoInmobiliaria | null;
     inmobiliariaNombre: string | null;
+    plan: string | null;
   }
 }
 
@@ -58,7 +61,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { email: credentials.email as string },
           include: {
             inmobiliaria: {
-              select: { id: true, estado: true, nombre: true },
+              select: { id: true, estado: true, nombre: true, plan: true },
             },
           },
         });
@@ -72,6 +75,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!passwordValida) return null;
 
+        // Plan: PARTICULAR → BASICO, ADMIN/AGENTE → from inmobiliaria, SUPERADMIN → PRO
+        const plan = usuario.rol === "PARTICULAR"
+          ? "BASICO"
+          : usuario.rol === "SUPERADMIN"
+          ? "PRO"
+          : (usuario.inmobiliaria?.plan ?? "AVANZADO");
+
         return {
           id: usuario.id,
           email: usuario.email,
@@ -80,6 +90,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           inmobiliariaId: usuario.inmobiliariaId,
           inmobiliariaEstado: usuario.inmobiliaria?.estado ?? null,
           inmobiliariaNombre: usuario.inmobiliaria?.nombre ?? null,
+          plan,
         };
       },
     }),

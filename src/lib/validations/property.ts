@@ -17,9 +17,10 @@ export const propiedadSchema = z.object({
     .max(120, "Máximo 120 caracteres"),
   tipo: z.enum(["CASA", "DEPARTAMENTO", "LOCAL", "GALPON", "TERRENO", "OFICINA"]),
   operacion: z.enum(["VENTA", "ALQUILER", "ALQUILER_TEMPORARIO"]),
-  precio: z
-    .number()
-    .positive("El precio debe ser mayor a 0"),
+  precio: z.preprocess(
+    (v) => typeof v === "number" && isNaN(v) ? 0 : v,
+    z.number().min(0.01, "Ingresá un precio válido")
+  ),
   moneda: z.enum(["ARS", "USD"]).default("USD"),
   direccion: z
     .string()

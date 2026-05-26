@@ -165,7 +165,7 @@ model Inmobiliaria {
   logoUrl          String?            @map("logo_url")
   whatsapp         String
   email            String
-  plan             String             @default("BASE")
+  plan             String             @default("AVANZADO")
   estado           EstadoInmobiliaria @default(PRUEBA)
   fechaVencimiento DateTime?          @map("fecha_vencimiento") @db.Timestamptz(6)
   createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -179,6 +179,7 @@ model Inmobiliaria {
   contratosVenta   ContratoVenta[]
   consultas        Consulta[]
   pagos            PagoSuscripcion[]
+  pagosRegistro    PagoRegistro[]
   configuracion    ConfiguracionInmobiliaria?
   operaciones      OperacionCerrada[]
   egresos          EgresoInmobiliaria[]
@@ -366,11 +367,13 @@ model ContratoAlquiler {
   estadoPago         EstadoPago @default(AL_DIA) @map("estado_pago")
   fechaInicio        DateTime   @map("fecha_inicio") @db.Date
   fechaFin           DateTime   @map("fecha_fin") @db.Date
+  notas              String?
   createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
 
   propiedad    Propiedad        @relation(fields: [propiedadId], references: [id], onUpdate: NoAction)
   inmobiliaria Inmobiliaria     @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
   personas     ContratoPersona[]
+  pagos        PagoRegistro[]
 
   @@index([inmobiliariaId], map: "idx_contratos_inmobiliaria")
   @@index([fechaFin], map: "idx_contratos_fecha_fin")
@@ -387,12 +390,14 @@ model ContratoVenta {
 
   vendedorNombre       String    @map("vendedor_nombre")
   vendedorDni          String    @map("vendedor_dni")
+  vendedorTel          String?   @map("vendedor_tel")
   vendedorDomicilio    String?   @map("vendedor_domicilio")
   vendedorEstadoCivil  String    @default("soltero") @map("vendedor_estado_civil")
   vendedorConyuge      String?   @map("vendedor_conyuge")
 
   compradorNombre      String    @map("comprador_nombre")
   compradorDni         String    @map("comprador_dni")
+  compradorTel         String?   @map("comprador_tel")
   compradorDomicilio   String?   @map("comprador_domicilio")
   compradorEstadoCivil String    @default("soltero") @map("comprador_estado_civil")
   compradorConyuge     String?   @map("comprador_conyuge")
@@ -409,6 +414,7 @@ model ContratoVenta {
   fechaEscritura       DateTime? @map("fecha_escritura") @db.Date
 
   clausulas            String?
+  notas                String?
 
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime  @updatedAt      @map("updated_at") @db.Timestamptz(6)
@@ -417,6 +423,25 @@ model ContratoVenta {
 
   @@index([inmobiliariaId], map: "idx_contratos_venta_inmobiliaria")
   @@map("contratos_venta")
+}
+
+model PagoRegistro {
+  id             String   @id @default(cuid())
+  contratoId     String   @map("contrato_id")
+  inmobiliariaId String   @map("inmobiliaria_id")
+  concepto       String   @db.VarChar(120)
+  monto          Decimal  @db.Decimal(15, 2)
+  moneda         Moneda   @default(ARS)
+  metodoPago     String?  @map("metodo_pago") @db.VarChar(60)
+  fecha          DateTime @default(now()) @db.Date
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  contrato     ContratoAlquiler @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  inmobiliaria Inmobiliaria     @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade)
+
+  @@index([contratoId],     map: "idx_pagos_registro_contrato")
+  @@index([inmobiliariaId], map: "idx_pagos_registro_inmobiliaria")
+  @@map("pagos_registro")
 }
 
 model Consulta {

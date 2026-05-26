@@ -20,13 +20,18 @@ export default async function NuevaPropiedadPage() {
   }
 
   return (
-    <div className="w-full max-w-[800px] mx-auto space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-text-primary">Nueva propiedad</h1>
+    <div className="w-full">
+      <div className="mb-5">
+        <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--terracota-600)", fontFamily: "var(--font-mono)" }}>
+          Propiedades · Nueva
+        </p>
+        <h1 className="text-2xl font-bold text-text-primary mt-1" style={{ fontFamily: "var(--font-display)" }}>
+          Crear propiedad
+        </h1>
         <p className="text-sm text-text-muted mt-0.5">
           {isParticular
             ? "Completá los datos para publicar tu propiedad en el marketplace"
-            : "Completá los datos para publicar la propiedad"}
+            : "Cargá una propiedad nueva paso a paso · se publica automáticamente al marketplace"}
         </p>
       </div>
       <PropiedadForm />
