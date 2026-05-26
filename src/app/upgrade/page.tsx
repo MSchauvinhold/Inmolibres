@@ -15,20 +15,20 @@ const PLANES_CONFIG: {
 }[] = [
   {
     key: "BASICO",
-    precio: "Gratis",
-    periodo: "",
+    precio: "$15.999",
+    periodo: "/mes",
     tagline: "Para dueños que quieren publicar sin intermediarios.",
   },
   {
     key: "AVANZADO",
-    precio: "$50.000",
+    precio: "$44.999",
     periodo: "/mes",
     tagline: "El CRM completo para inmobiliarias en crecimiento.",
     destacado: false,
   },
   {
     key: "PRO",
-    precio: "$90.000",
+    precio: "$62.999",
     periodo: "/mes",
     tagline: "Contratos, finanzas y gestión completa sin límites.",
     destacado: true,
