@@ -176,7 +176,7 @@ export default async function PropiedadDetailPage({
 
           {/* Key facts 4-grid */}
           {(a?.habitaciones != null || a?.banos != null || a?.superficieCubierta != null || a?.superficieTotal != null) && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {a?.superficieTotal != null && (
                 <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "16px 18px", background: "var(--crema-100, #F0E9DC)", borderRadius: 14, border: "1px solid var(--border)" }}>
                   <span style={{ width: 36, height: 36, borderRadius: 10, background: "#fff", border: "1px solid var(--border)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>

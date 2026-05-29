@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   Loader2, Plus, Eye, EyeOff, UserCheck, UserX, AlertTriangle,
   Settings, Shield, ChevronDown, ChevronUp, ImageIcon, Upload, Trash2,
-  Volume2, VolumeX,
+  Volume2, VolumeX, Lock,
 } from "lucide-react";
 import { formatDate, ESTADO_INMOBILIARIA_LABELS, ESTADO_INMOBILIARIA_COLORS } from "@/lib/utils";
 import { uploadToCloudinary } from "@/lib/cloudinary";
@@ -930,6 +930,9 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
         </div>
       )}
 
+      {/* ─── CAMBIAR CONTRASEÑA ─── */}
+      <CambiarPasswordSection />
+
       {/* Sheet de permisos */}
       {permisosAgentId && (
         <PermisosSheet
@@ -949,6 +952,151 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
           }}
         />
       )}
+    </div>
+  );
+}
+
+function CambiarPasswordSection() {
+  const [actual, setActual] = useState("");
+  const [nueva, setNueva] = useState("");
+  const [confirmar, setConfirmar] = useState("");
+  const [showActual, setShowActual] = useState(false);
+  const [showNueva, setShowNueva] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const inp = "input-base w-full text-sm pr-10";
+  const lbl = "block text-xs font-medium text-text-primary mb-1";
+
+  // Validación cliente en tiempo real
+  const errores: string[] = [];
+  if (nueva && nueva.length < 8) errores.push("Mínimo 8 caracteres");
+  if (nueva && !/[A-Z]/.test(nueva)) errores.push("Al menos 1 mayúscula");
+  if (nueva && !/[0-9]/.test(nueva)) errores.push("Al menos 1 número");
+  if (confirmar && nueva !== confirmar) errores.push("Las contraseñas no coinciden");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (errores.length > 0) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actual, nueva, confirmar }),
+      });
+      const json = await res.json() as { error?: string };
+      if (!res.ok) {
+        toast.error(json.error ?? "Error al cambiar la contraseña");
+        return;
+      }
+      toast.success("Contraseña actualizada correctamente");
+      setActual(""); setNueva(""); setConfirmar("");
+    } catch {
+      toast.error("Error inesperado");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="card p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "var(--crema-100)" }}>
+          <Lock className="w-3.5 h-3.5" style={{ color: "var(--brand-primary)" }} />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-text-primary">Cambiar contraseña</p>
+          <p className="text-xs text-text-muted">Mínimo 8 caracteres, 1 mayúscula y 1 número</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Contraseña actual */}
+          <div>
+            <label className={lbl}>Contraseña actual</label>
+            <div className="relative">
+              <input
+                type={showActual ? "text" : "password"}
+                value={actual}
+                onChange={(e) => setActual(e.target.value)}
+                className={inp}
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowActual((p) => !p)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted"
+                tabIndex={-1}
+              >
+                {showActual ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Nueva contraseña */}
+          <div>
+            <label className={lbl}>Nueva contraseña</label>
+            <div className="relative">
+              <input
+                type={showNueva ? "text" : "password"}
+                value={nueva}
+                onChange={(e) => setNueva(e.target.value)}
+                className={inp}
+                placeholder="••••••••"
+                required
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNueva((p) => !p)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted"
+                tabIndex={-1}
+              >
+                {showNueva ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirmar */}
+          <div>
+            <label className={lbl}>Confirmar contraseña</label>
+            <div className="relative">
+              <input
+                type="password"
+                value={confirmar}
+                onChange={(e) => setConfirmar(e.target.value)}
+                className={inp}
+                placeholder="••••••••"
+                required
+                autoComplete="new-password"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Errores de validación */}
+        {errores.length > 0 && (
+          <ul className="flex flex-wrap gap-2">
+            {errores.map((e) => (
+              <li key={e} className="text-xs px-2 py-1 rounded-lg flex items-center gap-1" style={{ background: "var(--danger-100)", color: "var(--danger-500)" }}>
+                <AlertTriangle className="w-3 h-3 shrink-0" /> {e}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <button
+          type="submit"
+          disabled={saving || errores.length > 0 || !actual || !nueva || !confirmar}
+          className="btn-primary text-sm flex items-center gap-2"
+        >
+          {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          Actualizar contraseña
+        </button>
+      </form>
     </div>
   );
 }

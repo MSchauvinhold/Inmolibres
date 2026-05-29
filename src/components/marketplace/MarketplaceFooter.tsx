@@ -32,18 +32,11 @@ const FOOTER_COLS = [
 
 export function MarketplaceFooter() {
   return (
-    <footer style={{ background: "var(--antracita-900, #14110E)", color: "var(--crema-100, #F5EFE5)", padding: "48px 48px 28px" }}>
+    <footer className="px-6 sm:px-10 lg:px-12 pt-12 pb-7" style={{ background: "var(--antracita-900, #14110E)", color: "var(--crema-100, #F5EFE5)" }}>
       <div className="max-w-6xl mx-auto">
         {/* Grid: 1.5fr + 3×1fr */}
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.5fr repeat(3, 1fr)",
-            gap: 48,
-            paddingBottom: 32,
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
-          }}
-          className="grid-cols-2 sm:grid-cols-2 lg:[grid-template-columns:1.5fr_repeat(3,1fr)]"
+          className="grid grid-cols-2 lg:grid-cols-[1.5fr_repeat(3,1fr)] gap-8 lg:gap-12 pb-8 border-b border-white/10"
         >
           {/* Brand column */}
           <div>

@@ -200,16 +200,31 @@ model Usuario {
   comisionPersonalPct Float?   @map("comision_personal_pct")
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  inmobiliaria      Inmobiliaria?   @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
-  propiedades       Propiedad[]
-  visitas           Visita[]
-  clientesAsignados Cliente[]
-  notificaciones    Notificacion[]
-  permisos          PermisosAgente?
-  operaciones       OperacionCerrada[]
+  inmobiliaria        Inmobiliaria?        @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
+  propiedades         Propiedad[]
+  visitas             Visita[]
+  clientesAsignados   Cliente[]
+  notificaciones      Notificacion[]
+  permisos            PermisosAgente?
+  operaciones         OperacionCerrada[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([inmobiliariaId], map: "idx_usuarios_inmobiliaria")
   @@map("usuarios")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  usuarioId String   @map("usuario_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId], map: "idx_prt_usuario")
+  @@map("password_reset_tokens")
 }
 
 model Propiedad {

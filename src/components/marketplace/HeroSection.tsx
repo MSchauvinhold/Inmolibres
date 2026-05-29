@@ -123,6 +123,7 @@ export function HeroSection({ totalPropiedades }: HeroProps) {
           <form
             method="GET"
             action="/"
+            className="hero-search-form"
             style={{
               background: "#fff",
               borderRadius: 20,

@@ -835,3 +835,27 @@
     box-shadow: 0 4px 12px rgba(37,211,102,0.35);
   }
 }
+
+/* ─── Marketplace responsive ─────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Hero search form → colapsa a columna */
+  .hero-search-form {
+    grid-template-columns: 1fr !important;
+    padding: 6px !important;
+    gap: 4px !important;
+  }
+  .hero-search-form > * {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border, #E8DFD0) !important;
+    padding: 12px 14px !important;
+    border-radius: 10px !important;
+  }
+  .hero-search-form > *:last-child {
+    border-bottom: none !important;
+    border-radius: 10px !important;
+    height: 48px !important;
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+

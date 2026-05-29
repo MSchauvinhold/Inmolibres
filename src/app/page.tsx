@@ -167,16 +167,13 @@ export default async function MarketplaceHome({
 
       {/* Kai banner */}
       {!hasFilters && (
-        <section style={{ padding: "0 48px 80px" }}>
+        <section className="px-4 sm:px-10 lg:px-12 pb-16 sm:pb-20">
           <div
+            className="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] gap-6 sm:gap-8 items-center"
             style={{
               background: "var(--crema-100, #F5EFE5)",
               borderRadius: 22,
-              padding: "40px 48px",
-              display: "grid",
-              gridTemplateColumns: "auto 1fr auto",
-              gap: 32,
-              alignItems: "center",
+              padding: "clamp(24px,4vw,40px) clamp(20px,4vw,48px)",
               border: "1px solid var(--border, #E8DFD0)",
               maxWidth: "1152px",
               margin: "0 auto",
@@ -229,8 +226,9 @@ export default async function MarketplaceHome({
             </div>
             <a
               href="/?kai=1"
+              className="justify-center sm:justify-start"
               style={{
-                display: "inline-flex",
+                display: "flex",
                 alignItems: "center",
                 gap: 8,
                 background: "var(--antracita-900, #14110E)",

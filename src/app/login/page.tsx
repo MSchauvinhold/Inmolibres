@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn, getSession } from "next-auth/react";
 import { Eye, EyeOff, Loader2, Home, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -13,6 +13,20 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Detectar ?reset=success y mostrar toast de confirmación
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("reset") === "success") {
+        toast.success("¡Contraseña actualizada! Podés ingresar con tu nueva contraseña.");
+        // Limpiar el query param de la URL sin recargar
+        const url = new URL(window.location.href);
+        url.searchParams.delete("reset");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -255,12 +269,25 @@ export default function LoginPage() {
 
             {/* Password field */}
             <div>
-              <label
-                className="block text-sm font-medium mb-1.5"
-                style={{ color: "var(--antracita-500, #3A332C)" }}
-              >
-                Contraseña
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  className="block text-sm font-medium"
+                  style={{ color: "var(--antracita-500, #3A332C)" }}
+                >
+                  Contraseña
+                </label>
+                <Link
+                  href="/forgot-password"
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--terracota-600, #A85737)",
+                    textDecoration: "none",
+                    fontWeight: 500,
+                  }}
+                >
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
               <div
                 style={{
                   display: "flex",
