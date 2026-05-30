@@ -19,6 +19,19 @@ export default async function NuevaPropiedadPage() {
     if (total >= MAX_PROPIEDADES_PARTICULAR) redirect("/propiedades");
   }
 
+  // Solo el ADMIN puede elegir a qué asesor atribuir la propiedad
+  const agentes = session.user.rol === "ADMIN" && session.user.inmobiliariaId
+    ? await db.usuario.findMany({
+        where: {
+          inmobiliariaId: session.user.inmobiliariaId,
+          activo: true,
+          rol: { in: ["ADMIN", "AGENTE"] },
+        },
+        select: { id: true, nombre: true, rol: true },
+        orderBy: { nombre: "asc" },
+      })
+    : [];
+
   return (
     <div className="w-full">
       <div className="mb-5">
@@ -34,7 +47,7 @@ export default async function NuevaPropiedadPage() {
             : "Cargá una propiedad nueva paso a paso · se publica automáticamente al marketplace"}
         </p>
       </div>
-      <PropiedadForm />
+      <PropiedadForm agentes={agentes} currentUserId={session.user.id} />
     </div>
   );
 }

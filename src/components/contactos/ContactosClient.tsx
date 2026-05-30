@@ -275,6 +275,11 @@ export function ContactosClient({ contactos: initial }: Props) {
     }
   }, []);
 
+  // Contadores por tipo
+  const cntProp = contactos.filter((c) => c.roles.includes("PROPIETARIO")).length;
+  const cntInq  = contactos.filter((c) => c.roles.includes("INQUILINO")).length;
+  const cntComp = contactos.filter((c) => c.roles.includes("COMPRADOR")).length;
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -290,6 +295,39 @@ export function ContactosClient({ contactos: initial }: Props) {
           <Plus className="w-3.5 h-3.5" />
           Nuevo contacto
         </button>
+      </div>
+
+      {/* Mini dashboard de tipos */}
+      <div className="grid grid-cols-3 gap-3">
+        {([
+          { rol: "PROPIETARIO" as RolContacto, label: "Propietarios", count: cntProp, icon: Home,         bg: "#E8F5E9", text: "#1B5E20" },
+          { rol: "INQUILINO"   as RolContacto, label: "Inquilinos",   count: cntInq,  icon: Users,        bg: "#E3F2FD", text: "#0D47A1" },
+          { rol: "COMPRADOR"   as RolContacto, label: "Compradores",  count: cntComp, icon: ShoppingCart, bg: "#FFF8E1", text: "#E65100" },
+        ]).map(({ rol, label, count, icon: Icon, bg, text }) => {
+          const active = tab === rol;
+          return (
+            <button
+              key={rol}
+              type="button"
+              onClick={() => setTab(active ? "TODOS" : rol)}
+              className="rounded-xl p-3 flex items-center gap-3 border transition-all text-left"
+              style={{
+                background: bg,
+                borderColor: active ? text : "transparent",
+                boxShadow: active ? `0 0 0 2px ${text}22` : "none",
+                opacity: tab === "TODOS" || active ? 1 : 0.55,
+              }}
+            >
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.5)" }}>
+                <Icon className="w-4 h-4" style={{ color: text }} />
+              </div>
+              <div>
+                <p className="text-xl font-bold leading-none" style={{ color: text }}>{count}</p>
+                <p className="text-xs font-medium mt-0.5" style={{ color: text, opacity: 0.8 }}>{label}</p>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Search + tabs */}

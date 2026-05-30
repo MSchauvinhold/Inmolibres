@@ -126,7 +126,7 @@ function DocCard({
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="p-1 rounded-lg hover:bg-red-50 transition-colors"
+            className="flex-1 flex items-center justify-center py-1 rounded-lg hover:bg-red-50 transition-colors"
             style={{ color: "#9a9a9a" }}
           >
             {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}

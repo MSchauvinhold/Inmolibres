@@ -7,6 +7,7 @@ import { PropiedadCard } from "@/components/propiedades/PropiedadCard";
 import { PropiedadesFilters } from "@/components/propiedades/PropiedadesFilters";
 import { ImportButton } from "@/components/propiedades/ImportButton";
 import { TIPO_PROPIEDAD_LABELS, TIPO_OPERACION_LABELS } from "@/lib/utils";
+import { LIMITES_PLAN } from "@/lib/planes";
 import type { TipoPropiedad, TipoOperacion, EstadoPropiedad } from "@prisma/client";
 
 export const metadata = { title: "Propiedades" };
@@ -20,7 +21,7 @@ interface SearchParams {
   view?: string;
 }
 
-const MAX_PROPIEDADES_PARTICULAR = 3;
+const MAX_PROPIEDADES_PARTICULAR = LIMITES_PLAN.BASICO.maxPropiedades ?? 4;
 
 export default async function PropiedadesPage({
   searchParams,
@@ -329,11 +330,7 @@ export default async function PropiedadesPage({
       ) : (
         /* ── Vista grilla ── */
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 16,
-          }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
         >
           {propiedades.map((p) => (
             <PropiedadCard

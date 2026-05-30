@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
 import { ESTADO_INMOBILIARIA_LABELS } from "@/lib/utils";
-import { BarChart3, AlertTriangle, Plus, Building2, Users } from "lucide-react";
+import { BarChart3, AlertTriangle, Plus, Building2, Users, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Pill } from "@/components/ui/pill";
 import { AdminGrowthChart } from "./_growth-chart";
 
@@ -17,6 +17,7 @@ export default async function AdminPage() {
   });
 
   const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
   const en7dias = new Date(hoy.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   const stats = {
@@ -25,6 +26,24 @@ export default async function AdminPage() {
     suspendidas: inmobiliarias.filter((i) => i.estado === "SUSPENDIDA").length,
     propiedades: inmobiliarias.reduce((s, i) => s + i._count.propiedades, 0),
   };
+
+  // Clasificación de suscripciones
+  const alDia = inmobiliarias.filter((i) =>
+    (i.estado === "ACTIVA" || i.estado === "PRUEBA") &&
+    (!i.fechaVencimiento || i.fechaVencimiento > en7dias)
+  );
+  const porVencer = inmobiliarias.filter((i) =>
+    (i.estado === "ACTIVA" || i.estado === "PRUEBA") &&
+    i.fechaVencimiento &&
+    i.fechaVencimiento <= en7dias &&
+    i.fechaVencimiento >= hoy
+  );
+  const vencidas = inmobiliarias.filter((i) =>
+    i.estado === "SUSPENDIDA" ||
+    i.estado === "INACTIVA" ||
+    (i.fechaVencimiento && i.fechaVencimiento < hoy &&
+      (i.estado === "ACTIVA" || i.estado === "PRUEBA"))
+  );
 
   // Serialize dates for client component
   const inmoSerialized = inmobiliarias.map((i) => ({
@@ -62,7 +81,7 @@ export default async function AdminPage() {
             Ver todas
           </Link>
           <Link
-            href="/admin/inmobiliarias/nueva"
+            href="/admin/inmobiliarias?nueva=1"
             className="il-btn il-btn--primary"
             style={{ height: 36, fontSize: 13, gap: 6, textDecoration: "none" }}
           >
@@ -158,6 +177,98 @@ export default async function AdminPage() {
 
       {/* ── Growth Chart + Activity Reciente ── */}
       <AdminGrowthChart inmobiliarias={inmoSerialized} />
+
+      {/* ── Estado de suscripciones ── */}
+      <div>
+        <h3 className="display" style={{ fontSize: 18, margin: "0 0 14px", color: "var(--antracita-900)" }}>
+          Estado de suscripciones
+        </h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+
+          {/* Al día */}
+          <div className="il-card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "12px 18px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--border)", background: "#F0FDF4" }}>
+              <CheckCircle2 size={16} style={{ color: "#15803D", flexShrink: 0 }} />
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: "#15803D" }}>Al día</span>
+              <span className="mono" style={{ marginLeft: "auto", fontSize: 18, fontWeight: 700, color: "#15803D" }}>{alDia.length}</span>
+            </div>
+            <div style={{ maxHeight: 220, overflowY: "auto" }}>
+              {alDia.length === 0 ? (
+                <p style={{ fontSize: 12, color: "var(--antracita-300)", padding: "14px 18px" }}>Ninguna</p>
+              ) : alDia.map((i) => (
+                <div key={i.id} style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: "var(--antracita-900)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.nombre}</p>
+                    <p style={{ fontSize: 11, color: "var(--antracita-400)", margin: 0 }}>
+                      {i.fechaVencimiento ? `Vence ${formatDate(i.fechaVencimiento)}` : "Sin vencimiento"}
+                    </p>
+                  </div>
+                  <Link href={`/admin/inmobiliarias/${i.id}`} style={{ fontSize: 11, color: "var(--terracota-600)", textDecoration: "none", flexShrink: 0 }}>
+                    Gestionar →
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Por vencer */}
+          <div className="il-card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "12px 18px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--border)", background: "#FFFBEB" }}>
+              <Clock size={16} style={{ color: "#B45309", flexShrink: 0 }} />
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: "#B45309" }}>Por vencer (7 días)</span>
+              <span className="mono" style={{ marginLeft: "auto", fontSize: 18, fontWeight: 700, color: "#B45309" }}>{porVencer.length}</span>
+            </div>
+            <div style={{ maxHeight: 220, overflowY: "auto" }}>
+              {porVencer.length === 0 ? (
+                <p style={{ fontSize: 12, color: "var(--antracita-300)", padding: "14px 18px" }}>Ninguna por vencer</p>
+              ) : porVencer.map((i) => {
+                const diasRestantes = i.fechaVencimiento
+                  ? Math.ceil((i.fechaVencimiento.getTime() - hoy.getTime()) / 86_400_000)
+                  : null;
+                return (
+                  <div key={i.id} style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: diasRestantes !== null && diasRestantes <= 2 ? "#FEF3C7" : "transparent" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: "var(--antracita-900)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.nombre}</p>
+                      <p style={{ fontSize: 11, color: "#B45309", margin: 0, fontWeight: 500 }}>
+                        Vence en {diasRestantes ?? "?"} día{diasRestantes !== 1 ? "s" : ""} — {i.fechaVencimiento ? formatDate(i.fechaVencimiento) : ""}
+                      </p>
+                    </div>
+                    <Link href={`/admin/inmobiliarias/${i.id}`} style={{ fontSize: 11, color: "var(--terracota-600)", textDecoration: "none", flexShrink: 0 }}>
+                      Renovar →
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Vencidas / Suspendidas */}
+          <div className="il-card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "12px 18px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid var(--border)", background: "#FEF2F2" }}>
+              <XCircle size={16} style={{ color: "#B91C1C", flexShrink: 0 }} />
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: "#B91C1C" }}>Vencidas / Suspendidas</span>
+              <span className="mono" style={{ marginLeft: "auto", fontSize: 18, fontWeight: 700, color: "#B91C1C" }}>{vencidas.length}</span>
+            </div>
+            <div style={{ maxHeight: 220, overflowY: "auto" }}>
+              {vencidas.length === 0 ? (
+                <p style={{ fontSize: 12, color: "var(--antracita-300)", padding: "14px 18px" }}>Ninguna suspendida</p>
+              ) : vencidas.map((i) => (
+                <div key={i.id} style={{ padding: "10px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: "var(--antracita-900)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.nombre}</p>
+                    <p style={{ fontSize: 11, color: "#B91C1C", margin: 0 }}>
+                      {i.estado === "SUSPENDIDA" ? "Suspendida" : i.estado === "INACTIVA" ? "Inactiva" : `Vencida el ${i.fechaVencimiento ? formatDate(i.fechaVencimiento) : "—"}`}
+                    </p>
+                  </div>
+                  <Link href={`/admin/inmobiliarias/${i.id}`} style={{ fontSize: 11, color: "var(--terracota-600)", textDecoration: "none", flexShrink: 0 }}>
+                    Reactivar →
+                  </Link>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* ── Inmobiliarias table ── */}
       <div className="il-card" style={{ padding: 0, overflow: "hidden" }}>

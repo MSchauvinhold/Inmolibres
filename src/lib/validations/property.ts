@@ -36,6 +36,8 @@ export const propiedadSchema = z.object({
     .optional()
     .or(z.literal("")),
   publicada: z.boolean().default(true),
+  // agenteId: null/"" = a nombre de la inmobiliaria. Solo lo usa ADMIN.
+  agenteId: z.string().optional().nullable(),
   atributos: z
     .object({
       superficieCubierta: optPos,

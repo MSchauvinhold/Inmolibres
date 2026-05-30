@@ -8,6 +8,7 @@ import {
   Volume2, VolumeX, Lock,
 } from "lucide-react";
 import { formatDate, ESTADO_INMOBILIARIA_LABELS, ESTADO_INMOBILIARIA_COLORS } from "@/lib/utils";
+import { puedeAgregarAgente, toPlanKey, LIMITES_PLAN } from "@/lib/planes";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { PermisosSheet } from "./PermisosSheet";
 
@@ -108,7 +109,9 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const agentes = inmo.usuarios.filter((u) => u.rol === "AGENTE");
-  const canAddAgent = agentes.length < 3;
+  const planKey = toPlanKey(inmo.plan);
+  const maxAgentes = LIMITES_PLAN[planKey].maxAgentes;
+  const canAddAgent = puedeAgregarAgente(planKey, agentes.filter((a) => a.activo).length);
 
   const inp = "input-base w-full text-sm";
   const lbl = "block text-xs font-medium text-text-primary mb-1";
@@ -815,7 +818,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
         <div className="card p-5 space-y-3">
           <div className="flex items-center justify-between border-b border-border pb-2">
             <h2 className="font-semibold text-text-primary">
-              Equipo ({inmo.usuarios.length} usuarios · {agentes.length}/3 agentes)
+              Equipo ({inmo.usuarios.length} usuarios · {agentes.filter((a) => a.activo).length}/{maxAgentes} agentes)
             </h2>
             {canAddAgent && !showNewAgent && (
               <button

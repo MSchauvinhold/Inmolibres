@@ -73,7 +73,7 @@ export default async function SuspendidoPage() {
             lineHeight: 1.15,
           }}
         >
-          Tu suscripción ha vencido
+          Cuenta suspendida por falta de pago
         </h1>
 
         <p
@@ -87,7 +87,7 @@ export default async function SuspendidoPage() {
           <strong style={{ color: "var(--antracite)" }}>
             {session.user.inmobiliariaNombre ?? "tu inmobiliaria"}
           </strong>{" "}
-          está suspendido. Tus publicaciones fueron pausadas hasta renovar.
+          está suspendido. Tus publicaciones están pausadas por el momento.
         </p>
 
         <p
@@ -97,7 +97,7 @@ export default async function SuspendidoPage() {
             fontFamily: "var(--font-jakarta)",
           }}
         >
-          Contactanos por WhatsApp para reactivar tu cuenta en minutos.
+          Ponete en contacto con InmoLibres para regularizar tu situación y reactivar el servicio.
         </p>
 
         <a

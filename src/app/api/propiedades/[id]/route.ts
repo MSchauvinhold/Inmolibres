@@ -93,12 +93,29 @@ export async function PUT(request: NextRequest, { params }: Params) {
       assertSameTenant(existing.inmobiliariaId ?? "", inmobiliariaId, rol);
     }
 
-    const { atributos, fotos, ...propData } = parsed.data;
+    const { atributos, fotos, agenteId: agenteIdInput, ...propData } = parsed.data;
+
+    // Solo el ADMIN puede reasignar el asesor. Para el resto se ignora el campo.
+    let agenteUpdate: { agenteId?: string | null } = {};
+    if (rol === "ADMIN") {
+      if (agenteIdInput) {
+        const agenteValido = await db.usuario.findFirst({
+          where: { id: agenteIdInput, inmobiliariaId, rol: { in: ["ADMIN", "AGENTE"] } },
+          select: { id: true },
+        });
+        if (!agenteValido) {
+          return NextResponse.json({ error: "El asesor seleccionado no es válido" }, { status: 400 });
+        }
+        agenteUpdate = { agenteId: agenteIdInput };
+      } else {
+        agenteUpdate = { agenteId: null }; // a nombre de la inmobiliaria
+      }
+    }
 
     const propiedad = await db.$transaction(async (tx) => {
       const updated = await tx.propiedad.update({
         where: { id },
-        data: { ...propData, precio: propData.precio },
+        data: { ...propData, precio: propData.precio, ...agenteUpdate },
       });
 
       if (atributos !== undefined) {

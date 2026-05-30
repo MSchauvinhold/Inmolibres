@@ -112,6 +112,7 @@ enum TipoNotificacion {
   SUSCRIPCION_24_HORAS
   SUSCRIPCION_VENCIDA
   SUSCRIPCION_SUSPENDIDA
+  SUSCRIPCION_RENOVADA
   VISITA_PROXIMA
   CONTRATO_POR_VENCER
   PAGO_ATRASADO
@@ -244,12 +245,13 @@ model Propiedad {
   descripcion    String?
   videoUrl       String?         @map("video_url")
   publicada      Boolean         @default(true)
-  agenteId       String          @map("agente_id")
+  // agenteId nullable: null = publicada a nombre de la inmobiliaria (sin asesor específico)
+  agenteId       String?         @map("agente_id")
   createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
 
   inmobiliaria        Inmobiliaria?      @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  agente              Usuario            @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
+  agente              Usuario?           @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
   atributos           PropiedadAtributos?
   fotos               FotoPropiedad[]
   clientesInteresados PropiedadCliente[]
@@ -695,6 +697,11 @@ model DocumentoContacto {
   contacto Contacto? @relation(fields: [contactoId], references: [id], onDelete: Cascade)
   garante  Garante?  @relation(fields: [garanteId], references: [id], onDelete: Cascade)
 
+  // NOTA: CHECK constraint a nivel DB que garantiza que al menos uno de
+  // contacto_id / garante_id esté presente (no documentos huérfanos):
+  //   chk_doc_contacto_owner CHECK (contacto_id IS NOT NULL OR garante_id IS NOT NULL)
+  // Prisma no soporta CHECK en el schema declarativo — aplicado vía SQL directo.
+  // Si recreás la DB, re-ejecutá ese ALTER TABLE.
   @@index([contactoId])
   @@index([garanteId])
   @@map("documentos_contacto")

@@ -11,7 +11,7 @@ const actualizarInmobiliariaSchema = z.object({
   whatsapp: z.string().min(8).max(20).optional(),
   email: z.string().email().optional(),
   logoUrl: z.string().url().optional().nullable(),
-  plan: z.enum(["BASE", "PRO"]).optional(),
+  plan: z.enum(["BASICO", "AVANZADO", "PRO"]).optional(),
   estado: z.enum(["ACTIVA", "INACTIVA", "PRUEBA", "SUSPENDIDA"]).optional(),
   fechaVencimiento: z.string().datetime().optional().nullable(),
 });
@@ -78,6 +78,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       },
     });
 
+    // ── Suspender / Inactivar → despublicar propiedades ──────────────
     if (parsed.data.estado === "SUSPENDIDA" || parsed.data.estado === "INACTIVA") {
       await db.propiedad.updateMany({
         where: { inmobiliariaId: id },
@@ -86,6 +87,22 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
       const notif = NotifMessages.suscripcionSuspendida(inmobiliaria.nombre);
       notifyInmobiliaria(id, "SUSCRIPCION_SUSPENDIDA", notif.titulo, notif.mensaje, notif.url).catch(() => {});
+    }
+
+    // ── Reactivar (ACTIVA / PRUEBA) → republicar propiedades ─────────
+    if (parsed.data.estado === "ACTIVA" || parsed.data.estado === "PRUEBA") {
+      await db.propiedad.updateMany({
+        where: { inmobiliariaId: id },
+        data: { publicada: true },
+      });
+
+      notifyInmobiliaria(
+        id,
+        "SUSCRIPCION_RENOVADA",
+        "Cuenta reactivada",
+        `${inmobiliaria.nombre}, tu cuenta fue reactivada. Tus publicaciones ya están visibles en el marketplace.`,
+        "/dashboard",
+      ).catch(() => {});
     }
 
     return NextResponse.json({ data: inmobiliaria });

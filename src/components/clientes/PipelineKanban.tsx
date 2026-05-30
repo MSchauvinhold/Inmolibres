@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { buildWhatsAppLink, formatRelativeTime } from "@/lib/utils";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
@@ -30,7 +30,7 @@ const TONE_BAR: Record<string, string> = {
   info:    "var(--info-500, #3B82F6)",
   neutral: "var(--antracita-500, #6B6459)",
   warning: "var(--warning-500, #F59E0B)",
-  accent:  "var(--accent, #4A7FA5)",
+  accent:  "#7C3AED",
   success: "var(--success-500, #22C55E)",
   danger:  "var(--danger-500, #EF4444)",
 };
@@ -61,6 +61,12 @@ interface Props {
 export function PipelineKanban({ clientes, onUpdate }: Props) {
   const [items, setItems] = useState(clientes);
   const [moving, setMoving] = useState<string | null>(null);
+
+  // Sincronizar cuando el Server Component re-renderiza con nuevos datos
+  // (ej: al agregar un prospecto y volver a esta página)
+  useEffect(() => {
+    setItems(clientes);
+  }, [clientes]);
 
   async function moverCliente(id: string, nuevoEstado: EstadoPipeline) {
     setMoving(id);

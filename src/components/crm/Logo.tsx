@@ -63,7 +63,7 @@ export function Logo({
             }}
           >
             Inmo
-            <span style={{ color: "var(--libres-color, #C1694F)" }}>Libres</span>
+            <span style={{ color: onDark ? "var(--crema-50, #FBF8F2)" : "var(--terracota-500, #C1694F)" }}>Libres</span>
           </span>
           {showSubtitle && (
             <span
@@ -99,7 +99,7 @@ export function Logo({
         }}
       >
         Inmo
-        <span style={{ color: "var(--libres-color, #C1694F)" }}>Libres</span>
+        <span style={{ color: onDark ? "var(--crema-50, #FBF8F2)" : "var(--terracota-500, #C1694F)" }}>Libres</span>
       </span>
     </span>
   )

@@ -10,7 +10,7 @@ import {
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
-import { toPlanKey, RUTAS_PRO, nombrePlan } from "@/lib/planes";
+import { toPlanKey, tieneAcceso, nombrePlan } from "@/lib/planes";
 import type { SessionUser } from "@/types";
 import type { LucideIcon } from "lucide-react";
 
@@ -35,6 +35,8 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   permKey: string | null;
+  /** Módulo requerido (de planes.ts). null = disponible en todos los planes */
+  modulo: string | null;
   badge?: number;
 }
 
@@ -47,36 +49,36 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operaciones",
     items: [
-      { href: "/dashboard",   label: "Dashboard",   icon: LayoutDashboard, permKey: null },
-      { href: "/propiedades", label: "Propiedades", icon: Building2,       permKey: "verPropiedades" },
-      { href: "/contactos",   label: "Contactos",   icon: BookUser,        permKey: "verClientes" },
-      { href: "/clientes",    label: "Prospectos",  icon: Users,           permKey: "verClientes" },
-      { href: "/visitas",     label: "Visitas",     icon: CalendarCheck,   permKey: "verVisitas" },
+      { href: "/dashboard",   label: "Dashboard",   icon: LayoutDashboard, permKey: null,             modulo: null },
+      { href: "/propiedades", label: "Propiedades", icon: Building2,       permKey: "verPropiedades", modulo: "propiedades" },
+      { href: "/contactos",   label: "Contactos",   icon: BookUser,        permKey: "verClientes",    modulo: "contactos" },
+      { href: "/clientes",    label: "Prospectos",  icon: Users,           permKey: "verClientes",    modulo: "clientes" },
+      { href: "/visitas",     label: "Visitas",     icon: CalendarCheck,   permKey: "verVisitas",     modulo: "visitas" },
     ],
   },
   {
     label: "Legal",
     items: [
-      { href: "/alquileres",  label: "Contratos",   icon: ScrollText,      permKey: "verAlquileres" },
+      { href: "/alquileres",  label: "Contratos",   icon: ScrollText,      permKey: "verAlquileres",  modulo: "contratos" },
     ],
   },
   {
     label: "Comunicación",
     items: [
-      { href: "/consultas",   label: "Mensajes",    icon: MessageSquare,   permKey: "verConsultas" },
+      { href: "/consultas",   label: "Mensajes",    icon: MessageSquare,   permKey: "verConsultas",   modulo: "consultas" },
     ],
   },
   {
     label: "Finanzas",
     items: [
-      { href: "/finanzas",    label: "Finanzas",    icon: TrendingUp,      permKey: "verFinanzas" },
-      { href: "/calculadoras",label: "Calculadoras",icon: Calculator,      permKey: "verCalculadoras" },
+      { href: "/finanzas",    label: "Finanzas",    icon: TrendingUp,      permKey: "verFinanzas",     modulo: "finanzas" },
+      { href: "/calculadoras",label: "Calculadoras",icon: Calculator,      permKey: "verCalculadoras", modulo: "calculadoras" },
     ],
   },
   {
     label: "Sistema",
     items: [
-      { href: "/configuracion",label: "Configuración", icon: Settings,    permKey: null },
+      { href: "/configuracion",label: "Configuración", icon: Settings,    permKey: null,              modulo: null },
     ],
   },
 ];
@@ -87,9 +89,10 @@ export function Sidebar({ user, permisos, className }: SidebarProps) {
   const isAgente = user.rol === "AGENTE";
   const plan = toPlanKey(user.plan ?? null);
 
-  /** Un ítem está bloqueado si requiere PRO y el plan actual no es PRO */
+  /** Un ítem está bloqueado si su módulo no está incluido en el plan actual */
   const isLocked = (item: NavItem) => {
-    return plan !== "PRO" && RUTAS_PRO.includes(item.href);
+    if (!item.modulo) return false;
+    return !tieneAcceso(plan, item.modulo);
   };
 
   const isItemVisible = (item: NavItem) => {

@@ -11,8 +11,17 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
 
   const user = session.user as SessionUser;
 
-  // Inmobiliarias suspendidas no pueden acceder al CRM
-  if (user.inmobiliariaEstado === "SUSPENDIDA") redirect("/suspendido");
+  // Verificación en vivo desde DB — el JWT puede estar desactualizado si el admin
+  // cambió el estado después del login del usuario
+  if (user.inmobiliariaId) {
+    const inmo = await db.inmobiliaria.findUnique({
+      where: { id: user.inmobiliariaId },
+      select: { estado: true },
+    });
+    if (inmo && inmo.estado !== "ACTIVA" && inmo.estado !== "PRUEBA") {
+      redirect("/suspendido");
+    }
+  }
 
   let permisos = null;
   if (user.rol === "AGENTE" && user.id) {

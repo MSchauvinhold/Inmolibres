@@ -3,6 +3,7 @@
 import { Menu, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { AdminSidebar } from "./AdminSidebar";
+import { AdminKaiBell } from "./AdminKaiBell";
 
 interface AdminTopBarProps {
   email: string;
@@ -18,6 +19,7 @@ export function AdminTopBar({ email }: AdminTopBarProps) {
         borderColor: "var(--border, #E8DFD0)",
       }}
     >
+      {/* Mobile hamburger */}
       <Sheet>
         <SheetTrigger asChild>
           <button
@@ -32,6 +34,7 @@ export function AdminTopBar({ email }: AdminTopBarProps) {
         </SheetContent>
       </Sheet>
 
+      {/* Badge SUPERADMIN */}
       <span
         className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
         style={{
@@ -47,15 +50,8 @@ export function AdminTopBar({ email }: AdminTopBarProps) {
 
       <div className="flex-1" />
 
-      <span
-        className="text-xs hidden sm:block truncate max-w-[200px]"
-        style={{
-          color: "var(--antracita-300, #6F665C)",
-          fontFamily: "var(--font-jetbrains-mono), monospace",
-        }}
-      >
-        {email}
-      </span>
+      {/* Bell de consultas Kai */}
+      <AdminKaiBell />
     </header>
   );
 }

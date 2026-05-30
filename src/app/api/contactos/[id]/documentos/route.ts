@@ -32,10 +32,22 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!garante) return NextResponse.json({ error: "Garante no encontrado" }, { status: 404 });
   }
 
+  // Resolver el propietario del documento: garante o contacto (nunca ambos null)
+  const finalContactoId = body.garanteId ? null : contactoId;
+  const finalGaranteId  = body.garanteId ?? null;
+
+  // Guarda defensiva: un documento siempre debe pertenecer a un contacto o garante
+  if (!finalContactoId && !finalGaranteId) {
+    return NextResponse.json(
+      { error: "El documento debe pertenecer a un contacto o garante" },
+      { status: 400 }
+    );
+  }
+
   const doc = await db.documentoContacto.create({
     data: {
-      contactoId: body.garanteId ? null : contactoId,
-      garanteId: body.garanteId ?? null,
+      contactoId: finalContactoId,
+      garanteId: finalGaranteId,
       tipo: body.tipo,
       label: body.label?.trim() || null,
       url: body.url,

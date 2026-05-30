@@ -43,6 +43,7 @@ export interface PropiedadParaEditar {
   descripcion: string | null;
   videoUrl: string | null;
   publicada: boolean;
+  agenteId: string | null;
   atributos: {
     superficieCubierta: number | null;
     superficieTotal: number | null;
@@ -73,8 +74,17 @@ export interface PropiedadParaEditar {
   fotos: { urlCloudinary: string; orden: number; esPortada: boolean }[];
 }
 
+interface AgenteOption {
+  id: string;
+  nombre: string;
+  rol: string;
+}
+
 interface Props {
   propiedad?: PropiedadParaEditar;
+  /** Lista de agentes seleccionables (solo se pasa cuando el usuario es ADMIN) */
+  agentes?: AgenteOption[];
+  currentUserId?: string;
 }
 
 // ─── Design tokens (inline, no Tailwind) ─────────────────────────────────────
@@ -416,9 +426,10 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
-export function PropiedadForm({ propiedad }: Props) {
+export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props) {
   const router = useRouter();
   const isEdit = !!propiedad;
+  const puedeElegirAsesor = agentes.length > 0; // true solo para ADMIN
 
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
@@ -449,6 +460,7 @@ export function PropiedadForm({ propiedad }: Props) {
           descripcion: propiedad.descripcion ?? "",
           videoUrl: propiedad.videoUrl ?? "",
           publicada: propiedad.publicada,
+          agenteId: propiedad.agenteId ?? "",
           atributos: propiedad.atributos
             ? {
                 superficieCubierta: propiedad.atributos.superficieCubierta ?? undefined,
@@ -488,6 +500,8 @@ export function PropiedadForm({ propiedad }: Props) {
           moneda: "USD",
           publicada: true,
           fotos: [],
+          // Por defecto se atribuye al usuario actual (admin). Puede cambiarlo en el selector.
+          agenteId: currentUserId ?? "",
           atributos: { mostrarPrecioPorM2: false, caracteristicasCustom: [] },
         },
   });
@@ -1144,6 +1158,42 @@ export function PropiedadForm({ propiedad }: Props) {
                       </button>
                     )}
                   />
+
+                  {/* Asesor asignado — solo ADMIN */}
+                  {puedeElegirAsesor && (
+                    <div>
+                      <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginBottom: 8, fontWeight: 500 }}>
+                        Asesor a cargo
+                        <span style={{ fontSize: 10, color: "var(--antracita-300)", fontWeight: 400, marginLeft: 6 }}>
+                          — aparece como contacto en la publicación
+                        </span>
+                      </div>
+                      <Controller
+                        control={control}
+                        name="agenteId"
+                        render={({ field }) => (
+                          <select
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            style={{
+                              width: "100%", height: 46, padding: "0 14px",
+                              borderRadius: 10, border: "1.5px solid var(--border)",
+                              background: "white", fontSize: 14,
+                              color: "var(--antracita-900)", outline: "none",
+                              fontFamily: "var(--font-body)", cursor: "pointer",
+                            }}
+                          >
+                            <option value="">A nombre de la inmobiliaria (sin asesor)</option>
+                            {agentes.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.nombre}{a.rol === "ADMIN" ? " (Admin)" : ""}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      />
+                    </div>
+                  )}
                 </div>
               </StepSlide>
             )}

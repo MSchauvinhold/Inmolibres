@@ -7,9 +7,9 @@ import { Menu, X, Home, Bed, Clock, Map } from "lucide-react";
 import { Logo } from "@/components/crm/Logo";
 
 const NAV_LINKS = [
-  { href: "/?operacion=VENTA", label: "Comprar", icon: Home },
-  { href: "/?operacion=ALQUILER", label: "Alquilar", icon: Bed },
-  { href: "/?operacion=ALQUILER_TEMPORARIO", label: "Temporario", icon: Clock },
+  { href: "/buscar?operacion=VENTA", label: "Comprar", icon: Home },
+  { href: "/buscar?operacion=ALQUILER", label: "Alquilar", icon: Bed },
+  { href: "/buscar?operacion=ALQUILER_TEMPORARIO", label: "Temporario", icon: Clock },
   { href: "/mapa", label: "Mapa", icon: Map },
 ];
 

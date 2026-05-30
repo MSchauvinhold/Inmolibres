@@ -141,8 +141,30 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { atributos, fotos, ...propData } = parsed.data;
+  const { atributos, fotos, agenteId: agenteIdInput, ...propData } = parsed.data;
   const slug = generateUniqueSlug(propData.titulo);
+
+  // ── Resolver el agente asignado ──────────────────────────────────
+  // PARTICULAR / AGENTE → siempre su propio usuario (no pueden elegir)
+  // ADMIN → puede elegir un agente de su inmobiliaria, o null (a nombre de la inmobiliaria)
+  let agenteFinal: string | null;
+  if (rol === "ADMIN") {
+    if (agenteIdInput) {
+      // Validar que el agente elegido pertenezca a la inmobiliaria del admin
+      const agenteValido = await db.usuario.findFirst({
+        where: { id: agenteIdInput, inmobiliariaId, rol: { in: ["ADMIN", "AGENTE"] } },
+        select: { id: true },
+      });
+      if (!agenteValido) {
+        return NextResponse.json({ error: "El asesor seleccionado no es válido" }, { status: 400 });
+      }
+      agenteFinal = agenteIdInput;
+    } else {
+      agenteFinal = null; // a nombre de la inmobiliaria
+    }
+  } else {
+    agenteFinal = userId; // PARTICULAR y AGENTE
+  }
 
   try {
     const propiedad = await db.propiedad.create({
@@ -150,7 +172,7 @@ export async function POST(request: NextRequest) {
         ...propData,
         precio: propData.precio,
         inmobiliariaId: isParticular ? null : inmobiliariaId!,
-        agenteId: userId,
+        agenteId: agenteFinal,
         slug,
         ...(atributos
           ? { atributos: { create: atributos } }

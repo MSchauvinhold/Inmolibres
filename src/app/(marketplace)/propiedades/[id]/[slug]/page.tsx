@@ -1,6 +1,9 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { MapPin, Bed, Bath, Square, MessageCircle, Phone } from "lucide-react";
+import {
+  MapPin, Bed, Bath, Square, MessageCircle,
+  Phone, CheckCircle, ChevronRight,
+} from "lucide-react";
 import {
   formatPrice,
   TIPO_PROPIEDAD_LABELS,
@@ -10,20 +13,16 @@ import {
 import { ConsultaForm } from "@/components/marketplace/ConsultaForm";
 import { PropiedadMap } from "@/components/maps/PropiedadMap";
 import { PropiedadGallery } from "@/components/marketplace/PropiedadGallery";
+import { MarketplacePropiedadCard } from "@/components/marketplace/MarketplacePropiedadCard";
 import { Pill } from "@/components/ui/pill";
 import Image from "next/image";
+import Link from "next/link";
 import type { Metadata } from "next";
 
-interface Params {
-  id: string;
-  slug: string;
-}
+interface Params { id: string; slug: string; }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<Params>;
-}): Promise<Metadata> {
+/* ── Metadata ──────────────────────────────────────────────────── */
+export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { id } = await params;
   const prop = await db.propiedad.findUnique({
     where: { id },
@@ -37,35 +36,40 @@ export async function generateMetadata({
   return {
     title: prop.titulo,
     description: prop.descripcion ?? undefined,
-    openGraph: prop.fotos[0]
-      ? { images: [prop.fotos[0].urlCloudinary] }
-      : undefined,
+    openGraph: prop.fotos[0] ? { images: [prop.fotos[0].urlCloudinary] } : undefined,
   };
 }
 
-export default async function PropiedadDetailPage({
-  params,
-}: {
-  params: Promise<Params>;
-}) {
+/* ── ARS Blue rate (server, cache 1h) ──────────────────────────── */
+async function fetchTasaBlue(): Promise<number | null> {
+  try {
+    const r = await fetch("https://dolarapi.com/v1/dolares/blue", {
+      next: { revalidate: 3600 },
+    });
+    if (!r.ok) return null;
+    const data = (await r.json()) as { venta?: number };
+    return data.venta ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function fmtARS(n: number): string {
+  if (n >= 1_000_000) return `${Math.round(n / 1_000_000)}M`;
+  return Math.round(n).toLocaleString("es-AR");
+}
+
+/* ── Page ──────────────────────────────────────────────────────── */
+export default async function PropiedadDetailPage({ params }: { params: Promise<Params> }) {
   const { id } = await params;
 
   const propiedad = await db.propiedad.findUnique({
-    where: {
-      id,
-      publicada: true,
-    },
+    where: { id, publicada: true },
     include: {
       atributos: true,
       fotos: { orderBy: { orden: "asc" } },
       inmobiliaria: {
-        select: {
-          id: true,
-          nombre: true,
-          logoUrl: true,
-          whatsapp: true,
-          email: true,
-        },
+        select: { id: true, nombre: true, logoUrl: true, whatsapp: true, email: true },
       },
       agente: { select: { nombre: true } },
     },
@@ -74,53 +78,123 @@ export default async function PropiedadDetailPage({
   if (!propiedad) notFound();
 
   const a = propiedad.atributos;
-  const atributos = [
-    a?.habitaciones != null && { icon: Bed, label: `${a.habitaciones} dormitorio${a.habitaciones !== 1 ? "s" : ""}` },
-    a?.banos != null && { icon: Bath, label: `${a.banos} baño${a.banos !== 1 ? "s" : ""}` },
-    a?.superficieCubierta != null && { icon: Square, label: `${a.superficieCubierta} m² cubiertos` },
-    a?.superficieTotal != null && { icon: Square, label: `${a.superficieTotal} m² totales` },
-    (a?.anchoMetros != null && a?.largoMetros != null) && { icon: Square, label: `${a.anchoMetros} × ${a.largoMetros} m` },
-    a?.alturaInterna != null && { icon: Square, label: `${a.alturaInterna} m altura interna` },
-    a?.garage && { icon: Square, label: "Garage" },
-    a?.pileta && { icon: Square, label: "Pileta" },
-    a?.quincho && { icon: Square, label: "Quincho" },
-    a?.balcon && { icon: Square, label: "Balcón" },
-    a?.amueblado && { icon: Square, label: "Amueblado" },
-  ].filter(Boolean) as Array<{ icon: React.ElementType; label: string }>;
 
-  const servicios = [
-    a?.serviciosAgua && "Agua corriente",
-    a?.serviciosLuz && "Luz eléctrica",
-    a?.serviciosGas && "Gas natural",
-    a?.serviciosCloaca && "Cloaca",
+  /* ── Características unificadas con checkmarks ── */
+  const todasCaracteristicas: string[] = [
+    a?.balcon           && "Balcón",
+    a?.garage           && "Garage",
+    a?.pileta           && "Pileta",
+    a?.quincho          && "Quincho",
+    a?.amueblado        && "Amueblado",
+    a?.serviciosAgua    && "Agua corriente",
+    a?.serviciosLuz     && "Luz eléctrica",
+    a?.serviciosGas     && "Gas natural",
+    a?.serviciosCloaca  && "Cloaca",
+    ...(a?.caracteristicasCustom ?? []),
   ].filter(Boolean) as string[];
 
-  const waMsg = `Hola, vi "${propiedad.titulo}" en InmoLibres y me interesa más información.`;
+  /* ── WhatsApp ── */
+  const waMsg  = `Hola, vi "${propiedad.titulo}" en InmoLibres y me interesa más información.`;
   const waLink = propiedad.inmobiliaria
     ? buildWhatsAppLink(propiedad.inmobiliaria.whatsapp, waMsg)
     : null;
 
+  /* ── Iniciales inmobiliaria ── */
   const initials = propiedad.inmobiliaria
-    ? propiedad.inmobiliaria.nombre
-        .split(" ")
-        .slice(0, 2)
-        .map((w) => w[0] ?? "")
-        .join("")
-        .toUpperCase()
+    ? propiedad.inmobiliaria.nombre.split(" ").slice(0, 2).map((w) => w[0] ?? "").join("").toUpperCase()
     : "P";
 
+  /* ── Fotos ── */
   const fotos = propiedad.fotos.map((f) => ({
     id: f.id,
     urlCloudinary: f.urlCloudinary,
     esPortada: f.esPortada,
   }));
 
+  /* ── Precio ARS equivalente ── */
+  const tasaBlue = propiedad.moneda === "USD" ? await fetchTasaBlue() : null;
+  const arsEquivalente = tasaBlue ? Math.round(Number(propiedad.precio) * tasaBlue) : null;
+
+  /* ── Propiedades similares ── */
+  const similaresRaw = await db.propiedad.findMany({
+    where: {
+      publicada: true,
+      operacion: propiedad.operacion,
+      NOT: { id: propiedad.id },
+    },
+    include: {
+      fotos: { where: { esPortada: true }, take: 1 },
+      atributos: true,
+      inmobiliaria: { select: { id: true, nombre: true, logoUrl: true, whatsapp: true } },
+    },
+    take: 4,
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Serializar para Client Components (Decimal → number)
+  const similares = similaresRaw.map((p) => ({
+    id: p.id,
+    titulo: p.titulo,
+    slug: p.slug,
+    tipo: p.tipo,
+    operacion: p.operacion,
+    precio: Number(p.precio),
+    moneda: p.moneda,
+    direccion: p.direccion,
+    fotos: p.fotos.map((f) => ({ urlCloudinary: f.urlCloudinary, esPortada: f.esPortada })),
+    atributos: p.atributos
+      ? {
+          habitaciones: p.atributos.habitaciones,
+          banos: p.atributos.banos,
+          superficieCubierta: p.atributos.superficieCubierta != null ? Number(p.atributos.superficieCubierta) : null,
+          superficieTotal: p.atributos.superficieTotal != null ? Number(p.atributos.superficieTotal) : null,
+          anchoMetros: p.atributos.anchoMetros != null ? Number(p.atributos.anchoMetros) : null,
+          largoMetros: p.atributos.largoMetros != null ? Number(p.atributos.largoMetros) : null,
+          garage: p.atributos.garage,
+          caracteristicasCustom: p.atributos.caracteristicasCustom,
+        }
+      : null,
+    inmobiliaria: p.inmobiliaria
+      ? { id: p.inmobiliaria.id, nombre: p.inmobiliaria.nombre, logoUrl: p.inmobiliaria.logoUrl, whatsapp: p.inmobiliaria.whatsapp }
+      : null,
+  }));
+
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-10 pb-24 lg:pb-10">
-      {/* Mobile sticky CTA */}
+    <div
+      className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 pb-24 lg:pb-16"
+      style={{ color: "var(--antracita-700)" }}
+    >
+      {/* ── Breadcrumb ── */}
+      <nav
+        style={{
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          fontSize: 12.5,
+          color: "var(--antracita-300)",
+          marginBottom: 20,
+          flexWrap: "wrap",
+        }}
+      >
+        <Link href="/" style={{ color: "var(--antracita-300)", textDecoration: "none" }}>
+          Marketplace
+        </Link>
+        <ChevronRight style={{ width: 13, height: 13 }} />
+        <span>{TIPO_OPERACION_LABELS[propiedad.operacion]}</span>
+        <ChevronRight style={{ width: 13, height: 13 }} />
+        <span>{TIPO_PROPIEDAD_LABELS[propiedad.tipo]}</span>
+        <ChevronRight style={{ width: 13, height: 13 }} />
+        <span
+          style={{ color: "var(--antracita-700)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "40vw" }}
+        >
+          {propiedad.titulo}
+        </span>
+      </nav>
+
+      {/* ── Mobile sticky CTA ── */}
       <div
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 px-4 py-3 border-t"
-        style={{ background: "white", borderColor: "var(--cream-border)" }}
+        style={{ background: "white", borderColor: "var(--border)" }}
       >
         <a
           href={waLink ?? undefined}
@@ -134,27 +208,31 @@ export default async function PropiedadDetailPage({
         </a>
       </div>
 
+      {/* ── 2-column grid ── */}
       <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-10 lg:gap-x-10">
-        {/* Main column */}
+
+        {/* ═══════════ COLUMNA IZQUIERDA ═══════════ */}
         <div className="min-w-0 space-y-8">
-          {/* Gallery */}
+
+          {/* Galería */}
           {fotos.length > 0 && <PropiedadGallery fotos={fotos} />}
 
-          {/* Price + title */}
+          {/* Título + precio */}
           <div>
-            {/* Operation + type badges */}
             <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
               <Pill tone={propiedad.operacion === "VENTA" ? "terra" : propiedad.operacion === "ALQUILER" ? "dark" : "accent"}>
                 {TIPO_OPERACION_LABELS[propiedad.operacion]}
               </Pill>
               <Pill tone="outline">{TIPO_PROPIEDAD_LABELS[propiedad.tipo]}</Pill>
-              <Pill tone="success">{propiedad.estado === "DISPONIBLE" ? "Disponible" : propiedad.estado === "RESERVADA" ? "Reservada" : "Alquilada"}</Pill>
+              <Pill tone="success">
+                {propiedad.estado === "DISPONIBLE" ? "Disponible" : propiedad.estado === "RESERVADA" ? "Reservada" : "Alquilada"}
+              </Pill>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, flexWrap: "wrap", marginBottom: 10 }}>
               <h1
                 className="display"
-                style={{ fontSize: 34, margin: 0, color: "var(--antracita-900)", lineHeight: 1.1, letterSpacing: "-0.02em", flex: "1 1 300px" }}
+                style={{ fontSize: 34, margin: 0, color: "var(--antracita-900)", lineHeight: 1.1, letterSpacing: "-0.02em", flex: "1 1 280px" }}
               >
                 {propiedad.titulo}
               </h1>
@@ -165,6 +243,11 @@ export default async function PropiedadDetailPage({
                 >
                   {formatPrice(Number(propiedad.precio), propiedad.moneda)}
                 </div>
+                {arsEquivalente && (
+                  <div style={{ fontSize: 13, color: "var(--antracita-500)", marginTop: 4 }}>
+                    ≈ ARS {fmtARS(arsEquivalente)} · Blue
+                  </div>
+                )}
               </div>
             </div>
 
@@ -174,7 +257,7 @@ export default async function PropiedadDetailPage({
             </div>
           </div>
 
-          {/* Key facts 4-grid */}
+          {/* Key facts */}
           {(a?.habitaciones != null || a?.banos != null || a?.superficieCubierta != null || a?.superficieTotal != null) && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {a?.superficieTotal != null && (
@@ -224,94 +307,58 @@ export default async function PropiedadDetailPage({
             </div>
           )}
 
-          {/* Attribute chips (extras) */}
-          {atributos.filter(({ label }) => !label.includes("m²") && !label.includes("dormitorio") && !label.includes("baño")).length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {atributos.filter(({ label }) => !label.includes("m²") && !label.includes("dormitorio") && !label.includes("baño")).map(({ icon: Icon, label }) => (
-                <div
-                  key={label}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "8px 14px",
-                    borderRadius: 10,
-                    fontSize: 12.5,
-                    background: "var(--crema-100, #F0E9DC)",
-                    color: "var(--antracita-700)",
-                    fontWeight: 500,
-                    border: "1px solid var(--border)",
-                  }}
-                >
-                  <Icon size={14} />
-                  {label}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Servicios */}
-          {servicios.length > 0 && (
+          {/* Características con checkmarks (unifica boolean attrs + servicios + custom) */}
+          {todasCaracteristicas.length > 0 && (
             <div>
-              <h2 className="display" style={{ fontSize: 20, marginBottom: 10, marginTop: 0, color: "var(--antracita-900)" }}>
-                Servicios
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {servicios.map((s) => (
-                  <span
-                    key={s}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium"
-                    style={{ background: "#E8F5E9", color: "#1B4332", fontFamily: "var(--font-jakarta)" }}
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Características custom */}
-          {a?.caracteristicasCustom && a.caracteristicasCustom.length > 0 && (
-            <div>
-              <h2 className="display" style={{ fontSize: 20, marginBottom: 10, marginTop: 0, color: "var(--antracita-900)" }}>
+              <h2
+                className="display"
+                style={{ fontSize: 22, margin: "0 0 16px", color: "var(--antracita-900)" }}
+              >
                 Características
               </h2>
-              <div className="flex flex-wrap gap-2">
-                {a.caracteristicasCustom.map((c) => (
-                  <span
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: "10px 16px",
+                }}
+                className="sm:grid-cols-3 grid-cols-2"
+              >
+                {todasCaracteristicas.map((c) => (
+                  <div
                     key={c}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium"
-                    style={{ background: "var(--cream-dark)", color: "var(--antracite-mid)", fontFamily: "var(--font-jakarta)", border: "1px solid var(--cream-border)" }}
+                    style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13.5, color: "var(--antracita-700)" }}
                   >
+                    <CheckCircle
+                      size={15}
+                      style={{ color: "var(--success-500, #4A7C59)", flexShrink: 0 }}
+                    />
                     {c}
-                  </span>
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Description */}
+          {/* Descripción */}
           {propiedad.descripcion && (
             <div>
-              <h2 className="display" style={{ fontSize: 22, marginBottom: 12, marginTop: 0, color: "var(--antracita-900)" }}>
+              <h2 className="display" style={{ fontSize: 22, margin: "0 0 12px", color: "var(--antracita-900)" }}>
                 Descripción
               </h2>
               <p
                 className="leading-relaxed whitespace-pre-wrap text-sm"
-                style={{
-                  color: "var(--antracite-mid)",
-                  fontFamily: "var(--font-jakarta)",
-                }}
+                style={{ color: "var(--antracita-700)", fontFamily: "var(--font-jakarta)", fontSize: 15, lineHeight: 1.65 }}
               >
                 {propiedad.descripcion}
               </p>
             </div>
           )}
 
-          {/* Map */}
+          {/* Mapa */}
           {propiedad.latitud && propiedad.longitud && (
             <div>
-              <h2 className="display" style={{ fontSize: 22, marginBottom: 12, marginTop: 0, color: "var(--antracita-900)" }}>
+              <h2 className="display" style={{ fontSize: 22, margin: "0 0 12px", color: "var(--antracita-900)" }}>
                 Ubicación
               </h2>
               <div className="rounded-2xl overflow-hidden">
@@ -322,30 +369,29 @@ export default async function PropiedadDetailPage({
                   polygon={propiedad.poligonoJson as [number, number][] | null}
                 />
               </div>
+              <div style={{ fontSize: 13, color: "var(--antracita-500)", marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                <MapPin size={13} style={{ color: "var(--terracota-500)" }} />
+                {propiedad.direccion}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Sticky sidebar */}
+        {/* ═══════════ SIDEBAR ═══════════ */}
         <div className="min-w-0 lg:pl-6">
           <div
             className="il-card sticky"
-            style={{
-              top: 88,
-              padding: 24,
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-            }}
+            style={{ top: 88, padding: 24, display: "flex", flexDirection: "column", gap: 0 }}
           >
-            {/* Inmobiliaria / particular branding */}
-            <div className="flex items-center gap-3">
+            {/* Inmobiliaria / agente */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 18, borderBottom: "1px solid var(--border)" }}>
               <div
-                className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center shrink-0 text-sm font-bold"
                 style={{
-                  background: "var(--terra-pale)",
-                  color: "var(--terra-dark)",
-                  fontFamily: "var(--font-jakarta)",
+                  width: 48, height: 48, borderRadius: 12,
+                  overflow: "hidden",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "var(--terracota-100, #FCEAE4)",
+                  flexShrink: 0,
                 }}
               >
                 {propiedad.inmobiliaria?.logoUrl ? (
@@ -357,59 +403,69 @@ export default async function PropiedadDetailPage({
                     className="object-cover w-full h-full"
                   />
                 ) : (
-                  <span>{initials}</span>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-fraunces-display), Georgia, serif",
+                      fontSize: 20, fontWeight: 600,
+                      color: "var(--terracota-600)",
+                    }}
+                  >
+                    {initials}
+                  </span>
                 )}
               </div>
               <div>
-                <p
-                  className="font-semibold text-sm"
-                  style={{
-                    fontFamily: "var(--font-fraunces)",
-                    color: "var(--antracite)",
-                  }}
-                >
+                <p style={{ fontSize: 15, fontWeight: 600, color: "var(--antracita-900)", margin: 0 }}>
                   {propiedad.inmobiliaria?.nombre ?? "Propietario particular"}
                 </p>
-                <p
-                  className="text-xs mt-0.5"
-                  style={{
-                    color: "var(--antracite-light)",
-                    fontFamily: "var(--font-jakarta)",
-                  }}
-                >
-                  {propiedad.inmobiliaria ? `Asesor: ${propiedad.agente.nombre}` : "Publicado directamente"}
+                <p style={{ fontSize: 12, color: "var(--antracita-500)", margin: "3px 0 0" }}>
+                  {!propiedad.inmobiliaria
+                    ? "Publicado directamente"
+                    : propiedad.agente
+                    ? `Asesor: ${propiedad.agente.nombre}`
+                    : "Publicado por la inmobiliaria"}
                 </p>
               </div>
             </div>
 
-            {/* WhatsApp button */}
-            {waLink && (
-              <a
-                href={waLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="il-btn il-btn--whats"
-                style={{ width: "100%", height: 44, fontSize: 14, justifyContent: "center", textDecoration: "none" }}
-              >
-                <MessageCircle size={18} />
-                Consultar por WhatsApp
-              </a>
-            )}
+            {/* CTAs */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "18px 0" }}>
+              {waLink && (
+                <a
+                  href={waLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="il-btn il-btn--whats"
+                  style={{ width: "100%", height: 50, fontSize: 15, justifyContent: "center", textDecoration: "none" }}
+                >
+                  <MessageCircle size={18} />
+                  Consultar por WhatsApp
+                </a>
+              )}
+              {propiedad.inmobiliaria?.email && (
+                <a
+                  href={`mailto:${propiedad.inmobiliaria.email}?subject=${encodeURIComponent(`Consulta: ${propiedad.titulo}`)}`}
+                  className="il-btn il-btn--ghost"
+                  style={{ width: "100%", height: 44, fontSize: 14, justifyContent: "center", textDecoration: "none", color: "var(--antracita-700)" }}
+                >
+                  <Phone size={15} />
+                  Consultar por email
+                </a>
+              )}
+            </div>
 
-            {propiedad.inmobiliaria?.email && (
-              <a
-                href={`mailto:${propiedad.inmobiliaria.email}?subject=${encodeURIComponent(`Consulta sobre: ${propiedad.titulo}`)}`}
-                className="il-btn il-btn--ghost"
-                style={{ width: "100%", height: 40, fontSize: 13, justifyContent: "center", textDecoration: "none", color: "var(--antracita-700)" }}
+            {/* Formulario de consulta */}
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 18 }}>
+              <p
+                style={{
+                  fontFamily: "var(--font-jetbrains-mono, monospace)",
+                  fontSize: 10.5,
+                  color: "var(--antracita-300)",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  margin: "0 0 14px",
+                }}
               >
-                <Phone size={14} />
-                Consultar por email
-              </a>
-            )}
-
-            {/* Divider + form */}
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--antracita-900)", marginBottom: 14, marginTop: 0 }}>
                 Enviá una consulta
               </p>
               <ConsultaForm
@@ -418,8 +474,79 @@ export default async function PropiedadDetailPage({
               />
             </div>
           </div>
+
+          {/* Kai card — fuera del il-card */}
+          <div
+            style={{
+              marginTop: 14,
+              background: "var(--crema-100, #F0E9DC)",
+              border: "1px solid var(--border)",
+              borderRadius: 14,
+              padding: "14px 16px",
+              display: "flex",
+              gap: 12,
+              alignItems: "center",
+              cursor: "default",
+            }}
+          >
+            <div
+              style={{
+                width: 36, height: 36, borderRadius: 999,
+                background: "var(--terracota-500, #C1694F)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "white",
+                fontFamily: "var(--font-fraunces-display), Georgia, serif",
+                fontWeight: 600,
+                fontStyle: "italic",
+                fontSize: 16,
+                flexShrink: 0,
+              }}
+            >
+              K
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12.5, color: "var(--antracita-900)", fontWeight: 600 }}>
+                ¿Querés comparar con otras?
+              </div>
+              <div style={{ fontSize: 11.5, color: "var(--antracita-500)" }}>
+                Kai te muestra similares en la zona
+              </div>
+            </div>
+            <ChevronRight size={14} style={{ color: "var(--antracita-500)", flexShrink: 0 }} />
+          </div>
         </div>
       </div>
+
+      {/* ── Propiedades similares ── */}
+      {similares.length > 0 && (
+        <section style={{ marginTop: 64 }}>
+          <h2
+            className="display"
+            style={{ fontSize: 28, margin: "0 0 24px", color: "var(--antracita-900)" }}
+          >
+            Propiedades similares
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {similares.map((p, i) => (
+              <MarketplacePropiedadCard
+                key={p.id}
+                id={p.id}
+                titulo={p.titulo}
+                slug={p.slug}
+                tipo={p.tipo}
+                operacion={p.operacion}
+                precio={p.precio}
+                moneda={p.moneda}
+                direccion={p.direccion}
+                fotos={p.fotos}
+                atributos={p.atributos}
+                inmobiliaria={p.inmobiliaria}
+                index={i}
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

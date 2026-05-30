@@ -71,12 +71,19 @@ export async function proxy(request: NextRequest) {
   }
 
   // ─── CRM routes — ADMIN y AGENTE ───────────────────────────────────────────
+  // Nota: /propiedades/[id]/[slug] es público (marketplace). Solo proteger rutas CRM específicas.
   const crmPrefixes = [
-    "/dashboard", "/propiedades", "/clientes", "/visitas",
+    "/dashboard", "/clientes", "/visitas",
     "/alquileres", "/consultas", "/configuracion", "/finanzas",
     "/contactos", "/calculadoras",
   ];
-  if (crmPrefixes.some((p) => pathname.startsWith(p))) {
+  // Propiedades CRM: sólo la raíz, /nueva y /**/editar (no las rutas públicas del marketplace)
+  const isCrmPropiedad =
+    pathname === "/propiedades" ||
+    pathname.startsWith("/propiedades/nueva") ||
+    /^\/propiedades\/[^/]+\/editar(\/.*)?$/.test(pathname);
+
+  if (crmPrefixes.some((p) => pathname.startsWith(p)) || isCrmPropiedad) {
     if (!isLoggedIn) {
       const url = new URL("/login", request.url);
       url.searchParams.set("callbackUrl", pathname);
@@ -102,7 +109,11 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    return NextResponse.next();
+    // Evitar que el navegador cachee páginas del CRM (fix del "volver atrás")
+    const res = NextResponse.next();
+    res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.headers.set("Pragma", "no-cache");
+    return res;
   }
 
   // ─── /suspendido ───────────────────────────────────────────────────────────

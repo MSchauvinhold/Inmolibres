@@ -67,7 +67,7 @@ export default async function ClientesPage({
   const leadsNuevos = clientes.filter((c) => c.estadoPipeline === "NUEVO").length;
 
   return (
-    <div className="w-full max-w-[1060px] mx-auto space-y-0">
+    <div className="w-full space-y-0">
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Bell } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
 import { playNotificationSound } from "@/lib/notification-sound";
@@ -18,47 +18,61 @@ interface Notificacion {
 const TIPOS_URGENTES = ["SUSCRIPCION_24_HORAS", "SUSCRIPCION_VENCIDA"];
 
 export function NotificationBell() {
-  const [open, setOpen] = useState(false);
-  const [notifs, setNotifs] = useState<Notificacion[]>([]);
+  const [open, setOpen]       = useState(false);
+  const [notifs, setNotifs]   = useState<Notificacion[]>([]);
   const [noLeidas, setNoLeidas] = useState(0);
-  const prevCountRef = useRef<number | undefined>(undefined);
-  const ref = useRef<HTMLDivElement>(null);
 
-  const fetchNotifs = async () => {
+  // Guardamos el conteo previo para detectar NUEVAS notifs
+  // null = todavía no hicimos el primer fetch (no tocar sonido)
+  const prevCountRef  = useRef<number | null>(null);
+  const ref           = useRef<HTMLDivElement>(null);
+
+  const fetchNotifs = useCallback(async (isFirst = false) => {
     try {
       const res = await fetch("/api/notificaciones");
       if (!res.ok) return;
-      const json = await res.json();
+      const json = await res.json() as { data?: Notificacion[]; noLeidas?: number };
+      const count = json.noLeidas ?? 0;
+
+      // En el primer fetch: guardamos el baseline sin tocar el sonido
+      if (isFirst) {
+        prevCountRef.current = count;
+      }
+
       setNotifs(json.data ?? []);
-      setNoLeidas(json.noLeidas ?? 0);
-    } catch {/* ignore */}
-  };
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    void fetchNotifs();
-    const interval = setInterval(() => void fetchNotifs(), 60_000);
-    const onRefresh = () => void fetchNotifs();
-    window.addEventListener("notif:refresh", onRefresh);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("notif:refresh", onRefresh);
-    };
+      setNoLeidas(count);
+    } catch {/* ignorar errores de red */}
   }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Reproducir sonido al recibir nuevas notificaciones
+  // Efecto de sonido: SOLO se activa si el conteo aumenta respecto al fetch anterior
+  // prevCountRef.current === null → todavía cargando, no tocar nada
   useEffect(() => {
-    if (prevCountRef.current !== undefined && noLeidas > prevCountRef.current) {
+    if (prevCountRef.current !== null && noLeidas > prevCountRef.current) {
       const sonidoActivo = localStorage.getItem("inmolibres_sonido_notif") !== "false";
       if (sonidoActivo) {
         const hayUrgente = notifs.some((n) => n.tipo && TIPOS_URGENTES.includes(n.tipo));
         playNotificationSound(hayUrgente ? "urgente" : "suave");
       }
     }
-    prevCountRef.current = noLeidas;
+    // Actualizamos el prev solo si ya tenemos el baseline
+    if (prevCountRef.current !== null) {
+      prevCountRef.current = noLeidas;
+    }
   }, [noLeidas, notifs]);
 
+  // Polling: primer fetch es silencioso (isFirst=true), luego cada 30s
+  useEffect(() => {
+    void fetchNotifs(true);
+    const interval = setInterval(() => void fetchNotifs(false), 30_000);
+    const onRefresh = () => void fetchNotifs(false);
+    window.addEventListener("notif:refresh", onRefresh);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("notif:refresh", onRefresh);
+    };
+  }, [fetchNotifs]);
+
+  // Cerrar dropdown al hacer click fuera
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -74,6 +88,7 @@ export function NotificationBell() {
       body: JSON.stringify({ all: true }),
     });
     setNoLeidas(0);
+    prevCountRef.current = 0;
     setNotifs((prev) => prev.map((n) => ({ ...n, leida: true })));
   };
 
@@ -92,22 +107,32 @@ export function NotificationBell() {
         }}
       >
         <Bell className="w-4 h-4" />
+
+        {/* Badge rojo con conteo */}
         {noLeidas > 0 && (
           <span
-            className="absolute rounded-full border-2 flex items-center justify-center"
             style={{
-              top: 6,
-              right: 6,
-              width: noLeidas > 9 ? 16 : 8,
-              height: noLeidas > 9 ? 16 : 8,
-              background: "var(--terracota-500, #C1694F)",
-              borderColor: "var(--crema-100, #F5EFE5)",
+              position: "absolute",
+              top: -5,
+              right: -5,
+              minWidth: 18,
+              height: 18,
+              borderRadius: 999,
+              background: "#DC2626",
+              border: "2px solid var(--crema-50, #FBF8F2)",
               color: "#fff",
-              fontSize: 9,
+              fontSize: 10,
               fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0 4px",
+              lineHeight: 1,
+              fontFamily: "var(--font-jetbrains-mono), monospace",
+              zIndex: 1,
             }}
           >
-            {noLeidas > 9 ? "9+" : noLeidas > 1 ? noLeidas : ""}
+            {noLeidas > 99 ? "99+" : noLeidas}
           </span>
         )}
       </button>
@@ -125,15 +150,32 @@ export function NotificationBell() {
             className="flex items-center justify-between px-4 py-3 border-b"
             style={{ borderColor: "var(--border, #E8DFD0)" }}
           >
-            <p
-              className="text-sm font-semibold"
-              style={{
-                fontFamily: "var(--font-fraunces-display), Georgia, serif",
-                color: "var(--antracita-900, #14110E)",
-              }}
-            >
-              Notificaciones
-            </p>
+            <div className="flex items-center gap-2">
+              <p
+                className="text-sm font-semibold"
+                style={{
+                  fontFamily: "var(--font-fraunces-display), Georgia, serif",
+                  color: "var(--antracita-900, #14110E)",
+                }}
+              >
+                Notificaciones
+              </p>
+              {noLeidas > 0 && (
+                <span
+                  style={{
+                    background: "#DC2626",
+                    color: "#fff",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    padding: "1px 6px",
+                    fontFamily: "var(--font-jetbrains-mono), monospace",
+                  }}
+                >
+                  {noLeidas}
+                </span>
+              )}
+            </div>
             {noLeidas > 0 && (
               <button
                 onClick={markAll}
@@ -144,6 +186,7 @@ export function NotificationBell() {
               </button>
             )}
           </div>
+
           <div className="max-h-80 overflow-y-auto scrollbar-thin">
             {notifs.length === 0 ? (
               <p
@@ -153,7 +196,7 @@ export function NotificationBell() {
                 Sin notificaciones pendientes
               </p>
             ) : (
-              notifs.slice(0, 15).map((n) => (
+              notifs.slice(0, 20).map((n) => (
                 <a
                   key={n.id}
                   href={n.url ?? "#"}
@@ -176,7 +219,7 @@ export function NotificationBell() {
                     {!n.leida && (
                       <span
                         className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ background: "var(--terracota-500, #C1694F)" }}
+                        style={{ background: "#DC2626" }}
                       />
                     )}
                     <div className={!n.leida ? "" : "pl-3.5"}>

@@ -40,6 +40,7 @@ export default async function EditarPropiedadPage({ params }: { params: Promise<
     descripcion: propiedad.descripcion,
     videoUrl: propiedad.videoUrl,
     publicada: propiedad.publicada,
+    agenteId: propiedad.agenteId,
     atributos: propiedad.atributos
       ? {
           superficieCubierta: propiedad.atributos.superficieCubierta,
@@ -76,13 +77,26 @@ export default async function EditarPropiedadPage({ params }: { params: Promise<
     })),
   };
 
+  // Solo el ADMIN puede reasignar el asesor
+  const agentes = session.user.rol === "ADMIN" && session.user.inmobiliariaId
+    ? await db.usuario.findMany({
+        where: {
+          inmobiliariaId: session.user.inmobiliariaId,
+          activo: true,
+          rol: { in: ["ADMIN", "AGENTE"] },
+        },
+        select: { id: true, nombre: true, rol: true },
+        orderBy: { nombre: "asc" },
+      })
+    : [];
+
   return (
     <div className="w-full max-w-[800px] mx-auto space-y-5">
       <div>
         <h1 className="text-xl font-bold text-text-primary">Editar propiedad</h1>
         <p className="text-sm text-text-muted mt-0.5 truncate">{propiedad.titulo}</p>
       </div>
-      <PropiedadForm propiedad={serialized} />
+      <PropiedadForm propiedad={serialized} agentes={agentes} currentUserId={session.user.id} />
     </div>
   );
 }

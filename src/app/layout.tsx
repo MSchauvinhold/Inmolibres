@@ -100,6 +100,7 @@ export default function RootLayout({
     <html
       lang="es"
       suppressHydrationWarning
+      data-scroll-behavior="smooth"
       className={`${playfairDisplay.variable} ${dmSans.variable} ${jetbrainsMono.variable} ${fraunces.variable} ${plusJakartaSans.variable}`}
     >
       <body className="min-h-screen antialiased">

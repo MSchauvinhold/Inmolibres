@@ -97,8 +97,8 @@ export const NotifMessages = {
 
   suscripcionSuspendida(nombre: string) {
     return {
-      titulo: "Cuenta suspendida por el administrador",
-      mensaje: `${nombre}, tu cuenta fue suspendida manualmente. Tus propiedades han sido despublicadas. Contactá a InmoLibres para más información.`,
+      titulo: "Suscripción suspendida",
+      mensaje: `${nombre}, tu suscripción fue suspendida y tus publicaciones fueron pausadas. Contactá a InmoLibres para regularizar tu situación y reactivar el acceso.`,
       url: "/suspendido",
     };
   },
