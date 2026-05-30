@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { propiedadFormSchema, type PropiedadInput } from "@/lib/validations/property";
 import { CAMPOS_POR_TIPO, CARACTERISTICAS_POR_TIPO } from "@/lib/propiedades-config";
 import { FotoUploader, type FotoData } from "./FotoUploader";
+import { VideoUploader } from "./VideoUploader";
 import { PropertyIllustration } from "@/components/ui/property-illustration";
 import { formatPrice } from "@/lib/utils";
 import type { TipoPropiedad, TipoOperacion, Moneda } from "@prisma/client";
@@ -938,11 +939,14 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
         {/* Video */}
         <section className={sec}>
           <h2 className="font-semibold text-text-primary border-b border-border pb-2 mb-4">Video</h2>
-          <div>
-            <label className={lbl}>URL de YouTube / Vimeo</label>
-            <input {...register("videoUrl")} className={inp} placeholder="https://youtube.com/watch?v=..." />
-            {errors.videoUrl && <p className={errS}>{errors.videoUrl.message}</p>}
-          </div>
+          <p className="text-xs text-text-muted mb-3">Subí un video (máx. 50 MB) o pegá un link de YouTube/Vimeo. 1 video por propiedad.</p>
+          <Controller
+            control={control}
+            name="videoUrl"
+            render={({ field }) => (
+              <VideoUploader value={field.value ?? ""} onChange={field.onChange} />
+            )}
+          />
         </section>
 
         {/* Submit */}
@@ -1296,13 +1300,19 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
                 />
 
                 <div style={{ borderTop: "1px solid var(--border)", marginTop: 24, paddingTop: 20 }}>
-                  <WizardField label="Video (YouTube o Vimeo)" error={errors.videoUrl?.message}>
-                    <input
-                      {...register("videoUrl")}
-                      style={{ ...W_INPUT, fontSize: 13 }}
-                      placeholder="https://youtube.com/watch?v=..."
-                    />
-                  </WizardField>
+                  <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginBottom: 8, fontWeight: 500 }}>
+                    Video
+                    <span style={{ fontSize: 10, color: "var(--antracita-300)", fontWeight: 400, marginLeft: 6 }}>
+                      — subí un archivo (máx. 50 MB) o pegá un link de YouTube/Vimeo
+                    </span>
+                  </div>
+                  <Controller
+                    control={control}
+                    name="videoUrl"
+                    render={({ field }) => (
+                      <VideoUploader value={field.value ?? ""} onChange={field.onChange} />
+                    )}
+                  />
                 </div>
               </StepSlide>
             )}

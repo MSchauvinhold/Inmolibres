@@ -58,3 +58,8 @@ capturas/
 
 # design handoff (archivos de referencia de diseño, no producción)
 design_handoff_inmolibres_v2/
+
+# scripts locales de inspección / debug de DB (no producción)
+scripts/inspect-*.mjs
+scripts/*.local.mjs
+scripts/*.local.ts

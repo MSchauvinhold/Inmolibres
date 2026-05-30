@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useCallback, useId, useState } from "react";
+import { useReducer, useCallback, useId, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { X, ChevronLeft, ChevronRight, Loader2, FileText, Home, Users, DollarSign, Calendar, Gavel, Check, Printer } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
@@ -163,13 +163,21 @@ SÉPTIMA — ENTREGA: A la finalización del contrato, el locatario deberá entr
 
 OCTAVA — DOMICILIOS ESPECIALES: Las partes constituyen domicilios especiales en los indicados en el presente instrumento, donde serán válidas todas las notificaciones judiciales y extrajudiciales.`;
 
-const DEFAULT_CLAUSULAS_CV = `PRIMERA — BOLETO DE COMPRAVENTA: El presente instrumento constituye el boleto de compraventa del inmueble descripto, comprometiéndose las partes a otorgar la escritura traslativa de dominio en el plazo pactado.
+const DEFAULT_CLAUSULAS_CV = `PRIMERA — OBJETO: El VENDEDOR vende y el COMPRADOR compra el inmueble descripto en el presente instrumento, en el estado de uso y conservación en que se encuentra, que el COMPRADOR declara conocer y aceptar, libre de ocupantes y deudas a la fecha de la escrituración.
 
-SEGUNDA — LIBRE DE GRAVÁMENES: El vendedor garantiza que el inmueble se encuentra libre de hipotecas, embargos, inhibiciones y todo otro gravamen real o personal que pudiera afectarlo.
+SEGUNDA — PRECIO Y FORMA DE PAGO: El precio total de la operación es el consignado en las condiciones económicas, que el COMPRADOR abonará en la forma y plazos allí establecidos. La seña entregada se imputa a cuenta del precio total convenido.
 
-TERCERA — SEÑA Y PENALIDAD: La suma entregada en concepto de seña y a cuenta de precio tendrá el carácter de arras confirmatorias conforme al art. 1059 del Código Civil y Comercial. En caso de incumplimiento del comprador perderá dicha suma; en caso de incumplimiento del vendedor, deberá restituirla doblada.
+TERCERA — SEÑA Y ARRAS: La suma entregada en concepto de seña tendrá el carácter de arras confirmatorias conforme al art. 1059 del Código Civil y Comercial de la Nación. En caso de desistimiento del COMPRADOR, perderá la seña entregada; en caso de desistimiento del VENDEDOR, deberá restituirla duplicada, sin perjuicio de las demás acciones legales que pudieran corresponder.
 
-CUARTA — GASTOS DE ESCRITURACIÓN: Los gastos notariales, impuestos de sellos y demás costos inherentes a la escrituración serán soportados en un cincuenta por ciento (50%) por cada parte, salvo acuerdo en contrario.`;
+CUARTA — LIBRE DE GRAVÁMENES: El VENDEDOR garantiza que el inmueble se encuentra libre de hipotecas, embargos, inhibiciones, servidumbres y todo otro gravamen real o personal que pudiera afectarlo, obligándose a mantener dicha condición hasta la firma de la escritura traslativa de dominio.
+
+QUINTA — POSESIÓN: La posesión del inmueble será entregada al COMPRADOR en el acto de la escrituración, salvo acuerdo expreso en contrario que las partes consignen por escrito.
+
+SEXTA — ESCRITURACIÓN: Las partes se comprometen a otorgar la escritura traslativa de dominio en el plazo pactado, ante el escribano designado. Los gastos notariales, impuestos de sellos y demás costos inherentes a la escrituración serán soportados conforme a la ley y los usos de plaza, salvo acuerdo en contrario.
+
+SÉPTIMA — MORA: La mora se producirá de pleno derecho por el solo vencimiento de los plazos convenidos, sin necesidad de interpelación judicial o extrajudicial alguna.
+
+OCTAVA — DOMICILIOS Y JURISDICCIÓN: Las partes constituyen domicilios especiales en los indicados en el presente, donde se tendrán por válidas todas las notificaciones. Para cualquier divergencia se someten a la jurisdicción de los Tribunales Ordinarios de la ciudad de Paso de los Libres, Provincia de Corrientes, renunciando a todo otro fuero o jurisdicción.`;
 
 function mkAlqInit(cfg: WizardConfig | null): AlquilerData {
   const hoy = new Date().toISOString().slice(0, 10);
@@ -283,8 +291,8 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 
 // ─── Step indicator ──────────────────────────────────────────────────────────
 
-const ALQ_STEPS = ["Inmueble", "Partes", "Condiciones", "Vigencia"];
-const CV_STEPS = ["Inmueble", "Partes", "Condiciones", "Escritura"];
+const ALQ_STEPS = ["Inmueble", "Partes", "Condiciones", "Vigencia", "Vista previa"];
+const CV_STEPS = ["Inmueble", "Partes", "Condiciones", "Escritura", "Vista previa"];
 
 function StepIndicator({ steps, current, color }: { steps: string[]; current: number; color: string }) {
   return (
@@ -845,7 +853,7 @@ function duracionMeses(inicio: string, fin: string): number {
   return (d2.getFullYear() - d1.getFullYear()) * 12 + d2.getMonth() - d1.getMonth();
 }
 
-function printAlquiler(data: AlquilerData, propiedades: PropiedadItem[], cfg: WizardConfig | null, inmob: WizardInmobiliaria | null) {
+function buildAlquilerHtml(data: AlquilerData, propiedades: PropiedadItem[], cfg: WizardConfig | null, inmob: WizardInmobiliaria | null): string {
   const cp = cfg?.colorPrimario ?? "#1B4332";
   const cs = cfg?.colorSecundario ?? "#2C2C2C";
   const prop = propiedades.find((p) => p.id === data.propiedadId);
@@ -868,7 +876,7 @@ function printAlquiler(data: AlquilerData, propiedades: PropiedadItem[], cfg: Wi
     </div>` : "";
 
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Contrato — ${data.inquilinoNombre}</title><style>
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.6;color:#1a1a1a}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,"Times New Roman",serif;font-size:11.5px;line-height:1.65;color:#1a1a1a}
 .hdr{background:${cp};color:#fff;padding:20px 28px;display:flex;align-items:center;gap:20px}
 .hdr-text h1{font-size:17px;font-weight:700}.hdr-text p{font-size:10px;opacity:.85;margin-top:2px}
 .tbar{background:${cs};color:#fff;text-align:center;padding:9px;font-size:13px;font-weight:700;letter-spacing:2.5px}
@@ -897,6 +905,11 @@ ${garanHtml}
 <div class="firmas"><div><div class="firma-line"></div><div class="firma-label">LOCADOR / INMOBILIARIA</div><div class="firma-sub">${data.locadorNombre}</div>${data.locadorMatricula ? `<div class="firma-sub">Mat. N° ${data.locadorMatricula}</div>` : ""}</div><div><div class="firma-line"></div><div class="firma-label">LOCATARIO</div><div class="firma-sub">${data.inquilinoNombre}</div><div class="firma-sub">Tel: ${data.inquilinoTel}</div></div></div>
 </div><div class="doc-footer">${pie}</div></body></html>`;
 
+  return html;
+}
+
+function printAlquiler(data: AlquilerData, propiedades: PropiedadItem[], cfg: WizardConfig | null, inmob: WizardInmobiliaria | null) {
+  const html = buildAlquilerHtml(data, propiedades, cfg, inmob);
   const w = window.open("", "_blank", "width=900,height=1100");
   if (!w) { toast.error("Habilitá las ventanas emergentes para imprimir"); return; }
   w.document.write(html);
@@ -904,7 +917,8 @@ ${garanHtml}
   setTimeout(() => { w.focus(); w.print(); }, 400);
 }
 
-export function printCompraventa(data: CompraventaData, cfg: WizardConfig | null, inmob: WizardInmobiliaria | null) {
+// Construye el HTML completo del boleto (reutilizable: preview en pantalla + impresión)
+export function buildCompraventaHtml(data: CompraventaData, cfg: WizardConfig | null, inmob: WizardInmobiliaria | null): string {
   const cp = cfg?.colorPrimario ?? "#1B4332";
   const cs = cfg?.colorSecundario ?? "#2C2C2C";
   const hoy = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
@@ -922,7 +936,7 @@ export function printCompraventa(data: CompraventaData, cfg: WizardConfig | null
   const conyugeComprRow = data.compradorEstadoCivil === "casado" && data.compradorConyuge ? `<div class="field"><div class="fl">Cónyuge</div><div class="fv">${data.compradorConyuge}</div></div>` : "";
 
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Boleto de Compraventa</title><style>
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.6;color:#1a1a1a}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,"Times New Roman",serif;font-size:11.5px;line-height:1.65;color:#1a1a1a}
 .hdr{background:${cp};color:#fff;padding:20px 28px;display:flex;align-items:center;gap:20px}
 .hdr-text h1{font-size:17px;font-weight:700}.hdr-text p{font-size:10px;opacity:.85;margin-top:2px}
 .tbar{background:${cs};color:#fff;text-align:center;padding:9px;font-size:13px;font-weight:700;letter-spacing:2.5px}
@@ -952,11 +966,136 @@ ${data.escribanoNombre ? `<div class="section"><div class="section-title">Escrib
 ${cfg?.matriculaCorredora ? `<div style="margin-top:24px;text-align:center"><div style="display:inline-block;text-align:center"><div style="height:36px;border-bottom:1px solid #aaa;width:200px;margin-bottom:5px"></div><div style="font-size:9.5px;font-weight:700;color:#333">CORREDOR INMOBILIARIO</div><div style="font-size:9px;color:#888">${cfg.razonSocial ?? ""} · Mat. N° ${cfg.matriculaCorredora}</div></div></div>` : ""}
 </div><div class="doc-footer">${pie}</div></body></html>`;
 
+  return html;
+}
+
+export function printCompraventa(data: CompraventaData, cfg: WizardConfig | null, inmob: WizardInmobiliaria | null) {
+  const html = buildCompraventaHtml(data, cfg, inmob);
   const w = window.open("", "_blank", "width=900,height=1100");
   if (!w) { toast.error("Habilitá las ventanas emergentes para imprimir"); return; }
   w.document.write(html);
   w.document.close();
   setTimeout(() => { w.focus(); w.print(); }, 400);
+}
+
+// ─── Paso de previsualización (compraventa) ──────────────────────────────────
+function CvPreview({
+  data, cfg, inmob, color, onChange,
+}: {
+  data: CompraventaData;
+  cfg: WizardConfig | null;
+  inmob: WizardInmobiliaria | null;
+  color: string;
+  onChange: (p: Partial<CompraventaData>) => void;
+}) {
+  // El HTML se recalcula cuando cambian los datos (incluidas las cláusulas editadas)
+  const html = useMemo(() => buildCompraventaHtml(data, cfg, inmob), [data, cfg, inmob]);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-lg font-bold text-[#1a1a1a]">Vista previa del documento</p>
+        <p className="text-sm text-[#6a6a6a]">
+          Así se verá el boleto al imprimirlo. Podés ajustar las cláusulas abajo — el resto de los datos se editan volviendo atrás.
+        </p>
+      </div>
+
+      {/* Previsualización del documento real */}
+      <div
+        className="rounded-xl overflow-hidden border"
+        style={{ borderColor: "#D4D0CB", background: "#fff" }}
+      >
+        <iframe
+          title="Previsualización del boleto"
+          srcDoc={html}
+          style={{ width: "100%", height: 420, border: "none", display: "block" }}
+        />
+      </div>
+
+      {/* Editor de cláusulas */}
+      <div>
+        <label className="block text-xs font-semibold mb-1.5 text-[#3a3a3a]">
+          Cláusulas y condiciones
+          <span className="font-normal text-[#9a9a9a]"> — editá libremente, se reflejan arriba</span>
+        </label>
+        <textarea
+          value={data.clausulas}
+          onChange={(e) => onChange({ clausulas: e.target.value })}
+          rows={10}
+          className="w-full rounded-xl border px-3 py-2.5 text-xs outline-none transition-colors leading-relaxed"
+          style={{ borderColor: "#D4D0CB", background: "#FAFAF8", color: "#1a1a1a", fontFamily: "Georgia, serif" }}
+          placeholder="Cláusulas del boleto..."
+        />
+        <button
+          type="button"
+          onClick={() => onChange({ clausulas: DEFAULT_CLAUSULAS_CV })}
+          className="mt-1.5 text-xs font-medium hover:underline"
+          style={{ color }}
+        >
+          Restaurar cláusulas estándar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Paso de previsualización (alquiler) ─────────────────────────────────────
+function AlqPreview({
+  data, propiedades, cfg, inmob, color, onChange,
+}: {
+  data: AlquilerData;
+  propiedades: PropiedadItem[];
+  cfg: WizardConfig | null;
+  inmob: WizardInmobiliaria | null;
+  color: string;
+  onChange: (p: Partial<AlquilerData>) => void;
+}) {
+  const html = useMemo(
+    () => buildAlquilerHtml(data, propiedades, cfg, inmob),
+    [data, propiedades, cfg, inmob]
+  );
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-lg font-bold text-[#1a1a1a]">Vista previa del documento</p>
+        <p className="text-sm text-[#6a6a6a]">
+          Así se verá el contrato al imprimirlo. Podés ajustar las cláusulas abajo — el resto de los datos se editan volviendo atrás.
+        </p>
+      </div>
+
+      <div className="rounded-xl overflow-hidden border" style={{ borderColor: "#D4D0CB", background: "#fff" }}>
+        <iframe
+          title="Previsualización del contrato"
+          srcDoc={html}
+          style={{ width: "100%", height: 420, border: "none", display: "block" }}
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold mb-1.5 text-[#3a3a3a]">
+          Cláusulas y condiciones
+          <span className="font-normal text-[#9a9a9a]"> — editá libremente, se reflejan arriba</span>
+        </label>
+        <textarea
+          value={data.clausulas}
+          onChange={(e) => onChange({ clausulas: e.target.value })}
+          rows={10}
+          className="w-full rounded-xl border px-3 py-2.5 text-xs outline-none transition-colors leading-relaxed"
+          style={{ borderColor: "#D4D0CB", background: "#FAFAF8", color: "#1a1a1a", fontFamily: "Georgia, serif" }}
+          placeholder="Cláusulas del contrato..."
+        />
+        <button
+          type="button"
+          onClick={() => onChange({ clausulas: cfg?.clausulasAdicionales ?? DEFAULT_CLAUSULAS_ALQ })}
+          className="mt-1.5 text-xs font-medium hover:underline"
+          style={{ color }}
+        >
+          Restaurar cláusulas estándar
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // ─── Main wizard ─────────────────────────────────────────────────────────────
@@ -986,7 +1125,7 @@ export function NuevoContratoWizard({
   const primaryColor = config?.colorPrimario ?? "#1B4332";
   const color = primaryColor;
   const steps = tipo === "compraventa" ? CV_STEPS : ALQ_STEPS;
-  const totalPasos = 4;
+  const totalPasos = 5;
 
   const updAlq = useCallback((p: Partial<AlquilerData>) => dispatch({ type: "UPD_ALQ", payload: p }), []);
   const updCv = useCallback((p: Partial<CompraventaData>) => dispatch({ type: "UPD_CV", payload: p }), []);
@@ -1163,10 +1302,12 @@ export function NuevoContratoWizard({
           {tipo === "alquiler" && paso === 2 && <AlqStep2 data={alquiler} color={color} errs={errs} onChange={updAlq} />}
           {tipo === "alquiler" && paso === 3 && <AlqStep3 data={alquiler} color={color} errs={errs} onChange={updAlq} />}
           {tipo === "alquiler" && paso === 4 && <AlqStep4 data={alquiler} color={color} errs={errs} onChange={updAlq} />}
+          {tipo === "alquiler" && paso === 5 && <AlqPreview data={alquiler} propiedades={propiedades} cfg={config} inmob={inmobiliaria} color={color} onChange={updAlq} />}
           {tipo === "compraventa" && paso === 1 && <CvStep1 data={compraventa} color={color} errs={errs} onChange={updCv} />}
           {tipo === "compraventa" && paso === 2 && <CvStep2 data={compraventa} color={color} errs={errs} onChange={updCv} />}
           {tipo === "compraventa" && paso === 3 && <CvStep3 data={compraventa} color={color} errs={errs} onChange={updCv} />}
           {tipo === "compraventa" && paso === 4 && <CvStep4 data={compraventa} color={color} errs={errs} onChange={updCv} />}
+          {tipo === "compraventa" && paso === 5 && <CvPreview data={compraventa} cfg={config} inmob={inmobiliaria} color={color} onChange={updCv} />}
         </div>
 
         {/* Footer actions */}

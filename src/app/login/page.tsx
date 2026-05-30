@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { signIn, getSession } from "next-auth/react";
-import { Eye, EyeOff, Loader2, Home, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Loader2, Home, Mail, Lock, ArrowRight, Sparkles, MessageCircle, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { motion } from "motion/react";
@@ -13,6 +13,39 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Modal de contacto "quiero usar InmoLibres"
+  const [showContacto, setShowContacto] = useState(false);
+  const [contacto, setContacto] = useState({ nombre: "", telefono: "", mensaje: "" });
+  const [enviandoContacto, setEnviandoContacto] = useState(false);
+
+  async function enviarContacto(e: React.FormEvent) {
+    e.preventDefault();
+    if (!contacto.nombre.trim() || !contacto.telefono.trim()) {
+      toast.error("Completá tu nombre y teléfono");
+      return;
+    }
+    setEnviandoContacto(true);
+    try {
+      const res = await fetch("/api/consultas-kai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: contacto.nombre.trim(),
+          telefono: contacto.telefono.trim(),
+          mensaje: `[Inmobiliaria interesada en InmoLibres] ${contacto.mensaje.trim() || "Quiere comenzar a usar el sistema."}`,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("¡Mensaje enviado! Te vamos a contactar pronto.");
+      setShowContacto(false);
+      setContacto({ nombre: "", telefono: "", mensaje: "" });
+    } catch {
+      toast.error("No se pudo enviar. Probá por WhatsApp.");
+    } finally {
+      setEnviandoContacto(false);
+    }
+  }
 
   // Detectar ?reset=success y mostrar toast de confirmación
   useEffect(() => {
@@ -404,22 +437,133 @@ export default function LoginPage() {
             >
               <Sparkles className="w-4 h-4" style={{ color: "var(--terracota-600, #A85737)" }} />
             </div>
-            <div>
+            <div style={{ flex: 1 }}>
               <p style={{ fontSize: 13, fontWeight: 600, color: "var(--antracita-900, #14110E)" }}>
-                ¿Tu inmobiliaria no usa InmoLibres todavía?
+                ¿Tu inmobiliaria quiere usar InmoLibres?
               </p>
-              <p style={{ fontSize: 12.5, color: "var(--antracita-500, #3A332C)", marginTop: 2 }}>
-                <Link
-                  href="/registro"
-                  style={{ color: "var(--terracota-600, #A85737)", fontWeight: 500, textDecoration: "none" }}
+              <p style={{ fontSize: 12.5, color: "var(--antracita-500, #3A332C)", marginTop: 2, marginBottom: 10 }}>
+                Comunicate con nosotros para comenzar.
+              </p>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <a
+                  href="https://wa.me/5493772406996?text=Hola,%20me%20interesa%20usar%20InmoLibres%20para%20mi%20inmobiliaria.%20%C2%BFC%C3%B3mo%20empiezo%3F"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    background: "#25D366", color: "#fff",
+                    padding: "7px 12px", borderRadius: 9, fontSize: 12, fontWeight: 600,
+                    textDecoration: "none",
+                  }}
                 >
-                  Registrala gratis →
-                </Link>
-              </p>
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  WhatsApp
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowContacto(true)}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    background: "#fff", color: "var(--terracota-600, #A85737)",
+                    border: "1px solid var(--terracota-300, #E0A088)",
+                    padding: "7px 12px", borderRadius: 9, fontSize: 12, fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  Dejar mensaje
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>
       </div>
+
+      {/* Modal: dejar mensaje (le llega al SuperAdmin en Consultas de Kai) */}
+      {showContacto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(20,17,14,0.55)", backdropFilter: "blur(4px)" }}
+          onClick={() => !enviandoContacto && setShowContacto(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className="w-full max-w-md rounded-2xl overflow-hidden"
+            style={{ background: "#fff", boxShadow: "0 24px 64px rgba(20,17,14,0.3)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid var(--border, #E8DFD0)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <p style={{ fontFamily: "var(--font-fraunces-display), Georgia, serif", fontSize: 18, fontWeight: 700, color: "var(--antracita-900, #14110E)" }}>
+                  Quiero usar InmoLibres
+                </p>
+                <p style={{ fontSize: 12.5, color: "var(--antracita-500, #3A332C)", marginTop: 2 }}>
+                  Dejanos tus datos y te contactamos.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowContacto(false)}
+                style={{ color: "var(--antracita-300, #6F665C)", background: "none", border: "none", cursor: "pointer" }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={enviarContacto} style={{ padding: 22, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--antracita-500, #3A332C)" }}>
+                  Nombre / Inmobiliaria
+                </label>
+                <input
+                  value={contacto.nombre}
+                  onChange={(e) => setContacto((p) => ({ ...p, nombre: e.target.value }))}
+                  placeholder="Inmobiliaria del Litoral"
+                  required
+                  style={{ width: "100%", height: 44, padding: "0 14px", border: "1px solid var(--border, #E8DFD0)", borderRadius: 10, fontSize: 14, color: "var(--antracita-900, #14110E)", outline: "none", background: "#fff" }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--antracita-500, #3A332C)" }}>
+                  Teléfono / WhatsApp
+                </label>
+                <input
+                  value={contacto.telefono}
+                  onChange={(e) => setContacto((p) => ({ ...p, telefono: e.target.value }))}
+                  placeholder="3772 123456"
+                  required
+                  style={{ width: "100%", height: 44, padding: "0 14px", border: "1px solid var(--border, #E8DFD0)", borderRadius: 10, fontSize: 14, color: "var(--antracita-900, #14110E)", outline: "none", background: "#fff" }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--antracita-500, #3A332C)" }}>
+                  Mensaje <span style={{ color: "var(--antracita-300, #6F665C)", fontWeight: 400 }}>· opcional</span>
+                </label>
+                <textarea
+                  value={contacto.mensaje}
+                  onChange={(e) => setContacto((p) => ({ ...p, mensaje: e.target.value }))}
+                  placeholder="Contanos qué necesitás..."
+                  rows={3}
+                  style={{ width: "100%", padding: "10px 14px", border: "1px solid var(--border, #E8DFD0)", borderRadius: 10, fontSize: 14, color: "var(--antracita-900, #14110E)", outline: "none", background: "#fff", resize: "vertical", fontFamily: "inherit" }}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={enviandoContacto}
+                className="btn-primary flex items-center justify-center gap-2 w-full"
+                style={{ height: 48, fontSize: 15, borderRadius: 12 }}
+              >
+                {enviandoContacto ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {enviandoContacto ? "Enviando..." : "Enviar mensaje"}
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

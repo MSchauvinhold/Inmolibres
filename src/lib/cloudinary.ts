@@ -114,6 +114,50 @@ export async function uploadToCloudinary(
   });
 }
 
+// ─── Client-side: upload a VIDEO to Cloudinary ───────────────────────────────
+// Usa el endpoint /video/upload. La firma del servidor es la misma (depende de
+// los params folder+timestamp, no del tipo de recurso).
+
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50 MB
+
+export async function uploadVideoToCloudinary(
+  file: File,
+  folder: string,
+  onProgress?: (percent: number) => void
+): Promise<CloudinaryUploadResult & { duration?: number }> {
+  if (file.size > MAX_VIDEO_BYTES) {
+    throw new Error(`El video supera el máximo de 50 MB (pesa ${(file.size / 1024 / 1024).toFixed(1)} MB)`);
+  }
+
+  const sigRes = await fetch(`/api/upload?folder=${encodeURIComponent(folder)}`);
+  if (!sigRes.ok) throw new Error("No se pudo obtener la firma de upload");
+  const sig: CloudinarySignatureResponse = await sigRes.json();
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("signature", sig.signature);
+  formData.append("timestamp", String(sig.timestamp));
+  formData.append("api_key", sig.apiKey);
+  formData.append("folder", sig.folder);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    });
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText));
+      } else {
+        reject(new Error(`Upload fallido: ${xhr.status}`));
+      }
+    });
+    xhr.addEventListener("error", () => reject(new Error("Error de red en upload")));
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${sig.cloudName}/video/upload`);
+    xhr.send(formData);
+  });
+}
+
 // ─── Server-side: generate Cloudinary signature ───────────────────────────────
 
 export function generateCloudinarySignature(

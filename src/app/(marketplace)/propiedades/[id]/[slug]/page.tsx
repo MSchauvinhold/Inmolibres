@@ -21,6 +21,24 @@ import type { Metadata } from "next";
 
 interface Params { id: string; slug: string; }
 
+/* ── Convierte una URL de YouTube/Vimeo a su URL de embed ────────── */
+function getVideoEmbedUrl(url: string | null): string | null {
+  if (!url) return null;
+  const u = url.trim();
+
+  // YouTube: watch?v=ID | youtu.be/ID | /embed/ID | /shorts/ID
+  const yt = u.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/
+  );
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+
+  // Vimeo: vimeo.com/ID
+  const vm = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (vm) return `https://player.vimeo.com/video/${vm[1]}`;
+
+  return null;
+}
+
 /* ── Metadata ──────────────────────────────────────────────────── */
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { id } = await params;
@@ -354,6 +372,44 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
               </p>
             </div>
           )}
+
+          {/* Video */}
+          {(() => {
+            const raw = propiedad.videoUrl;
+            if (!raw) return null;
+            const embedUrl = getVideoEmbedUrl(raw);          // YouTube / Vimeo
+            const esArchivo = raw.includes("cloudinary.com"); // archivo subido
+            if (!embedUrl && !esArchivo) return null;
+            return (
+              <div>
+                <h2 className="display" style={{ fontSize: 22, margin: "0 0 12px", color: "var(--antracita-900)" }}>
+                  Video
+                </h2>
+                <div
+                  className="rounded-2xl overflow-hidden"
+                  style={{ position: "relative", width: "100%", aspectRatio: "16/9", background: "#000" }}
+                >
+                  {esArchivo ? (
+                    <video
+                      src={raw}
+                      controls
+                      preload="metadata"
+                      playsInline
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }}
+                    />
+                  ) : (
+                    <iframe
+                      src={embedUrl!}
+                      title={`Video de ${propiedad.titulo}`}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Mapa */}
           {propiedad.latitud && propiedad.longitud && (

@@ -80,7 +80,29 @@ export default function AdminInmobiliariasPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) { toast.error((await res.json()).error); return; }
+      if (!res.ok) {
+        const json = await res.json() as {
+          error?: string;
+          details?: { fieldErrors?: Record<string, string[]> };
+        };
+        // Mostrar qué campo(s) específicamente fallan
+        const fieldErrors = json.details?.fieldErrors;
+        if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+          const LABELS: Record<string, string> = {
+            nombre: "Nombre", whatsapp: "WhatsApp", email: "Email de la inmobiliaria",
+            plan: "Plan", fechaVencimiento: "Vencimiento",
+            adminNombre: "Nombre del admin", adminEmail: "Email del admin",
+            adminPassword: "Contraseña",
+          };
+          const msgs = Object.entries(fieldErrors).map(
+            ([campo, errs]) => `${LABELS[campo] ?? campo}: ${errs[0]}`
+          );
+          toast.error(msgs.join(" · "));
+        } else {
+          toast.error(json.error ?? "Error al crear");
+        }
+        return;
+      }
       toast.success("Inmobiliaria creada");
       setShowForm(false);
       setForm({ nombre: "", whatsapp: "", email: "", plan: "AVANZADO", adminNombre: "", adminEmail: "", adminPassword: "", fechaVencimiento: "" });
