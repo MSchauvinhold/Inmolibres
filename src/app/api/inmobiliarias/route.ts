@@ -8,7 +8,7 @@ const crearInmobiliariaSchema = z.object({
   nombre: z.string().min(2, "Nombre muy corto").max(100),
   whatsapp: z.string().min(8).max(20),
   email: z.string().email("Email inválido"),
-  plan: z.enum(["BASE", "PRO"]).default("BASE"),
+  plan: z.enum(["BASICO", "AVANZADO", "PRO"]).default("AVANZADO"),
   fechaVencimiento: z.string().datetime().optional(),
   // Admin user
   adminNombre: z.string().min(2).max(100),
