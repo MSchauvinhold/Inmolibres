@@ -194,3 +194,55 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Error al eliminar propiedad" }, { status: 500 });
   }
 }
+
+// PATCH — actualización parcial liviana (pausar/publicar, cambiar estado)
+// No requiere mandar todo el formulario, solo los campos a tocar.
+export async function PATCH(request: NextRequest, { params }: Params) {
+  const { id } = await params;
+  const session = await requireCrmAuth();
+  if (isNextResponse(session)) return session;
+  const { userId, inmobiliariaId, rol } = session;
+  const isParticular = rol === "PARTICULAR";
+
+  let body: { publicada?: boolean; estado?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
+
+  try {
+    const existing = await db.propiedad.findUnique({
+      where: { id },
+      select: { inmobiliariaId: true, agenteId: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
+    }
+
+    if (isParticular) {
+      if (existing.agenteId !== userId) {
+        return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+      }
+    } else {
+      assertSameTenant(existing.inmobiliariaId ?? "", inmobiliariaId, rol);
+    }
+
+    const data: { publicada?: boolean; estado?: "DISPONIBLE" | "RESERVADA" | "ALQUILADA" | "VENDIDA" } = {};
+    if (typeof body.publicada === "boolean") data.publicada = body.publicada;
+    if (body.estado && ["DISPONIBLE", "RESERVADA", "ALQUILADA", "VENDIDA"].includes(body.estado)) {
+      data.estado = body.estado as "DISPONIBLE" | "RESERVADA" | "ALQUILADA" | "VENDIDA";
+    }
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: "Nada para actualizar" }, { status: 400 });
+    }
+
+    const updated = await db.propiedad.update({ where: { id }, data });
+    return NextResponse.json({ data: updated });
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("tenant mismatch")) {
+      return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+    }
+    return NextResponse.json({ error: "Error al actualizar propiedad" }, { status: 500 });
+  }
+}

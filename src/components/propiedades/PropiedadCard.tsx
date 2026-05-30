@@ -64,7 +64,7 @@ export function PropiedadCard({ propiedad, href, showActions }: Props) {
         {/* Menú ⋯ */}
         {showActions && (
           <div style={{ position: "absolute", top: 10, right: 10 }}>
-            <PropiedadCardMenu propiedadId={propiedad.id} />
+            <PropiedadCardMenu propiedadId={propiedad.id} publicada={propiedad.publicada} />
           </div>
         )}
 
