@@ -39,9 +39,16 @@ export function PropiedadCard({ propiedad, href, showActions }: Props) {
     propiedad.atributos?.superficieCubierta ?? propiedad.atributos?.superficieTotal;
 
   const content = (
-    <div className="il-card" style={{ padding: 0, overflow: "hidden", position: "relative" }}>
+    <div className="il-card" style={{ padding: 0, overflow: "visible", position: "relative" }}>
+      {/* Menú ⋯ — fuera del contenedor con overflow:hidden para que el dropdown no se corte */}
+      {showActions && (
+        <div style={{ position: "absolute", top: 10, right: 10, zIndex: 20 }}>
+          <PropiedadCardMenu propiedadId={propiedad.id} publicada={propiedad.publicada} />
+        </div>
+      )}
+
       {/* ── Imagen / ilustración ── */}
-      <div style={{ position: "relative", height: 130, overflow: "hidden" }}>
+      <div style={{ position: "relative", height: 130, overflow: "hidden", borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
         {portada ? (
           <Image
             src={portada.urlCloudinary}
@@ -60,13 +67,6 @@ export function PropiedadCard({ propiedad, href, showActions }: Props) {
             {TIPO_OPERACION_LABELS[propiedad.operacion]}
           </Pill>
         </div>
-
-        {/* Menú ⋯ */}
-        {showActions && (
-          <div style={{ position: "absolute", top: 10, right: 10 }}>
-            <PropiedadCardMenu propiedadId={propiedad.id} publicada={propiedad.publicada} />
-          </div>
-        )}
 
         {/* Overlay "No publicada" */}
         {!propiedad.publicada && (

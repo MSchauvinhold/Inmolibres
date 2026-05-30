@@ -103,14 +103,18 @@ export function PropiedadCardMenu({ propiedadId, publicada = true, canDelete = t
 
       {open && (
         <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-elevated border border-border z-50 overflow-hidden">
-          <a
-            href={`/propiedades/${propiedadId}/editar`}
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-text-primary hover:bg-surface-raised transition-colors"
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen(false);
+              router.push(`/propiedades/${propiedadId}/editar`);
+            }}
+            className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-text-primary hover:bg-surface-raised transition-colors"
           >
             <Pencil className="w-3.5 h-3.5 text-text-muted" />
             Editar
-          </a>
+          </button>
 
           {/* Pausar / Publicar */}
           <button
