@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { AlquileresClient } from "@/components/alquileres/AlquileresClient";
+import { AjustesPendientes } from "@/components/alquileres/AjustesPendientes";
 
 export const metadata = { title: "Contratos" };
 
@@ -78,6 +79,8 @@ export default async function AlquileresPage() {
     : null;
 
   return (
+    <>
+    <AjustesPendientes inmobiliariaNombre={inmobiliaria?.nombre ?? "InmoLibres"} />
     <AlquileresClient
       contratos={serialized}
       ventas={serializedVentas}
@@ -86,5 +89,6 @@ export default async function AlquileresPage() {
       config={configData}
       inmobiliaria={inmobiliaria}
     />
+    </>
   );
 }

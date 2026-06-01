@@ -101,6 +101,11 @@ interface AlquilerData {
   clausulas: string;
   fechaInicio: string;
   fechaFin: string;
+  // Ajuste periódico
+  ajusteActivo: boolean;
+  ajusteIndice: "ICL" | "IPC";
+  ajusteMeses: number;
+  ajusteDia: number;
 }
 
 export interface CompraventaData {
@@ -201,6 +206,10 @@ function mkAlqInit(cfg: WizardConfig | null): AlquilerData {
     clausulas: cfg?.clausulasAdicionales ?? DEFAULT_CLAUSULAS_ALQ,
     fechaInicio: hoy,
     fechaFin: dosAnios,
+    ajusteActivo: true,
+    ajusteIndice: "ICL",
+    ajusteMeses: 6,
+    ajusteDia: 14,
   };
 }
 
@@ -1155,6 +1164,10 @@ export function NuevoContratoWizard({
           diaVencimientoPago: alquiler.diaVencimientoPago,
           fechaInicio: alquiler.fechaInicio,
           fechaFin: alquiler.fechaFin,
+          ajusteActivo: alquiler.ajusteActivo,
+          ajusteIndice: alquiler.ajusteIndice,
+          ajusteMeses: alquiler.ajusteMeses,
+          ajusteDia: alquiler.ajusteDia,
         }),
       });
       const json = await res.json() as { data?: Record<string, unknown>; error?: string };

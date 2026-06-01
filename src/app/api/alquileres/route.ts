@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { contratoSchema } from "@/lib/validations/rental";
 import { buildPaginationMeta } from "@/lib/utils";
 import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { obtenerIndiceActual } from "@/lib/indices";
 import type { Prisma, EstadoPago } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
@@ -88,6 +89,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
     }
 
+    // Si tiene ajuste activo, guardar el índice base de hoy para futuros cálculos
+    let indiceBase: number | null = null;
+    if (parsed.data.ajusteActivo) {
+      const idx = await obtenerIndiceActual(parsed.data.ajusteIndice);
+      indiceBase = idx?.valor ?? null;
+    }
+
     const contrato = await db.$transaction(async (tx) => {
       const created = await tx.contratoAlquiler.create({
         data: {
@@ -96,6 +104,8 @@ export async function POST(request: NextRequest) {
           fechaInicio: new Date(parsed.data.fechaInicio),
           fechaFin: new Date(parsed.data.fechaFin),
           inmobiliariaId,
+          precioOriginal: parsed.data.precioMensual,
+          indiceUltimoAjuste: indiceBase,
         },
         include: {
           propiedad: { select: { id: true, titulo: true, direccion: true } },

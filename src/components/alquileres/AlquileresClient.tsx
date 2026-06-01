@@ -674,6 +674,83 @@ function NotasEditor({
   );
 }
 
+// ─── AjustesHistorial (historial de ajustes aplicados de un contrato) ──────────
+
+interface AjusteHist {
+  id: string;
+  fechaAjuste: string;
+  precioAnterior: number;
+  precioNuevo: number;
+  moneda: "ARS" | "USD";
+  porcentajeAumento: number;
+  indiceUsado: string;
+  aplicado: boolean;
+}
+
+function AjustesHistorial({ contratoId }: { contratoId: string }) {
+  const [ajustes, setAjustes] = useState<AjusteHist[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancel = false;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/alquileres/ajustes?contratoId=${contratoId}`);
+        if (res.ok && !cancel) setAjustes((await res.json()).data ?? []);
+      } catch { /* ignore */ }
+      finally { if (!cancel) setLoading(false); }
+    })();
+    return () => { cancel = true; };
+  }, [contratoId]);
+
+  const aplicados = ajustes.filter((a) => a.aplicado);
+
+  if (loading) {
+    return <div style={{ display: "flex", justifyContent: "center", padding: 30 }}><Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--terracota-500)" }} /></div>;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <h3 className="display" style={{ fontSize: 17, margin: 0, color: "var(--antracita-900)" }}>Historial de ajustes</h3>
+
+      {aplicados.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "28px 16px", color: "var(--antracita-300)" }}>
+          <TrendingUp className="w-8 h-8" style={{ margin: "0 auto 8px", opacity: 0.5 }} />
+          <p style={{ fontSize: 13 }}>Todavía no se aplicó ningún ajuste a este contrato.</p>
+          <p style={{ fontSize: 11.5, marginTop: 4 }}>Cuando el sistema detecte un ajuste pendiente, aparecerá en la sección «Ajustes pendientes» del listado.</p>
+        </div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: "var(--crema-100)" }}>
+              {["Fecha", "Anterior", "Nuevo", "Variación", "Índice"].map((h) => (
+                <th key={h} style={{ textAlign: "left", padding: "8px 12px", fontSize: 10.5, color: "var(--antracita-300)", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "var(--font-jetbrains-mono, monospace)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {aplicados.map((a, i) => (
+              <tr key={a.id} style={{ borderBottom: i < aplicados.length - 1 ? "1px solid var(--border)" : "none" }}>
+                <td style={{ padding: "10px 12px", color: "var(--antracita-700)" }}>
+                  {new Date(a.fechaAjuste).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                </td>
+                <td className="mono" style={{ padding: "10px 12px", color: "var(--antracita-500)" }}>{formatPrice(a.precioAnterior, a.moneda)}</td>
+                <td className="mono" style={{ padding: "10px 12px", fontWeight: 600, color: "var(--antracita-900)" }}>{formatPrice(a.precioNuevo, a.moneda)}</td>
+                <td style={{ padding: "10px 12px" }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "var(--terracota-100, #FCEAE4)", color: "var(--terracota-700, #8C3D27)" }}>
+                    +{a.porcentajeAumento.toFixed(1)}%
+                  </span>
+                </td>
+                <td style={{ padding: "10px 12px", color: "var(--antracita-500)" }}>{a.indiceUsado}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 // ─── PagosHistorial ────────────────────────────────────────────────────────────
 
 function PagosHistorial({
@@ -899,7 +976,7 @@ function ContratoDetalleModal({
   onEstadoChange: (id: string, estado: "AL_DIA" | "ATRASADO") => void;
   onDelete: (id: string) => void;
 }) {
-  const [subTab, setSubTab] = useState<"documento" | "pagos" | "partes" | "clausulas" | "notas">("documento");
+  const [subTab, setSubTab] = useState<"documento" | "pagos" | "ajustes" | "partes" | "clausulas" | "notas">("documento");
   const [updatingPago, setUpdatingPago] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
@@ -964,6 +1041,7 @@ function ContratoDetalleModal({
   const SUB_TABS = [
     { id: "documento", label: "Documento",      Icon: FileText },
     { id: "pagos",     label: "Pagos",           Icon: Receipt },
+    { id: "ajustes",   label: "Ajustes",         Icon: TrendingUp },
     { id: "partes",    label: "Partes",          Icon: Users, n: 2 },
     { id: "clausulas", label: "Cláusulas",       Icon: ScrollText },
     { id: "notas",     label: "Notas internas",  Icon: MessageSquare },
@@ -1087,6 +1165,9 @@ function ContratoDetalleModal({
                     defaultMonto={contrato.precioMensual}
                     defaultMoneda={contrato.moneda}
                   />
+                )}
+                {subTab === "ajustes" && (
+                  <AjustesHistorial contratoId={contrato.id} />
                 )}
                 {subTab === "partes" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

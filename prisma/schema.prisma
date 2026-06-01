@@ -118,6 +118,7 @@ enum TipoNotificacion {
   PAGO_ATRASADO
   LEAD_FRIO
   CONSULTA_NUEVA
+  AJUSTE_ALQUILER_PENDIENTE
 
   @@map("tipo_notificacion")
 }
@@ -387,14 +388,47 @@ model ContratoAlquiler {
   notas              String?
   createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  // Configuración de ajuste periódico de alquiler (ICL/IPC)
+  ajusteActivo       Boolean   @default(true)  @map("ajuste_activo")
+  ajusteIndice       String    @default("ICL") @map("ajuste_indice")   // "ICL" | "IPC"
+  ajusteMeses        Int       @default(6)     @map("ajuste_meses")     // 3, 6, 12
+  ajusteDia          Int       @default(14)    @map("ajuste_dia")       // día del mes
+  fechaUltimoAjuste  DateTime? @map("fecha_ultimo_ajuste")
+  indiceUltimoAjuste Float?    @map("indice_ultimo_ajuste")            // valor del índice base
+  precioOriginal     Decimal?  @map("precio_original") @db.Decimal(15, 2)
+
   propiedad    Propiedad        @relation(fields: [propiedadId], references: [id], onUpdate: NoAction)
   inmobiliaria Inmobiliaria     @relation(fields: [inmobiliariaId], references: [id], onUpdate: NoAction)
   personas     ContratoPersona[]
   pagos        PagoRegistro[]
+  historialAjustes AjusteAlquiler[]
 
   @@index([inmobiliariaId], map: "idx_contratos_inmobiliaria")
   @@index([fechaFin], map: "idx_contratos_fecha_fin")
   @@map("contratos_alquiler")
+}
+
+model AjusteAlquiler {
+  id                String   @id @default(cuid())
+  contratoId        String   @map("contrato_id")
+  fechaAjuste       DateTime @map("fecha_ajuste")
+  precioAnterior    Decimal  @map("precio_anterior") @db.Decimal(15, 2)
+  precioNuevo       Decimal  @map("precio_nuevo") @db.Decimal(15, 2)
+  moneda            Moneda
+  indiceInicio      Float    @map("indice_inicio")
+  indiceFin         Float    @map("indice_fin")
+  porcentajeAumento Float    @map("porcentaje_aumento")
+  indiceUsado       String   @map("indice_usado")   // "ICL" | "IPC"
+  aplicado          Boolean  @default(false)
+  notificado        Boolean  @default(false)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  contrato ContratoAlquiler @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+
+  @@index([contratoId], map: "idx_ajustes_contrato")
+  @@index([fechaAjuste], map: "idx_ajustes_fecha")
+  @@index([aplicado], map: "idx_ajustes_aplicado")
+  @@map("ajustes_alquiler")
 }
 
 model ContratoVenta {

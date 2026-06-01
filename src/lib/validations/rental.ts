@@ -21,6 +21,11 @@ export const contratoSchema = z.object({
     .max(28, "Máximo día 28"),
   fechaInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de inicio inválida"),
   fechaFin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de fin inválida"),
+  // Configuración de ajuste periódico (opcional con defaults)
+  ajusteActivo: z.boolean().optional().default(true),
+  ajusteIndice: z.enum(["ICL", "IPC"]).optional().default("ICL"),
+  ajusteMeses:  z.number().int().optional().default(6),
+  ajusteDia:    z.number().int().min(1).max(28).optional().default(14),
 }).refine(
   (data) => new Date(data.fechaFin) > new Date(data.fechaInicio),
   {
