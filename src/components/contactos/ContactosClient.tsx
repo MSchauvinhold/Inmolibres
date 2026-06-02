@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -240,6 +240,17 @@ export function ContactosClient({ contactos: initial }: Props) {
   const [contactos, setContactos] = useState(initial);
   const [tab, setTab] = useState<RolContacto | "TODOS">("TODOS");
   const [q, setQ] = useState("");
+
+  // Sincronizar la lista cuando el Server Component re-ejecuta y pasa nuevos datos
+  // (ocurre al navegar de vuelta desde el detalle: router.back() puede pasar
+  // un initial diferente si la sesión en Next.js router cache estaba desactualizada)
+  const initialRef = useRef(initial);
+  useEffect(() => {
+    if (initial !== initialRef.current) {
+      initialRef.current = initial;
+      setContactos(initial);
+    }
+  }, [initial]);
   const [showNuevo, setShowNuevo] = useState(false);
 
   const filtered = useMemo(() => {

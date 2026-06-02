@@ -1,9 +1,15 @@
 "use client";
 
-import { useReducer, useCallback, useId, useState, useMemo } from "react";
+import { useReducer, useCallback, useState, useMemo } from "react";
+import { ContactoSelector, type ContactoMinimal } from "./ContactoSelector";
 import { toast } from "sonner";
-import { X, ChevronLeft, ChevronRight, Loader2, FileText, Home, Users, DollarSign, Calendar, Gavel, Check, Printer } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Loader2, FileText, Home, Calendar, Gavel, Check, Printer } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import {
+  buildContratoAlquilerHtml,
+  buildContratoVentaHtml,
+  printHtml,
+} from "@/lib/contrato-pdf";
 
 // ─── Shared types ────────────────────────────────────────────────────────────
 
@@ -23,6 +29,7 @@ export interface WizardConfig {
 export interface WizardInmobiliaria {
   nombre: string;
   logoUrl: string | null;
+  firmaUrl: string | null;
   whatsapp: string;
   email: string;
 }
@@ -88,9 +95,13 @@ interface AlquilerData {
   locadorCuit: string;
   locadorDomicilio: string;
   locadorMatricula: string;
+  // Inquilino — se llena desde ContactoSelector
+  inquilinoContactoId: string | null;
   inquilinoNombre: string;
   inquilinoTel: string;
+  // Garante — se llena desde ContactoSelector
   tieneGarante: boolean;
+  garanteContactoId: string | null;
   garanteNombre: string;
   garanteTel: string;
   garanteDomicilio: string;
@@ -106,9 +117,17 @@ interface AlquilerData {
   ajusteIndice: "ICL" | "IPC";
   ajusteMeses: number;
   ajusteDia: number;
+  // Firma
+  tipoFirma: "DIGITAL" | "MANUAL";
 }
 
 export interface CompraventaData {
+  tipoFirma: "DIGITAL" | "MANUAL";
+  // Propiedad opcional del sistema (auto-completa los campos de texto)
+  propiedadId: string;
+  // Vendedor y comprador — se llenan desde ContactoSelector
+  vendedorContactoId: string | null;
+  compradorContactoId: string | null;
   propiedadDireccion: string;
   propiedadDescripcion: string;
   matriculaInmueble: string;
@@ -141,6 +160,7 @@ interface WizardState {
   compraventa: CompraventaData;
   saving: boolean;
   done: boolean;
+  ventaCreada: ContratoVentaCreado | null;
 }
 
 type WizardAction =
@@ -150,7 +170,8 @@ type WizardAction =
   | { type: "UPD_ALQ"; payload: Partial<AlquilerData> }
   | { type: "UPD_CV"; payload: Partial<CompraventaData> }
   | { type: "SET_SAVING"; payload: boolean }
-  | { type: "SET_DONE" };
+  | { type: "SET_DONE" }
+  | { type: "SET_VENTA_CREADA"; payload: ContratoVentaCreado };
 
 const DEFAULT_CLAUSULAS_ALQ = `PRIMERA — DESTINO: El inmueble será destinado exclusivamente a uso habitacional familiar, quedando prohibida su utilización para cualquier otra actividad.
 
@@ -193,9 +214,11 @@ function mkAlqInit(cfg: WizardConfig | null): AlquilerData {
     locadorCuit: cfg?.cuit ?? "",
     locadorDomicilio: cfg?.domicilioLegal ?? "",
     locadorMatricula: cfg?.matriculaCorredora ?? "",
+    inquilinoContactoId: null,
     inquilinoNombre: "",
     inquilinoTel: "",
     tieneGarante: false,
+    garanteContactoId: null,
     garanteNombre: "",
     garanteTel: "",
     garanteDomicilio: "",
@@ -210,11 +233,16 @@ function mkAlqInit(cfg: WizardConfig | null): AlquilerData {
     ajusteIndice: "ICL",
     ajusteMeses: 6,
     ajusteDia: 14,
+    tipoFirma: "MANUAL" as const,
   };
 }
 
 function mkCvInit(cfg: WizardConfig | null): CompraventaData {
   return {
+    tipoFirma: "MANUAL",
+    propiedadId: "",
+    vendedorContactoId: null,
+    compradorContactoId: null,
     propiedadDireccion: "",
     propiedadDescripcion: "",
     matriculaInmueble: "",
@@ -250,6 +278,7 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
     case "UPD_CV": return { ...state, compraventa: { ...state.compraventa, ...action.payload } };
     case "SET_SAVING": return { ...state, saving: action.payload };
     case "SET_DONE": return { ...state, done: true, saving: false };
+    case "SET_VENTA_CREADA": return { ...state, ventaCreada: action.payload };
     default: return state;
   }
 }
@@ -285,7 +314,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
     <label className="flex items-center gap-3 cursor-pointer select-none">
       <div
         className="relative w-10 h-5 rounded-full transition-colors"
-        style={{ background: checked ? "#1B4332" : "#D4D0CB" }}
+        style={{ background: checked ? "#2C2C2C" : "#D4D0CB" }}
         onClick={() => onChange(!checked)}
       >
         <div
@@ -390,10 +419,10 @@ function Step0({ onSelect }: { onSelect: (t: Tipo) => void }) {
       <div className="grid grid-cols-2 gap-4">
         <button
           onClick={() => onSelect("alquiler")}
-          className="group p-6 rounded-2xl border-2 text-left space-y-3 transition-all hover:border-[#1B4332] hover:shadow-lg"
+          className="group p-6 rounded-2xl border-2 text-left space-y-3 transition-all hover:border-[#2C2C2C] hover:shadow-lg"
           style={{ borderColor: "#E8E5E0", background: "#FAFAF8" }}
         >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "#1B4332" }}>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "#2C2C2C" }}>
             <Home className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -403,10 +432,10 @@ function Step0({ onSelect }: { onSelect: (t: Tipo) => void }) {
         </button>
         <button
           onClick={() => onSelect("compraventa")}
-          className="group p-6 rounded-2xl border-2 text-left space-y-3 transition-all hover:border-[#1B4332] hover:shadow-lg"
+          className="group p-6 rounded-2xl border-2 text-left space-y-3 transition-all hover:border-[#2C2C2C] hover:shadow-lg"
           style={{ borderColor: "#E8E5E0", background: "#FAFAF8" }}
         >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "#1B4332" }}>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "#2C2C2C" }}>
             <Gavel className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -453,15 +482,42 @@ function AlqStep2({
   errs: Record<string, string>;
   onChange: (p: Partial<AlquilerData>) => void;
 }) {
+  // Contacto inquilino seleccionado (reconstruido desde los campos del form)
+  const inquilinoContacto: ContactoMinimal | null = data.inquilinoContactoId
+    ? { id: data.inquilinoContactoId, nombre: data.inquilinoNombre, dni: null, telefono: data.inquilinoTel || null, domicilio: null, estadoCivil: null, email: null }
+    : null;
+
+  const garanteContacto: ContactoMinimal | null = data.garanteContactoId
+    ? { id: data.garanteContactoId, nombre: data.garanteNombre, dni: null, telefono: data.garanteTel || null, domicilio: data.garanteDomicilio || null, estadoCivil: null, email: null }
+    : null;
+
+  function onInquilinoSelect(c: ContactoMinimal | null) {
+    onChange({
+      inquilinoContactoId: c?.id ?? null,
+      inquilinoNombre: c?.nombre ?? "",
+      inquilinoTel: c?.telefono ?? "",
+    });
+  }
+
+  function onGaranteSelect(c: ContactoMinimal | null) {
+    onChange({
+      garanteContactoId: c?.id ?? null,
+      garanteNombre: c?.nombre ?? "",
+      garanteTel: c?.telefono ?? "",
+      garanteDomicilio: c?.domicilio ?? "",
+    });
+  }
+
   return (
     <div className="space-y-6">
+      {/* ── Locador (datos de la inmobiliaria — no es un contacto) ── */}
       <div className="space-y-4">
         <SectionHeader color={color}>Locador / Inmobiliaria</SectionHeader>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Razón social / Nombre *" error={errs.locadorNombre}>
             <input className={inp} style={inpStyle} value={data.locadorNombre} onChange={(e) => onChange({ locadorNombre: e.target.value })} placeholder="Inmobiliaria SRL" />
           </Field>
-          <Field label="CUIT" error={errs.locadorCuit}>
+          <Field label="CUIT">
             <input className={inp} style={inpStyle} value={data.locadorCuit} onChange={(e) => onChange({ locadorCuit: e.target.value })} placeholder="20-12345678-9" />
           </Field>
           <Field label="Domicilio legal">
@@ -473,33 +529,54 @@ function AlqStep2({
         </div>
       </div>
 
+      {/* ── Inquilino — selector de contactos ── */}
       <div className="space-y-4">
         <SectionHeader color={color}>Locatario (Inquilino)</SectionHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Nombre completo *" error={errs.inquilinoNombre}>
-            <input className={inp} style={inpStyle} value={data.inquilinoNombre} onChange={(e) => onChange({ inquilinoNombre: e.target.value })} placeholder="Juan Pérez" />
+        <ContactoSelector
+          label="Inquilino"
+          required
+          color={color}
+          rolHint="INQUILINO"
+          selected={inquilinoContacto}
+          onSelect={onInquilinoSelect}
+          error={errs.inquilinoNombre ?? errs.inquilinoContactoId}
+        />
+        {/* Teléfono editable: se pre-llena desde el contacto pero puede corregirse */}
+        {data.inquilinoContactoId && (
+          <Field label="Teléfono del inquilino *" error={errs.inquilinoTel}>
+            <input
+              className={inp} style={inpStyle}
+              value={data.inquilinoTel}
+              onChange={(e) => onChange({ inquilinoTel: e.target.value })}
+              placeholder="+54 3772 ..."
+            />
           </Field>
-          <Field label="Teléfono *" error={errs.inquilinoTel}>
-            <input className={inp} style={inpStyle} value={data.inquilinoTel} onChange={(e) => onChange({ inquilinoTel: e.target.value })} placeholder="+54 3772 ..." />
-          </Field>
-        </div>
+        )}
       </div>
 
+      {/* ── Garante — selector de contactos ── */}
       <div className="space-y-4">
-        <Toggle checked={data.tieneGarante} onChange={(v) => onChange({ tieneGarante: v })} label="Incluir garante" />
+        <Toggle checked={data.tieneGarante} onChange={(v) => onChange({ tieneGarante: v, garanteContactoId: null, garanteNombre: "", garanteTel: "", garanteDomicilio: "" })} label="Incluir garante" />
         {data.tieneGarante && (
-          <div className="grid grid-cols-2 gap-3 p-4 rounded-xl" style={{ background: "#F3F1EE" }}>
-            <Field label="Nombre del garante *" error={errs.garanteNombre}>
-              <input className={inp} style={inpStyle} value={data.garanteNombre} onChange={(e) => onChange({ garanteNombre: e.target.value })} placeholder="María García" />
-            </Field>
-            <Field label="Teléfono">
-              <input className={inp} style={inpStyle} value={data.garanteTel} onChange={(e) => onChange({ garanteTel: e.target.value })} placeholder="+54 3772 ..." />
-            </Field>
-            <div className="col-span-2">
-              <Field label="Domicilio">
-                <input className={inp} style={inpStyle} value={data.garanteDomicilio} onChange={(e) => onChange({ garanteDomicilio: e.target.value })} placeholder="Calle 456, Paso de los Libres" />
-              </Field>
-            </div>
+          <div className="p-4 rounded-xl space-y-3" style={{ background: "#F3F1EE" }}>
+            <ContactoSelector
+              label="Garante"
+              color={color}
+              selected={garanteContacto}
+              onSelect={onGaranteSelect}
+              error={errs.garanteNombre}
+            />
+            {/* Campos editables post-selección */}
+            {data.garanteContactoId && (
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Teléfono">
+                  <input className={inp} style={inpStyle} value={data.garanteTel} onChange={(e) => onChange({ garanteTel: e.target.value })} placeholder="+54 3772 ..." />
+                </Field>
+                <Field label="Domicilio">
+                  <input className={inp} style={inpStyle} value={data.garanteDomicilio} onChange={(e) => onChange({ garanteDomicilio: e.target.value })} placeholder="Calle 456" />
+                </Field>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -521,8 +598,8 @@ function AlqStep3({
         <SectionHeader color={color}>Condiciones económicas</SectionHeader>
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2">
-            <Field label="Canon mensual *" error={errs.precioMensual}>
-              <input type="number" min={0} className={inp} style={inpStyle} value={data.precioMensual} onChange={(e) => onChange({ precioMensual: e.target.value })} placeholder="0" />
+            <Field label="Canon mensual (alquiler) *" error={errs.precioMensual}>
+              <input type="number" min={0} className={inp} style={inpStyle} value={data.precioMensual} onChange={(e) => onChange({ precioMensual: e.target.value })} placeholder={`Monto en ${data.moneda}`} />
             </Field>
           </div>
           <Field label="Moneda">
@@ -533,8 +610,9 @@ function AlqStep3({
           </Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Depósito en garantía">
-            <input type="number" min={0} className={inp} style={inpStyle} value={data.deposito} onChange={(e) => onChange({ deposito: e.target.value })} placeholder="1 mes de alquiler" />
+          <Field label="Depósito en garantía (monto)">
+            <input type="number" min={0} className={inp} style={inpStyle} value={data.deposito} onChange={(e) => onChange({ deposito: e.target.value })} placeholder={`Monto en ${data.moneda}`} />
+            <p className="text-[11px] text-[#9a9a9a] mt-1">Ingresá el monto en {data.moneda} según corresponda. Suele equivaler a 1 mes de alquiler.</p>
           </Field>
           <Field label="Día de vencimiento del pago">
             <input type="number" min={1} max={28} className={inp} style={inpStyle} value={data.diaVencimientoPago} onChange={(e) => onChange({ diaVencimientoPago: Number(e.target.value) })} />
@@ -556,6 +634,16 @@ function AlqStep3({
   );
 }
 
+function calcPrimerAjuste(fechaInicio: string, meses: number, dia: number): string {
+  if (!fechaInicio) return "";
+  const d = new Date(fechaInicio + "T00:00:00");
+  d.setMonth(d.getMonth() + meses);
+  // Ajustar al día correcto, sin salirse del mes
+  const maxDia = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(dia, maxDia));
+  return d.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+}
+
 function AlqStep4({
   data, color, errs, onChange,
 }: {
@@ -570,24 +658,133 @@ function AlqStep4({
     const d2 = new Date(data.fechaFin + "T00:00:00");
     meses = (d2.getFullYear() - d1.getFullYear()) * 12 + d2.getMonth() - d1.getMonth();
   }
+
+  const primerAjuste = data.ajusteActivo && data.fechaInicio
+    ? calcPrimerAjuste(data.fechaInicio, data.ajusteMeses, data.ajusteDia)
+    : null;
+
   return (
-    <div className="space-y-4">
-      <SectionHeader color={color}>Vigencia del contrato</SectionHeader>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Fecha de inicio *" error={errs.fechaInicio}>
-          <input type="date" className={inp} style={inpStyle} value={data.fechaInicio} onChange={(e) => onChange({ fechaInicio: e.target.value })} />
-        </Field>
-        <Field label="Fecha de fin *" error={errs.fechaFin}>
-          <input type="date" className={inp} style={inpStyle} value={data.fechaFin} onChange={(e) => onChange({ fechaFin: e.target.value })} />
-        </Field>
-      </div>
-      {meses > 0 && (
-        <div className="text-center py-4 rounded-xl" style={{ background: "#F3F1EE" }}>
-          <p className="text-2xl font-bold tabular-nums" style={{ color }}>{meses}</p>
-          <p className="text-xs text-[#6a6a6a] mt-0.5">meses de duración</p>
+    <div className="space-y-6">
+      {/* ── Vigencia ── */}
+      <div className="space-y-4">
+        <SectionHeader color={color}>Vigencia del contrato</SectionHeader>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Fecha de inicio *" error={errs.fechaInicio}>
+            <input type="date" className={inp} style={inpStyle} value={data.fechaInicio} onChange={(e) => onChange({ fechaInicio: e.target.value })} />
+          </Field>
+          <Field label="Fecha de fin *" error={errs.fechaFin}>
+            <input type="date" className={inp} style={inpStyle} value={data.fechaFin} onChange={(e) => onChange({ fechaFin: e.target.value })} />
+          </Field>
         </div>
-      )}
-      {errs.fechaFin && <p className={errCls}>{errs.fechaFin}</p>}
+        {meses > 0 && (
+          <div className="text-center py-3 rounded-xl" style={{ background: "#F3F1EE" }}>
+            <p className="text-2xl font-bold tabular-nums" style={{ color }}>{meses}</p>
+            <p className="text-xs text-[#6a6a6a] mt-0.5">meses de duración</p>
+          </div>
+        )}
+        {errs.fechaFin && <p className={errCls}>{errs.fechaFin}</p>}
+      </div>
+
+      {/* ── Ajuste periódico ── */}
+      <div className="space-y-4">
+        <SectionHeader color={color}>Ajuste automático de precio</SectionHeader>
+
+        <Toggle
+          checked={data.ajusteActivo}
+          onChange={(v) => onChange({ ajusteActivo: v })}
+          label="Activar ajuste periódico según índice oficial"
+        />
+
+        {data.ajusteActivo && (
+          <div
+            className="rounded-xl p-4 space-y-4"
+            style={{ background: "#F7F5F2", border: "1px solid #E8E5E0" }}
+          >
+            {/* Índice */}
+            <Field label="Índice de actualización">
+              <div className="grid grid-cols-2 gap-2">
+                {(["ICL", "IPC"] as const).map((idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => onChange({ ajusteIndice: idx })}
+                    className="rounded-xl p-3 text-left transition-all border-2"
+                    style={{
+                      borderColor: data.ajusteIndice === idx ? color : "#D4D0CB",
+                      background: data.ajusteIndice === idx ? `${color}10` : "white",
+                    }}
+                  >
+                    <p className="text-xs font-bold" style={{ color: data.ajusteIndice === idx ? color : "#3a3a3a" }}>
+                      {idx === "ICL" ? "ICL — BCRA" : "IPC — INDEC"}
+                    </p>
+                    <p className="text-[10px] text-[#7a7a7a] mt-0.5 leading-relaxed">
+                      {idx === "ICL"
+                        ? "Índice de Contratos de Locación. Obligatorio por Ley 27.737."
+                        : "Índice de Precios al Consumidor. Para contratos en dólares o acuerdo de partes."}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            {/* Frecuencia + Día */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Frecuencia del ajuste">
+                <select
+                  className={inp}
+                  style={inpStyle}
+                  value={data.ajusteMeses}
+                  onChange={(e) => onChange({ ajusteMeses: Number(e.target.value) })}
+                >
+                  <option value={1}>Cada 1 mes</option>
+                  <option value={2}>Cada 2 meses</option>
+                  <option value={3}>Cada 3 meses</option>
+                  <option value={6}>Cada 6 meses</option>
+                  <option value={12}>Cada 12 meses</option>
+                </select>
+              </Field>
+              <Field label="Día del mes del ajuste">
+                <input
+                  type="number"
+                  min={1}
+                  max={28}
+                  className={inp}
+                  style={inpStyle}
+                  value={data.ajusteDia}
+                  onChange={(e) => {
+                    const v = Math.max(1, Math.min(28, Number(e.target.value)));
+                    onChange({ ajusteDia: v });
+                  }}
+                />
+              </Field>
+            </div>
+
+            {/* Info: primer ajuste estimado */}
+            {primerAjuste && (
+              <div
+                className="flex items-start gap-2.5 rounded-lg p-3"
+                style={{ background: `${color}0D`, border: `1px solid ${color}30` }}
+              >
+                <Calendar className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color }} />
+                <div>
+                  <p className="text-[11px] font-semibold" style={{ color }}>
+                    Primer ajuste estimado
+                  </p>
+                  <p className="text-xs text-[#5a5a5a] mt-0.5">
+                    {primerAjuste} — el sistema lo avisará con anticipación para que confirmes el nuevo valor.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!data.ajusteActivo && (
+          <p className="text-xs text-[#9a9a9a]">
+            Sin ajuste automático. El precio se mantendrá fijo durante toda la vigencia del contrato.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -595,16 +792,42 @@ function AlqStep4({
 // ─── Compraventa steps ───────────────────────────────────────────────────────
 
 function CvStep1({
-  data, color, errs, onChange,
+  data, propiedades, color, errs, onChange,
 }: {
   data: CompraventaData;
+  propiedades: PropiedadItem[];
   color: string;
   errs: Record<string, string>;
   onChange: (p: Partial<CompraventaData>) => void;
 }) {
+  function onSelectPropiedad(id: string) {
+    if (!id) {
+      onChange({ propiedadId: "" });
+      return;
+    }
+    const p = propiedades.find((x) => x.id === id);
+    if (!p) return;
+    // Auto-completar los campos de texto desde la propiedad elegida (editables)
+    onChange({
+      propiedadId: id,
+      propiedadDireccion: p.direccion,
+      propiedadDescripcion: p.titulo,
+    });
+  }
+
   return (
     <div className="space-y-4">
       <SectionHeader color={color}>Datos del inmueble</SectionHeader>
+
+      <Field label="Elegir propiedad del sistema (opcional)">
+        <select className={inp} style={inpStyle} value={data.propiedadId} onChange={(e) => onSelectPropiedad(e.target.value)}>
+          <option value="">— Cargar manualmente —</option>
+          {propiedades.map((p) => (
+            <option key={p.id} value={p.id}>{p.titulo} — {p.direccion}</option>
+          ))}
+        </select>
+      </Field>
+
       <Field label="Dirección *" error={errs.propiedadDireccion}>
         <input className={inp} style={inpStyle} value={data.propiedadDireccion} onChange={(e) => onChange({ propiedadDireccion: e.target.value })} placeholder="Calle 123, Paso de los Libres" />
       </Field>
@@ -633,60 +856,111 @@ function CvStep2({
   errs: Record<string, string>;
   onChange: (p: Partial<CompraventaData>) => void;
 }) {
+  const vendedorContacto: ContactoMinimal | null = data.vendedorContactoId
+    ? { id: data.vendedorContactoId, nombre: data.vendedorNombre, dni: data.vendedorDni || null, telefono: null, domicilio: data.vendedorDomicilio || null, estadoCivil: data.vendedorEstadoCivil || null, email: null }
+    : null;
+
+  const compradorContacto: ContactoMinimal | null = data.compradorContactoId
+    ? { id: data.compradorContactoId, nombre: data.compradorNombre, dni: data.compradorDni || null, telefono: null, domicilio: data.compradorDomicilio || null, estadoCivil: data.compradorEstadoCivil || null, email: null }
+    : null;
+
+  function onVendedorSelect(c: ContactoMinimal | null) {
+    onChange({
+      vendedorContactoId: c?.id ?? null,
+      vendedorNombre: c?.nombre ?? "",
+      vendedorDni: c?.dni ?? "",
+      vendedorDomicilio: c?.domicilio ?? "",
+      vendedorEstadoCivil: c?.estadoCivil ?? "soltero",
+    });
+  }
+
+  function onCompradorSelect(c: ContactoMinimal | null) {
+    onChange({
+      compradorContactoId: c?.id ?? null,
+      compradorNombre: c?.nombre ?? "",
+      compradorDni: c?.dni ?? "",
+      compradorDomicilio: c?.domicilio ?? "",
+      compradorEstadoCivil: c?.estadoCivil ?? "soltero",
+    });
+  }
+
   return (
     <div className="space-y-6">
+      {/* ── Vendedor ── */}
       <div className="space-y-4">
         <SectionHeader color={color}>Vendedor</SectionHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Nombre completo *" error={errs.vendedorNombre}>
-            <input className={inp} style={inpStyle} value={data.vendedorNombre} onChange={(e) => onChange({ vendedorNombre: e.target.value })} placeholder="Nombre y apellido" />
-          </Field>
-          <Field label="DNI / CUIT *" error={errs.vendedorDni}>
-            <input className={inp} style={inpStyle} value={data.vendedorDni} onChange={(e) => onChange({ vendedorDni: e.target.value })} placeholder="12.345.678" />
-          </Field>
-          <Field label="Domicilio">
-            <input className={inp} style={inpStyle} value={data.vendedorDomicilio} onChange={(e) => onChange({ vendedorDomicilio: e.target.value })} placeholder="Calle 123" />
-          </Field>
-          <Field label="Estado civil">
-            <select className={inp} style={inpStyle} value={data.vendedorEstadoCivil} onChange={(e) => onChange({ vendedorEstadoCivil: e.target.value })}>
-              {ESTADO_CIVIL_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </Field>
-          {data.vendedorEstadoCivil === "casado" && (
+        <ContactoSelector
+          label="Vendedor / Propietario"
+          required
+          color={color}
+          rolHint="PROPIETARIO"
+          selected={vendedorContacto}
+          onSelect={onVendedorSelect}
+          error={errs.vendedorNombre}
+        />
+        {/* Campos editables para corregir/completar datos del contacto */}
+        {data.vendedorContactoId && (
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <Field label="DNI / CUIT *" error={errs.vendedorDni}>
+              <input className={inp} style={inpStyle} value={data.vendedorDni} onChange={(e) => onChange({ vendedorDni: e.target.value })} placeholder="12.345.678" />
+            </Field>
+            <Field label="Estado civil">
+              <select className={inp} style={inpStyle} value={data.vendedorEstadoCivil} onChange={(e) => onChange({ vendedorEstadoCivil: e.target.value })}>
+                {ESTADO_CIVIL_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </Field>
             <div className="col-span-2">
-              <Field label="Cónyuge del vendedor">
-                <input className={inp} style={inpStyle} value={data.vendedorConyuge} onChange={(e) => onChange({ vendedorConyuge: e.target.value })} placeholder="Nombre del cónyuge" />
+              <Field label="Domicilio">
+                <input className={inp} style={inpStyle} value={data.vendedorDomicilio} onChange={(e) => onChange({ vendedorDomicilio: e.target.value })} placeholder="Calle 123" />
               </Field>
             </div>
-          )}
-        </div>
+            {data.vendedorEstadoCivil === "casado" && (
+              <div className="col-span-2">
+                <Field label="Cónyuge">
+                  <input className={inp} style={inpStyle} value={data.vendedorConyuge} onChange={(e) => onChange({ vendedorConyuge: e.target.value })} placeholder="Nombre del cónyuge" />
+                </Field>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* ── Comprador ── */}
       <div className="space-y-4">
         <SectionHeader color={color}>Comprador</SectionHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Nombre completo *" error={errs.compradorNombre}>
-            <input className={inp} style={inpStyle} value={data.compradorNombre} onChange={(e) => onChange({ compradorNombre: e.target.value })} placeholder="Nombre y apellido" />
-          </Field>
-          <Field label="DNI / CUIT *" error={errs.compradorDni}>
-            <input className={inp} style={inpStyle} value={data.compradorDni} onChange={(e) => onChange({ compradorDni: e.target.value })} placeholder="12.345.678" />
-          </Field>
-          <Field label="Domicilio">
-            <input className={inp} style={inpStyle} value={data.compradorDomicilio} onChange={(e) => onChange({ compradorDomicilio: e.target.value })} placeholder="Calle 456" />
-          </Field>
-          <Field label="Estado civil">
-            <select className={inp} style={inpStyle} value={data.compradorEstadoCivil} onChange={(e) => onChange({ compradorEstadoCivil: e.target.value })}>
-              {ESTADO_CIVIL_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </Field>
-          {data.compradorEstadoCivil === "casado" && (
+        <ContactoSelector
+          label="Comprador"
+          required
+          color={color}
+          rolHint="COMPRADOR"
+          selected={compradorContacto}
+          onSelect={onCompradorSelect}
+          error={errs.compradorNombre}
+        />
+        {data.compradorContactoId && (
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <Field label="DNI / CUIT *" error={errs.compradorDni}>
+              <input className={inp} style={inpStyle} value={data.compradorDni} onChange={(e) => onChange({ compradorDni: e.target.value })} placeholder="12.345.678" />
+            </Field>
+            <Field label="Estado civil">
+              <select className={inp} style={inpStyle} value={data.compradorEstadoCivil} onChange={(e) => onChange({ compradorEstadoCivil: e.target.value })}>
+                {ESTADO_CIVIL_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </Field>
             <div className="col-span-2">
-              <Field label="Cónyuge del comprador">
-                <input className={inp} style={inpStyle} value={data.compradorConyuge} onChange={(e) => onChange({ compradorConyuge: e.target.value })} placeholder="Nombre del cónyuge" />
+              <Field label="Domicilio">
+                <input className={inp} style={inpStyle} value={data.compradorDomicilio} onChange={(e) => onChange({ compradorDomicilio: e.target.value })} placeholder="Calle 456" />
               </Field>
             </div>
-          )}
-        </div>
+            {data.compradorEstadoCivil === "casado" && (
+              <div className="col-span-2">
+                <Field label="Cónyuge">
+                  <input className={inp} style={inpStyle} value={data.compradorConyuge} onChange={(e) => onChange({ compradorConyuge: e.target.value })} placeholder="Nombre del cónyuge" />
+                </Field>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -818,9 +1092,9 @@ function validateAlq(paso: number, data: AlquilerData): Record<string, string> {
   }
   if (paso === 2) {
     if (!data.locadorNombre.trim()) e.locadorNombre = "Requerido";
-    if (!data.inquilinoNombre.trim() || data.inquilinoNombre.length < 2) e.inquilinoNombre = "Nombre requerido";
-    if (!data.inquilinoTel.trim() || data.inquilinoTel.length < 7) e.inquilinoTel = "Teléfono inválido";
-    if (data.tieneGarante && !data.garanteNombre.trim()) e.garanteNombre = "Nombre del garante requerido";
+    if (!data.inquilinoContactoId)  e.inquilinoNombre = "Seleccioná o creá el inquilino";
+    else if (!data.inquilinoTel.trim() || data.inquilinoTel.length < 7) e.inquilinoTel = "Teléfono inválido";
+    if (data.tieneGarante && !data.garanteContactoId) e.garanteNombre = "Seleccioná o creá el garante";
   }
   if (paso === 3) {
     if (!data.precioMensual || Number(data.precioMensual) <= 0) e.precioMensual = "Ingresá el precio";
@@ -839,10 +1113,10 @@ function validateCv(paso: number, data: CompraventaData): Record<string, string>
     if (!data.propiedadDireccion.trim()) e.propiedadDireccion = "Requerida";
   }
   if (paso === 2) {
-    if (!data.vendedorNombre.trim()) e.vendedorNombre = "Requerido";
-    if (!data.vendedorDni.trim()) e.vendedorDni = "Requerido";
-    if (!data.compradorNombre.trim()) e.compradorNombre = "Requerido";
-    if (!data.compradorDni.trim()) e.compradorDni = "Requerido";
+    if (!data.vendedorContactoId)      e.vendedorNombre  = "Seleccioná o creá el vendedor";
+    else if (!data.vendedorDni.trim()) e.vendedorDni     = "El DNI/CUIT es requerido";
+    if (!data.compradorContactoId)     e.compradorNombre = "Seleccioná o creá el comprador";
+    else if (!data.compradorDni.trim()) e.compradorDni   = "El DNI/CUIT es requerido";
   }
   if (paso === 3) {
     if (!data.precioVenta || Number(data.precioVenta) <= 0) e.precioVenta = "Ingresá el precio";
@@ -850,141 +1124,138 @@ function validateCv(paso: number, data: CompraventaData): Record<string, string>
   return e;
 }
 
-// ─── Document generator: Alquiler ────────────────────────────────────────────
 
-function fmtFechaLarga(iso: string): string {
-  return new Date(iso + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
-}
-
-function duracionMeses(inicio: string, fin: string): number {
-  const d1 = new Date(inicio + "T00:00:00");
-  const d2 = new Date(fin + "T00:00:00");
-  return (d2.getFullYear() - d1.getFullYear()) * 12 + d2.getMonth() - d1.getMonth();
-}
-
-function buildAlquilerHtml(data: AlquilerData, propiedades: PropiedadItem[], cfg: WizardConfig | null, inmob: WizardInmobiliaria | null): string {
-  const cp = cfg?.colorPrimario ?? "#1B4332";
-  const cs = cfg?.colorSecundario ?? "#2C2C2C";
-  const prop = propiedades.find((p) => p.id === data.propiedadId);
-  const hoy = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
-  const meses = duracionMeses(data.fechaInicio, data.fechaFin);
-  const pie = cfg?.piePaginaContrato ?? [cfg?.razonSocial ?? inmob?.nombre ?? "", inmob?.whatsapp && `Tel: ${inmob.whatsapp}`, inmob?.email].filter(Boolean).join(" · ");
-
-  const logoHtml = inmob?.logoUrl
-    ? `<img src="${inmob.logoUrl}" alt="" style="height:64px;width:auto;object-fit:contain;background:#fff;border-radius:8px;padding:6px;flex-shrink:0"/>`
-    : `<div style="height:64px;width:64px;border-radius:12px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="color:white;font-size:28px;font-weight:700">${(cfg?.razonSocial ?? inmob?.nombre ?? "I").charAt(0)}</span></div>`;
-
-  const garanHtml = data.tieneGarante && data.garanteNombre ? `
-    <div class="section">
-      <div class="section-title">Garante</div>
-      <div class="grid2">
-        <div class="field"><div class="fl">Nombre completo</div><div class="fv">${data.garanteNombre}</div></div>
-        ${data.garanteTel ? `<div class="field"><div class="fl">Teléfono</div><div class="fv">${data.garanteTel}</div></div>` : ""}
-        ${data.garanteDomicilio ? `<div class="field" style="grid-column:span 2"><div class="fl">Domicilio</div><div class="fv">${data.garanteDomicilio}</div></div>` : ""}
-      </div>
-    </div>` : "";
-
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Contrato — ${data.inquilinoNombre}</title><style>
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,"Times New Roman",serif;font-size:11.5px;line-height:1.65;color:#1a1a1a}
-.hdr{background:${cp};color:#fff;padding:20px 28px;display:flex;align-items:center;gap:20px}
-.hdr-text h1{font-size:17px;font-weight:700}.hdr-text p{font-size:10px;opacity:.85;margin-top:2px}
-.tbar{background:${cs};color:#fff;text-align:center;padding:9px;font-size:13px;font-weight:700;letter-spacing:2.5px}
-.body{padding:24px 28px}.section{margin-bottom:16px}
-.section-title{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:${cp};border-bottom:1.5px solid ${cp};padding-bottom:4px;margin-bottom:10px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-.field .fl{font-size:8.5px;font-weight:700;text-transform:uppercase;color:#888;letter-spacing:.8px}.field .fv{font-weight:600;margin-top:2px}
-.fv-lg{font-weight:700;font-size:15px;color:${cp};margin-top:2px}.intro{font-size:11px;line-height:1.7;color:#333;margin-bottom:18px}
-.clausulas{white-space:pre-wrap;font-size:10px;line-height:1.7;color:#444}
-.firmas{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:40px}
-.firma-line{height:40px;border-bottom:1px solid #aaa;margin-bottom:6px}.firma-label{font-size:9.5px;font-weight:700;text-align:center;color:#333}
-.firma-sub{font-size:9px;text-align:center;color:#888;margin-top:2px}
-.doc-footer{border-top:2px solid ${cp};background:#f7f7f7;padding:10px 20px;font-size:9px;color:#666;text-align:center;margin-top:16px}
-@media print{@page{margin:10mm}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body>
-<div class="hdr">${logoHtml}<div class="hdr-text"><h1>${cfg?.razonSocial ?? inmob?.nombre ?? "Inmobiliaria"}</h1>${cfg?.cuit ? `<p>CUIT: ${cfg.cuit}</p>` : ""}${cfg?.domicilioLegal ? `<p>${cfg.domicilioLegal}</p>` : ""}${cfg?.matriculaCorredora ? `<p>Matrícula corredor N° ${cfg.matriculaCorredora}</p>` : ""}</div></div>
-<div class="tbar">CONTRATO DE LOCACIÓN</div>
-<div class="body">
-<p class="intro">En la ciudad de Paso de los Libres, Corrientes, a los <strong>${hoy}</strong>, entre <strong>${data.locadorNombre}</strong>${data.locadorCuit ? `, CUIT ${data.locadorCuit}` : ""}${data.locadorDomicilio ? `, con domicilio en ${data.locadorDomicilio}` : ""}${data.locadorMatricula ? `, corredor inmobiliario matrícula N° ${data.locadorMatricula}` : ""}, en adelante el <strong>LOCADOR</strong>; y <strong>${data.inquilinoNombre}</strong>, tel. ${data.inquilinoTel}, en adelante el <strong>LOCATARIO</strong>; se celebra el presente Contrato de Locación bajo los siguientes términos y condiciones:</p>
-<div class="section"><div class="section-title">Inmueble locado</div><div class="grid2"><div class="field"><div class="fl">Propiedad</div><div class="fv">${prop?.titulo ?? ""}</div></div><div class="field"><div class="fl">Dirección</div><div class="fv">${prop?.direccion ?? ""}</div></div></div></div>
-<div class="section"><div class="section-title">Partes</div><div class="grid2"><div class="field"><div class="fl">Locatario</div><div class="fv">${data.inquilinoNombre}</div></div><div class="field"><div class="fl">Teléfono</div><div class="fv">${data.inquilinoTel}</div></div></div></div>
-${garanHtml}
-<div class="section"><div class="section-title">Condiciones económicas</div><div class="grid3"><div class="field"><div class="fl">Canon mensual</div><div class="fv-lg">${formatPrice(Number(data.precioMensual), data.moneda)}</div></div><div class="field"><div class="fl">Moneda</div><div class="fv">${data.moneda}</div></div><div class="field"><div class="fl">Día de pago</div><div class="fv">Día ${data.diaVencimientoPago} de cada mes</div></div></div>${data.deposito ? `<p style="margin-top:8px;font-size:10px;color:#555">Depósito en garantía: <strong>${formatPrice(Number(data.deposito), data.moneda)}</strong></p>` : ""}</div>
-<div class="section"><div class="section-title">Vigencia</div><div class="grid3"><div class="field"><div class="fl">Fecha de inicio</div><div class="fv">${fmtFechaLarga(data.fechaInicio)}</div></div><div class="field"><div class="fl">Fecha de fin</div><div class="fv">${fmtFechaLarga(data.fechaFin)}</div></div><div class="field"><div class="fl">Duración</div><div class="fv">${meses} meses</div></div></div></div>
-<div class="section"><div class="section-title">Cláusulas y condiciones</div><pre class="clausulas">${data.clausulas}</pre></div>
-<div class="firmas"><div><div class="firma-line"></div><div class="firma-label">LOCADOR / INMOBILIARIA</div><div class="firma-sub">${data.locadorNombre}</div>${data.locadorMatricula ? `<div class="firma-sub">Mat. N° ${data.locadorMatricula}</div>` : ""}</div><div><div class="firma-line"></div><div class="firma-label">LOCATARIO</div><div class="firma-sub">${data.inquilinoNombre}</div><div class="firma-sub">Tel: ${data.inquilinoTel}</div></div></div>
-</div><div class="doc-footer">${pie}</div></body></html>`;
-
-  return html;
-}
-
-function printAlquiler(data: AlquilerData, propiedades: PropiedadItem[], cfg: WizardConfig | null, inmob: WizardInmobiliaria | null) {
-  const html = buildAlquilerHtml(data, propiedades, cfg, inmob);
-  const w = window.open("", "_blank", "width=900,height=1100");
-  if (!w) { toast.error("Habilitá las ventanas emergentes para imprimir"); return; }
-  w.document.write(html);
-  w.document.close();
-  setTimeout(() => { w.focus(); w.print(); }, 400);
+function printAlquiler(
+  contrato: ContratoCreado,
+  clausulasOverride: string,
+  tipoFirma: "DIGITAL" | "MANUAL",
+  cfg: WizardConfig | null,
+  inmob: WizardInmobiliaria | null,
+) {
+  const html = buildContratoAlquilerHtml(
+    {
+      id: contrato.id,
+      inquilinoNombre: contrato.inquilinoNombre,
+      inquilinoTel:    contrato.inquilinoTel,
+      precioMensual:   contrato.precioMensual,
+      moneda:          contrato.moneda,
+      diaVencimientoPago: contrato.diaVencimientoPago,
+      fechaInicio:     contrato.fechaInicio,
+      fechaFin:        contrato.fechaFin,
+      propiedad:       contrato.propiedad,
+      tipoFirma,
+      clausulasOverride,
+    },
+    cfg,
+    inmob,
+  );
+  printHtml(html, () => toast.error("Habilitá las ventanas emergentes para imprimir"));
 }
 
 // Construye el HTML completo del boleto (reutilizable: preview en pantalla + impresión)
-export function buildCompraventaHtml(data: CompraventaData, cfg: WizardConfig | null, inmob: WizardInmobiliaria | null): string {
-  const cp = cfg?.colorPrimario ?? "#1B4332";
-  const cs = cfg?.colorSecundario ?? "#2C2C2C";
-  const hoy = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
-  const pie = cfg?.piePaginaContrato ?? [cfg?.razonSocial ?? inmob?.nombre ?? "", inmob?.whatsapp && `Tel: ${inmob.whatsapp}`, inmob?.email].filter(Boolean).join(" · ");
-  const precio = Number(data.precioVenta) || 0;
-  const sena = Number(data.sena) || 0;
-  const comV = ((Number(data.comisionVendedorPct) || 0) / 100) * precio;
-  const comC = ((Number(data.comisionCompradorPct) || 0) / 100) * precio;
-
-  const logoHtml = inmob?.logoUrl
-    ? `<img src="${inmob.logoUrl}" alt="" style="height:64px;width:auto;object-fit:contain;background:#fff;border-radius:8px;padding:6px;flex-shrink:0"/>`
-    : `<div style="height:64px;width:64px;border-radius:12px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="color:white;font-size:28px;font-weight:700">${(cfg?.razonSocial ?? inmob?.nombre ?? "I").charAt(0)}</span></div>`;
-
-  const conyugeVendRow = data.vendedorEstadoCivil === "casado" && data.vendedorConyuge ? `<div class="field"><div class="fl">Cónyuge</div><div class="fv">${data.vendedorConyuge}</div></div>` : "";
-  const conyugeComprRow = data.compradorEstadoCivil === "casado" && data.compradorConyuge ? `<div class="field"><div class="fl">Cónyuge</div><div class="fv">${data.compradorConyuge}</div></div>` : "";
-
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Boleto de Compraventa</title><style>
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,"Times New Roman",serif;font-size:11.5px;line-height:1.65;color:#1a1a1a}
-.hdr{background:${cp};color:#fff;padding:20px 28px;display:flex;align-items:center;gap:20px}
-.hdr-text h1{font-size:17px;font-weight:700}.hdr-text p{font-size:10px;opacity:.85;margin-top:2px}
-.tbar{background:${cs};color:#fff;text-align:center;padding:9px;font-size:13px;font-weight:700;letter-spacing:2.5px}
-.body{padding:24px 28px}.section{margin-bottom:16px}
-.section-title{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:${cp};border-bottom:1.5px solid ${cp};padding-bottom:4px;margin-bottom:10px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-.field .fl{font-size:8.5px;font-weight:700;text-transform:uppercase;color:#888;letter-spacing:.8px}.field .fv{font-weight:600;margin-top:2px}
-.fv-lg{font-weight:700;font-size:15px;color:${cp};margin-top:2px}
-.clausulas{white-space:pre-wrap;font-size:10px;line-height:1.7;color:#444}
-.firmas{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:40px}
-.firma-line{height:40px;border-bottom:1px solid #aaa;margin-bottom:6px}.firma-label{font-size:9.5px;font-weight:700;text-align:center;color:#333}
-.firma-sub{font-size:9px;text-align:center;color:#888;margin-top:2px}
-.doc-footer{border-top:2px solid ${cp};background:#f7f7f7;padding:10px 20px;font-size:9px;color:#666;text-align:center;margin-top:16px}
-@media print{@page{margin:10mm}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body>
-<div class="hdr">${logoHtml}<div class="hdr-text"><h1>${cfg?.razonSocial ?? inmob?.nombre ?? "Inmobiliaria"}</h1>${cfg?.cuit ? `<p>CUIT: ${cfg.cuit}</p>` : ""}${cfg?.domicilioLegal ? `<p>${cfg.domicilioLegal}</p>` : ""}${cfg?.matriculaCorredora ? `<p>Matrícula corredor N° ${cfg.matriculaCorredora}</p>` : ""}</div></div>
-<div class="tbar">BOLETO DE COMPRAVENTA</div>
-<div class="body">
-<p style="font-size:11px;line-height:1.7;color:#333;margin-bottom:18px">En la ciudad de Paso de los Libres, Corrientes, a los <strong>${hoy}</strong>, las partes que se identifican a continuación acuerdan celebrar el presente Boleto de Compraventa bajo los términos y condiciones que se detallan:</p>
-<div class="section"><div class="section-title">Inmueble objeto</div><div class="grid2"><div class="field"><div class="fl">Dirección</div><div class="fv">${data.propiedadDireccion}</div></div>${data.matriculaInmueble ? `<div class="field"><div class="fl">Matrícula / Partida</div><div class="fv">${data.matriculaInmueble}</div></div>` : ""}${data.propiedadDescripcion ? `<div class="field" style="grid-column:span 2"><div class="fl">Descripción</div><div class="fv">${data.propiedadDescripcion}</div></div>` : ""}</div></div>
-<div class="section"><div class="section-title">Vendedor</div><div class="grid2"><div class="field"><div class="fl">Nombre completo</div><div class="fv">${data.vendedorNombre}</div></div><div class="field"><div class="fl">DNI / CUIT</div><div class="fv">${data.vendedorDni}</div></div>${data.vendedorDomicilio ? `<div class="field"><div class="fl">Domicilio</div><div class="fv">${data.vendedorDomicilio}</div></div>` : ""}<div class="field"><div class="fl">Estado civil</div><div class="fv" style="text-transform:capitalize">${data.vendedorEstadoCivil}</div></div>${conyugeVendRow}</div></div>
-<div class="section"><div class="section-title">Comprador</div><div class="grid2"><div class="field"><div class="fl">Nombre completo</div><div class="fv">${data.compradorNombre}</div></div><div class="field"><div class="fl">DNI / CUIT</div><div class="fv">${data.compradorDni}</div></div>${data.compradorDomicilio ? `<div class="field"><div class="fl">Domicilio</div><div class="fv">${data.compradorDomicilio}</div></div>` : ""}<div class="field"><div class="fl">Estado civil</div><div class="fv" style="text-transform:capitalize">${data.compradorEstadoCivil}</div></div>${conyugeComprRow}</div></div>
-<div class="section"><div class="section-title">Condiciones económicas</div><div class="grid3"><div class="field"><div class="fl">Precio acordado</div><div class="fv-lg">${formatPrice(precio, data.moneda)}</div></div>${sena > 0 ? `<div class="field"><div class="fl">Seña / Reserva</div><div class="fv-lg">${formatPrice(sena, data.moneda)}</div></div>` : ""}<div class="field"><div class="fl">Forma de pago</div><div class="fv">${data.formaPago}</div></div></div>${comV > 0 || comC > 0 ? `<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="field"><div class="fl">Comisión vendedor (${data.comisionVendedorPct}%)</div><div class="fv">${formatPrice(comV, data.moneda)}</div></div><div class="field"><div class="fl">Comisión comprador (${data.comisionCompradorPct}%)</div><div class="fv">${formatPrice(comC, data.moneda)}</div></div></div>` : ""}</div>
-${data.escribanoNombre ? `<div class="section"><div class="section-title">Escribanía</div><div class="grid2"><div class="field"><div class="fl">Escribano</div><div class="fv">${data.escribanoNombre}</div></div>${data.escribanoRegistro ? `<div class="field"><div class="fl">Registro notarial</div><div class="fv">${data.escribanoRegistro}</div></div>` : ""}${data.fechaEscritura ? `<div class="field"><div class="fl">Fecha tentativa escritura</div><div class="fv">${fmtFechaLarga(data.fechaEscritura)}</div></div>` : ""}</div></div>` : ""}
-<div class="section"><div class="section-title">Cláusulas y condiciones</div><pre class="clausulas">${data.clausulas}</pre></div>
-<div class="firmas"><div><div class="firma-line"></div><div class="firma-label">VENDEDOR</div><div class="firma-sub">${data.vendedorNombre}</div><div class="firma-sub">DNI/CUIT: ${data.vendedorDni}</div></div><div><div class="firma-line"></div><div class="firma-label">COMPRADOR</div><div class="firma-sub">${data.compradorNombre}</div><div class="firma-sub">DNI/CUIT: ${data.compradorDni}</div></div></div>
-${cfg?.matriculaCorredora ? `<div style="margin-top:24px;text-align:center"><div style="display:inline-block;text-align:center"><div style="height:36px;border-bottom:1px solid #aaa;width:200px;margin-bottom:5px"></div><div style="font-size:9.5px;font-weight:700;color:#333">CORREDOR INMOBILIARIO</div><div style="font-size:9px;color:#888">${cfg.razonSocial ?? ""} · Mat. N° ${cfg.matriculaCorredora}</div></div></div>` : ""}
-</div><div class="doc-footer">${pie}</div></body></html>`;
-
-  return html;
+export function printCompraventa(
+  venta: ContratoVentaCreado,
+  tipoFirma: "DIGITAL" | "MANUAL",
+  cfg: WizardConfig | null,
+  inmob: WizardInmobiliaria | null,
+) {
+  const html = buildContratoVentaHtml(
+    {
+      id: venta.id,
+      vendedorNombre:      venta.vendedorNombre,
+      vendedorDni:         venta.vendedorDni,
+      vendedorDomicilio:   venta.vendedorDomicilio ?? null,
+      compradorNombre:     venta.compradorNombre,
+      compradorDni:        venta.compradorDni,
+      compradorDomicilio:  venta.compradorDomicilio ?? null,
+      propiedadDireccion:  venta.propiedadDireccion,
+      propiedadDescripcion: venta.propiedadDescripcion ?? null,
+      matriculaInmueble:   venta.matriculaInmueble ?? null,
+      precioVenta:         venta.precioVenta,
+      moneda:              venta.moneda,
+      sena:                venta.sena ?? null,
+      comisionVendedorPct: venta.comisionVendedorPct,
+      comisionCompradorPct: venta.comisionCompradorPct,
+      formaPago:           venta.formaPago,
+      escribanoNombre:     venta.escribanoNombre ?? null,
+      escribanoRegistro:   venta.escribanoRegistro ?? null,
+      fechaEscritura:      venta.fechaEscritura ?? null,
+      clausulas:           venta.clausulas ?? null,
+      tipoFirma,
+    },
+    cfg,
+    inmob,
+  );
+  printHtml(html, () => toast.error("Habilitá las ventanas emergentes para imprimir"));
 }
 
-export function printCompraventa(data: CompraventaData, cfg: WizardConfig | null, inmob: WizardInmobiliaria | null) {
-  const html = buildCompraventaHtml(data, cfg, inmob);
-  const w = window.open("", "_blank", "width=900,height=1100");
-  if (!w) { toast.error("Habilitá las ventanas emergentes para imprimir"); return; }
-  w.document.write(html);
-  w.document.close();
-  setTimeout(() => { w.focus(); w.print(); }, 400);
+// ─── Selector de tipo de firma (reutilizable en ambos previews) ──────────────
+
+function SelectorTipoFirma({
+  tipoFirma, firmaUrl, color,
+  onChange,
+}: {
+  tipoFirma: "DIGITAL" | "MANUAL";
+  firmaUrl: string | null | undefined;
+  color: string;
+  onChange: (t: "DIGITAL" | "MANUAL") => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-bold uppercase tracking-widest" style={{ color }}>¿Cómo querés firmar este contrato?</p>
+      <div className="grid grid-cols-2 gap-3">
+        {/* Firma digital */}
+        <button
+          type="button"
+          onClick={() => onChange("DIGITAL")}
+          className="p-3 rounded-xl text-left transition-all border-2"
+          style={{
+            borderColor: tipoFirma === "DIGITAL" ? color : "#D4D0CB",
+            background: tipoFirma === "DIGITAL" ? `${color}10` : "white",
+          }}
+        >
+          <p className="text-xs font-bold" style={{ color: tipoFirma === "DIGITAL" ? color : "#3a3a3a" }}>Firma digital</p>
+          <p className="text-[10px] text-[#7a7a7a] mt-1 leading-relaxed">
+            Se inserta automáticamente tu firma guardada en el documento.
+          </p>
+          {!firmaUrl && (
+            <p className="text-[10px] mt-1.5 font-semibold" style={{ color: "#DC2626" }}>
+              ⚠️ No tenés firma guardada. Configurala en Configuración → Firma digital.
+            </p>
+          )}
+          {firmaUrl && (
+            <img src={firmaUrl} alt="Tu firma" className="h-8 mt-2 object-contain" style={{ maxWidth: 120 }} />
+          )}
+        </button>
+
+        {/* Manual */}
+        <button
+          type="button"
+          onClick={() => onChange("MANUAL")}
+          className="p-3 rounded-xl text-left transition-all border-2"
+          style={{
+            borderColor: tipoFirma === "MANUAL" ? color : "#D4D0CB",
+            background: tipoFirma === "MANUAL" ? `${color}10` : "white",
+          }}
+        >
+          <p className="text-xs font-bold" style={{ color: tipoFirma === "MANUAL" ? color : "#3a3a3a" }}>Imprimir y firmar a mano</p>
+          <p className="text-[10px] text-[#7a7a7a] mt-1 leading-relaxed">
+            El documento se genera sin firma. Lo imprimís y firmás con todas las partes.
+          </p>
+        </button>
+      </div>
+
+      {/* Aviso si elige digital */}
+      {tipoFirma === "DIGITAL" && (
+        <div className="rounded-xl p-3" style={{ background: "#FFFBEB", borderLeft: "4px solid #D4A853" }}>
+          <p className="text-[11px] leading-relaxed" style={{ color: "#78350F" }}>
+            <strong style={{ color: "#92400E" }}>Nota:</strong>{" "}
+            Esta es una firma electrónica (imagen de tu firma), no una firma digital certificada por AFIP (Ley 25.506).
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Paso de previsualización (compraventa) ──────────────────────────────────
@@ -998,7 +1269,32 @@ function CvPreview({
   onChange: (p: Partial<CompraventaData>) => void;
 }) {
   // El HTML se recalcula cuando cambian los datos (incluidas las cláusulas editadas)
-  const html = useMemo(() => buildCompraventaHtml(data, cfg, inmob), [data, cfg, inmob]);
+  const html = useMemo(() => buildContratoVentaHtml(
+    {
+      id: "PREV",
+      vendedorNombre:      data.vendedorNombre,
+      vendedorDni:         data.vendedorDni,
+      vendedorDomicilio:   data.vendedorDomicilio || null,
+      compradorNombre:     data.compradorNombre,
+      compradorDni:        data.compradorDni,
+      compradorDomicilio:  data.compradorDomicilio || null,
+      propiedadDireccion:  data.propiedadDireccion,
+      propiedadDescripcion: data.propiedadDescripcion || null,
+      matriculaInmueble:   data.matriculaInmueble || null,
+      precioVenta:         Number(data.precioVenta) || 0,
+      moneda:              data.moneda,
+      sena:                data.sena ? Number(data.sena) : null,
+      comisionVendedorPct: Number(data.comisionVendedorPct) || 0,
+      comisionCompradorPct: Number(data.comisionCompradorPct) || 0,
+      formaPago:           data.formaPago,
+      escribanoNombre:     data.escribanoNombre || null,
+      escribanoRegistro:   data.escribanoRegistro || null,
+      fechaEscritura:      data.fechaEscritura || null,
+      clausulas:           data.clausulas,
+      tipoFirma:           data.tipoFirma,
+    },
+    cfg, inmob,
+  ), [data, cfg, inmob]);
 
   return (
     <div className="space-y-4">
@@ -1008,6 +1304,14 @@ function CvPreview({
           Así se verá el boleto al imprimirlo. Podés ajustar las cláusulas abajo — el resto de los datos se editan volviendo atrás.
         </p>
       </div>
+
+      {/* Selector de firma */}
+      <SelectorTipoFirma
+        tipoFirma={data.tipoFirma}
+        firmaUrl={inmob?.firmaUrl}
+        color={color}
+        onChange={(t) => onChange({ tipoFirma: t })}
+      />
 
       {/* Previsualización del documento real */}
       <div
@@ -1059,9 +1363,28 @@ function AlqPreview({
   color: string;
   onChange: (p: Partial<AlquilerData>) => void;
 }) {
+  const prop = propiedades.find((p) => p.id === data.propiedadId);
   const html = useMemo(
-    () => buildAlquilerHtml(data, propiedades, cfg, inmob),
-    [data, propiedades, cfg, inmob]
+    () => buildContratoAlquilerHtml(
+      {
+        id: "PREV",
+        inquilinoNombre:    data.inquilinoNombre || "—",
+        inquilinoTel:       data.inquilinoTel || "—",
+        precioMensual:      Number(data.precioMensual) || 0,
+        moneda:             data.moneda,
+        diaVencimientoPago: data.diaVencimientoPago,
+        fechaInicio:        data.fechaInicio,
+        fechaFin:           data.fechaFin,
+        ajusteActivo:       data.ajusteActivo,
+        ajusteIndice:       data.ajusteIndice,
+        ajusteMeses:        data.ajusteMeses,
+        tipoFirma:          data.tipoFirma,
+        propiedad:          prop ?? { titulo: "—", direccion: "—" },
+        clausulasOverride:  data.clausulas,
+      },
+      cfg, inmob,
+    ),
+    [data, prop, cfg, inmob]
   );
 
   return (
@@ -1072,6 +1395,14 @@ function AlqPreview({
           Así se verá el contrato al imprimirlo. Podés ajustar las cláusulas abajo — el resto de los datos se editan volviendo atrás.
         </p>
       </div>
+
+      {/* Selector de firma */}
+      <SelectorTipoFirma
+        tipoFirma={data.tipoFirma}
+        firmaUrl={inmob?.firmaUrl}
+        color={color}
+        onChange={(t) => onChange({ tipoFirma: t })}
+      />
 
       <div className="rounded-xl overflow-hidden border" style={{ borderColor: "#D4D0CB", background: "#fff" }}>
         <iframe
@@ -1119,7 +1450,6 @@ export function NuevoContratoWizard({
   onCreated: (c: ContratoCreado) => void;
   onVentaCreated?: (v: ContratoVentaCreado) => void;
 }) {
-  const uid = useId();
   const [state, dispatch] = useReducer(reducer, null, () => ({
     tipo: null,
     paso: 0,
@@ -1127,12 +1457,13 @@ export function NuevoContratoWizard({
     compraventa: mkCvInit(config),
     saving: false,
     done: false,
+    ventaCreada: null,
   }));
   const [errs, setErrs] = useState<Record<string, string>>({});
 
-  const { tipo, paso, alquiler, compraventa, saving, done } = state;
-  const primaryColor = config?.colorPrimario ?? "#1B4332";
-  const color = primaryColor;
+  const { tipo, paso, alquiler, compraventa, saving, done, ventaCreada } = state;
+  // El wizard usa un gris carbón neutro (no el verde de marca) para los pasos.
+  const color = "#2C2C2C";
   const steps = tipo === "compraventa" ? CV_STEPS : ALQ_STEPS;
   const totalPasos = 5;
 
@@ -1168,15 +1499,15 @@ export function NuevoContratoWizard({
           ajusteIndice: alquiler.ajusteIndice,
           ajusteMeses: alquiler.ajusteMeses,
           ajusteDia: alquiler.ajusteDia,
+          tipoFirma: alquiler.tipoFirma,
+          inquilinoContactoId: alquiler.inquilinoContactoId ?? null,
+          garanteContactoId:   alquiler.garanteContactoId ?? null,
         }),
       });
       const json = await res.json() as { data?: Record<string, unknown>; error?: string };
       if (!res.ok) throw new Error(json.error ?? "Error al crear");
       const d = json.data!;
-      dispatch({ type: "SET_DONE" });
-      // Print after save
-      setTimeout(() => printAlquiler(alquiler, propiedades, config, inmobiliaria), 200);
-      onCreated({
+      const contratoCreado: ContratoCreado = {
         id: d.id as string,
         propiedadId: d.propiedadId as string,
         inmobiliariaId: d.inmobiliariaId as string,
@@ -1190,7 +1521,11 @@ export function NuevoContratoWizard({
         fechaFin: (d.fechaFin as string).slice(0, 10),
         createdAt: d.createdAt as string,
         propiedad: d.propiedad as ContratoCreado["propiedad"],
-      });
+      };
+      dispatch({ type: "SET_DONE" });
+      // Print con el formato del CRM usando los datos guardados en DB
+      setTimeout(() => printAlquiler(contratoCreado, alquiler.clausulas, alquiler.tipoFirma, config, inmobiliaria), 200);
+      onCreated(contratoCreado);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al crear");
       dispatch({ type: "SET_SAVING", payload: false });
@@ -1204,6 +1539,9 @@ export function NuevoContratoWizard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          tipoFirma:            compraventa.tipoFirma,
+          vendedorContactoId:   compraventa.vendedorContactoId ?? null,
+          compradorContactoId:  compraventa.compradorContactoId ?? null,
           propiedadDireccion:   compraventa.propiedadDireccion,
           propiedadDescripcion: compraventa.propiedadDescripcion || undefined,
           matriculaInmueble:    compraventa.matriculaInmueble || undefined,
@@ -1232,8 +1570,11 @@ export function NuevoContratoWizard({
       const json = await res.json() as { data?: ContratoVentaCreado; error?: string };
       if (!res.ok) throw new Error(json.error ?? "Error al guardar");
       dispatch({ type: "SET_DONE" });
-      setTimeout(() => printCompraventa(compraventa, config, inmobiliaria), 200);
-      if (json.data) onVentaCreated?.(json.data);
+      if (json.data) {
+        dispatch({ type: "SET_VENTA_CREADA", payload: json.data });
+        setTimeout(() => printCompraventa(json.data!, compraventa.tipoFirma, config, inmobiliaria), 200);
+        onVentaCreated?.(json.data);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar");
       dispatch({ type: "SET_SAVING", payload: false });
@@ -1259,7 +1600,7 @@ export function NuevoContratoWizard({
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => printCompraventa(compraventa, config, inmobiliaria)}
+              onClick={() => ventaCreada && printCompraventa(ventaCreada, compraventa.tipoFirma, config, inmobiliaria)}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border"
               style={{ borderColor: color, color }}
             >
@@ -1280,8 +1621,8 @@ export function NuevoContratoWizard({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div
-        className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-        style={{ maxHeight: "92vh" }}
+        className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        style={{ maxHeight: "94vh" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ background: color }}>
@@ -1316,7 +1657,7 @@ export function NuevoContratoWizard({
           {tipo === "alquiler" && paso === 3 && <AlqStep3 data={alquiler} color={color} errs={errs} onChange={updAlq} />}
           {tipo === "alquiler" && paso === 4 && <AlqStep4 data={alquiler} color={color} errs={errs} onChange={updAlq} />}
           {tipo === "alquiler" && paso === 5 && <AlqPreview data={alquiler} propiedades={propiedades} cfg={config} inmob={inmobiliaria} color={color} onChange={updAlq} />}
-          {tipo === "compraventa" && paso === 1 && <CvStep1 data={compraventa} color={color} errs={errs} onChange={updCv} />}
+          {tipo === "compraventa" && paso === 1 && <CvStep1 data={compraventa} propiedades={propiedades} color={color} errs={errs} onChange={updCv} />}
           {tipo === "compraventa" && paso === 2 && <CvStep2 data={compraventa} color={color} errs={errs} onChange={updCv} />}
           {tipo === "compraventa" && paso === 3 && <CvStep3 data={compraventa} color={color} errs={errs} onChange={updCv} />}
           {tipo === "compraventa" && paso === 4 && <CvStep4 data={compraventa} color={color} errs={errs} onChange={updCv} />}
@@ -1334,9 +1675,17 @@ export function NuevoContratoWizard({
               <ChevronLeft className="w-4 h-4" />
               Atrás
             </button>
+            {(() => {
+              // Deshabilitar si eligió firma digital sin tener firma guardada
+              const needsFirma = isLastStep &&
+                ((tipo === "alquiler" && alquiler.tipoFirma === "DIGITAL") ||
+                 (tipo === "compraventa" && compraventa.tipoFirma === "DIGITAL")) &&
+                !inmobiliaria?.firmaUrl;
+              return (
             <button
               onClick={handleNext}
-              disabled={saving}
+              disabled={saving || needsFirma}
+              title={needsFirma ? "Guardá tu firma en Configuración → Firma digital" : undefined}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity disabled:opacity-60"
               style={{ background: color }}
             >
@@ -1351,6 +1700,8 @@ export function NuevoContratoWizard({
                 <>Siguiente <ChevronRight className="w-4 h-4" /></>
               )}
             </button>
+              );
+            })()}
           </div>
         )}
       </div>

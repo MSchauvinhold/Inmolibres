@@ -108,17 +108,27 @@ export const NotifMessages = {
       hour: "2-digit",
       minute: "2-digit",
     });
+    // Calcular tiempo restante al momento de crear la notificación
+    const minutos = Math.round((fechaHora.getTime() - Date.now()) / 60_000);
+    const tiempoLabel =
+      minutos <= 0   ? "ahora mismo"
+      : minutos < 60 ? `en ${minutos} min`
+      :                `a las ${hora} hs`;
     return {
-      titulo: "Visita en las próximas 2 horas",
-      mensaje: `Tenés una visita agendada a "${titulo}" a las ${hora}.`,
+      titulo: `Visita ${tiempoLabel} — ${titulo}`,
+      mensaje: `Tenés una visita agendada en "${titulo}" a las ${hora} hs.`,
       url: "/visitas",
     };
   },
 
   contratoPorVencer(titulo: string, fechaFin: Date, dias: number) {
+    const tiempoLabel =
+      dias >= 60 ? `${Math.round(dias / 30)} meses`
+      : dias === 30 ? "1 mes"
+      : `${dias} días`;
     return {
-      titulo: `Contrato por vencer — ${dias} días`,
-      mensaje: `El contrato de alquiler de "${titulo}" vence el ${fechaFin.toLocaleDateString("es-AR")}.`,
+      titulo: `Contrato por vencer en ${tiempoLabel} — ${titulo}`,
+      mensaje: `El contrato de alquiler de "${titulo}" vence el ${fechaFin.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}.`,
       url: "/alquileres",
     };
   },

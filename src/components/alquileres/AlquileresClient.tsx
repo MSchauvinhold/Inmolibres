@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { formatPrice, buildWhatsAppLink } from "@/lib/utils";
 import {
@@ -8,18 +8,24 @@ import {
   Phone, Trash2, ChevronRight, ScrollText,
   Gavel, Search, Home, Calendar,
   Download, Send, Users, MessageSquare, CheckCircle2,
-  Receipt, Clock, TrendingUp, ArrowLeft, Save, Check,
+  Receipt, Clock, TrendingUp, ArrowLeft, Save, Check, Upload,
 } from "lucide-react";
+import { uploadToCloudinary } from "@/lib/cloudinary";
+import {
+  buildContratoAlquilerHtml,
+  buildContratoVentaHtml,
+  printHtml,
+  duracionMeses,
+  type PdfConfig,
+} from "@/lib/contrato-pdf";
 import { Pill } from "@/components/ui/pill";
 import {
   NuevoContratoWizard,
-  printCompraventa,
   type ContratoCreado,
   type ContratoVentaCreado,
   type PropiedadItem,
   type WizardConfig,
   type WizardInmobiliaria,
-  type CompraventaData,
 } from "./NuevoContratoWizard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -39,6 +45,17 @@ interface Contrato {
   notas: string | null;
   createdAt: string;
   propiedad: { id: string; titulo: string; direccion: string };
+  // Configuración de ajuste periódico
+  ajusteActivo: boolean;
+  ajusteIndice: string;
+  ajusteMeses: number;
+  ajusteDia: number;
+  indiceUltimoAjuste: number | null;
+  precioOriginal: number | null;
+  // Firma
+  tipoFirma: string | null;
+  contratoFirmadoUrl: string | null;
+  fechaFirmado: string | null;
 }
 
 interface ContratoVenta {
@@ -70,6 +87,7 @@ interface ContratoVenta {
   fechaEscritura: string | null;
   clausulas: string | null;
   notas: string | null;
+  tipoFirma: string | null;
   createdAt: string;
 }
 
@@ -152,11 +170,7 @@ function fmtFechaLarga(iso: string): string {
   return new Date(iso + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
 }
 
-function duracionMeses(inicio: string, fin: string): number {
-  const d1 = new Date(inicio + "T00:00:00");
-  const d2 = new Date(fin + "T00:00:00");
-  return (d2.getFullYear() - d1.getFullYear()) * 12 + d2.getMonth() - d1.getMonth();
-}
+// duracionMeses viene de @/lib/contrato-pdf
 
 // ─── StatCard ─────────────────────────────────────────────────────────────────
 
@@ -300,6 +314,11 @@ function ContratoCard({ contrato, onClick }: { contrato: Contrato; onClick: () =
           >
             {style.label}
           </span>
+          {contrato.contratoFirmadoUrl && (
+            <span title="Contrato firmado subido" style={{ display: "inline-flex", alignItems: "center", width: 20, height: 20, borderRadius: 999, background: "var(--success-100, #DCFCE7)", justifyContent: "center", flexShrink: 0 }}>
+              <CheckCircle2 size={11} style={{ color: "var(--success-600, #16a34a)" }} />
+            </span>
+          )}
           <ChevronRight size={16} style={{ color: "var(--antracita-300)", flexShrink: 0 }} />
         </div>
       </div>
@@ -390,6 +409,58 @@ function ContratoVentaCard({ venta, onClick }: { venta: ContratoVenta; onClick: 
 
 // ─── DocumentoPreview (preview embebido en el detalle modal) ─────────────────
 
+// ─── DocumentoFirmadoPreview — muestra el contrato firmado subido ─────────────
+
+function DocumentoFirmadoPreview({ url, fecha }: { url: string; fecha: string | null }) {
+  const isPdf = url.toLowerCase().includes(".pdf") || url.includes("/raw/upload/") || url.includes("pdf");
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Badge */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--success-50, #f0fdf4)", border: "1px solid var(--success-200, #bbf7d0)", borderRadius: 10 }}>
+        <CheckCircle2 size={14} style={{ color: "var(--success-600, #16a34a)", flexShrink: 0 }} />
+        <div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--success-700, #15803d)" }}>
+            Contrato firmado
+          </span>
+          {fecha && (
+            <span style={{ fontSize: 11, color: "var(--success-600)", marginLeft: 6 }}>
+              · subido el {new Date(fecha).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+            </span>
+          )}
+        </div>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="il-btn il-btn--ghost"
+          style={{ marginLeft: "auto", fontSize: 11, height: 28, gap: 4, textDecoration: "none" }}
+        >
+          <Download size={12} /> Descargar
+        </a>
+      </div>
+
+      {/* Preview */}
+      {isPdf ? (
+        <iframe
+          src={url}
+          title="Contrato firmado"
+          style={{ width: "100%", height: 600, border: "none", borderRadius: 10, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={url}
+          alt="Contrato firmado"
+          style={{ width: "100%", borderRadius: 10, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", objectFit: "contain", maxHeight: 700 }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── DocumentoPreview — preview generado (cuando aún no hay firmado) ──────────
+
 function DocumentoPreview({
   contrato, config, inmobiliaria, onPrint,
 }: {
@@ -404,7 +475,6 @@ function DocumentoPreview({
   const cuit            = config?.cuit ?? "";
   const domicilio       = config?.domicilioLegal ?? "";
   const matricula       = config?.matriculaCorredora ?? "";
-  const clausulas       = config?.clausulasAdicionales ?? DEFAULT_CLAUSULAS;
   const pie             = config?.piePaginaContrato ?? [razonSocial, inmobiliaria?.whatsapp && `Tel: ${inmobiliaria.whatsapp}`].filter(Boolean).join(" · ");
   const hoyStr          = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
   const meses           = duracionMeses(contrato.fechaInicio, contrato.fechaFin);
@@ -442,7 +512,7 @@ function DocumentoPreview({
         padding: "36px 40px 32px",
         boxShadow: "var(--shadow-lg, 0 8px 32px rgba(58,35,18,0.12))",
         borderTop: `4px solid ${colorPrimario}`,
-        fontFamily: "var(--font-body)",
+        fontFamily: "Georgia, 'Times New Roman', serif",
       }}>
         {/* Header band */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 18, borderBottom: "1px solid var(--border)", marginBottom: 22 }}>
@@ -521,7 +591,7 @@ function DocumentoPreview({
               { l: "Valor inicial",   v: formatPrice(contrato.precioMensual, contrato.moneda), s: `${contrato.moneda} · mensual`, terra: true },
               { l: "Día de pago",    v: String(contrato.diaVencimientoPago), s: "de cada mes" },
               { l: "Plazo",          v: `${meses} meses`, s: `${fmtFecha(contrato.fechaInicio)} – ${fmtFecha(contrato.fechaFin)}` },
-              { l: "Ajuste",         v: "ICL · BCRA", s: "cada 12 meses" },
+              { l: "Ajuste",         v: contrato.ajusteActivo ? `${contrato.ajusteIndice} · ${contrato.ajusteIndice === "ICL" ? "BCRA" : "INDEC"}` : "Sin ajuste", s: contrato.ajusteActivo ? `cada ${contrato.ajusteMeses} meses` : "precio fijo" },
             ].map((f) => (
               <div key={f.l} style={{ padding: "9px 11px", background: f.terra ? "var(--terracota-100, #FAE8E2)" : "var(--crema-100)", border: f.terra ? "1px solid var(--terracota-300, #E0A088)" : "1px solid var(--border)", borderRadius: 7 }}>
                 <div className="mono" style={{ fontSize: 9, color: f.terra ? colorPrimario : "var(--antracita-300)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>{f.l}</div>
@@ -549,22 +619,32 @@ function DocumentoPreview({
         {/* Signatures */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, paddingTop: 20, borderTop: "1px solid var(--border)" }}>
           {[
-            { r: "Locador / Inmobiliaria", n: razonSocial },
-            { r: "Locatario",              n: contrato.inquilinoNombre },
-          ].map((s) => (
-            <div key={s.r} style={{ textAlign: "center" }}>
-              <div style={{ height: 52, borderBottom: "1px solid var(--antracita-700)", marginBottom: 6 }} />
-              <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--antracita-700)" }}>{s.r}</div>
-              <div style={{ fontSize: 10, color: "var(--antracita-500)", marginTop: 2 }}>{s.n}</div>
-            </div>
-          ))}
+            { r: "Locador / Inmobiliaria", n: razonSocial, firmable: true },
+            { r: "Locatario",              n: contrato.inquilinoNombre, firmable: false },
+          ].map((s) => {
+            const mostrarFirma = s.firmable && contrato.tipoFirma === "DIGITAL" && inmobiliaria?.firmaUrl;
+            return (
+              <div key={s.r} style={{ textAlign: "center" }}>
+                {mostrarFirma ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={inmobiliaria!.firmaUrl!}
+                    alt="Firma"
+                    style={{ height: 52, maxWidth: 160, objectFit: "contain", margin: "0 auto 6px", display: "block" }}
+                  />
+                ) : (
+                  <div style={{ height: 52, borderBottom: "1px solid var(--antracita-700)", marginBottom: 6 }} />
+                )}
+                <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--antracita-700)" }}>{s.r}</div>
+                <div style={{ fontSize: 10, color: "var(--antracita-500)", marginTop: 2 }}>{s.n}</div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Footer */}
-        <div style={{ marginTop: 20, paddingTop: 12, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--antracita-300)", fontFamily: "var(--font-mono)" }}>
-          <span>Generado por InmoLibres</span>
-          <span>{pie}</span>
-          <span>Página 1 de 4</span>
+        <div style={{ marginTop: 20, paddingTop: 12, borderTop: "1px solid var(--border)", textAlign: "center", fontSize: 9, color: "var(--antracita-300)", fontFamily: "var(--font-mono)" }}>
+          {pie}
         </div>
 
         {/* Watermark */}
@@ -670,6 +750,325 @@ function NotasEditor({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── AjustesTab (configuración + historial de ajustes de un contrato) ───────────
+
+const INP = "w-full rounded-xl border px-3 py-2 text-sm outline-none transition-colors focus:ring-2";
+const INP_STYLE = { borderColor: "#D4D0CB", background: "#FAFAF8", color: "#1a1a1a" };
+
+function AjustesTab({ contrato, onSaved }: {
+  contrato: Contrato;
+  onSaved?: (cfg: { ajusteActivo: boolean; ajusteIndice: "ICL" | "IPC"; ajusteMeses: number; ajusteDia: number }) => void;
+}) {
+  const [ajusteActivo, setAjusteActivo] = useState(contrato.ajusteActivo);
+  const [ajusteIndice, setAjusteIndice] = useState<"ICL" | "IPC">(
+    (contrato.ajusteIndice === "IPC" ? "IPC" : "ICL") as "ICL" | "IPC"
+  );
+  const [ajusteMeses, setAjusteMeses] = useState(contrato.ajusteMeses ?? 6);
+  const [ajusteDia, setAjusteDia] = useState(contrato.ajusteDia ?? 14);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const dirty =
+    ajusteActivo !== contrato.ajusteActivo ||
+    ajusteIndice !== contrato.ajusteIndice ||
+    ajusteMeses  !== contrato.ajusteMeses  ||
+    ajusteDia    !== contrato.ajusteDia;
+
+  async function guardar() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const res = await fetch(`/api/alquileres/${contrato.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ajusteActivo, ajusteIndice, ajusteMeses, ajusteDia }),
+      });
+      if (!res.ok) throw new Error();
+      setSaved(true);
+      toast.success("Configuración de ajuste guardada");
+      // Notificar al padre para que actualice su estado local (status strip, etc.)
+      onSaved?.({ ajusteActivo, ajusteIndice, ajusteMeses, ajusteDia });
+    } catch {
+      toast.error("Error al guardar la configuración");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Calcular próximo ajuste estimado
+  const proximoEstimado = ajusteActivo && contrato.fechaInicio ? (() => {
+    const d = new Date(contrato.fechaInicio.slice(0, 10) + "T00:00:00");
+    d.setMonth(d.getMonth() + ajusteMeses);
+    const maxDia = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(ajusteDia, maxDia));
+    return d.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+  })() : null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+      {/* ── Config de ajuste ── */}
+      <div>
+        <h3 className="display" style={{ fontSize: 17, margin: "0 0 16px", color: "var(--antracita-900)" }}>
+          Configuración de ajuste
+        </h3>
+
+        {/* Toggle activo */}
+        <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", marginBottom: 16 }}>
+          <div
+            style={{
+              position: "relative", width: 40, height: 20, borderRadius: 99,
+              background: ajusteActivo ? "#1B4332" : "#D4D0CB",
+              transition: "background 0.2s", cursor: "pointer", flexShrink: 0,
+            }}
+            onClick={() => setAjusteActivo(!ajusteActivo)}
+          >
+            <div style={{
+              position: "absolute", top: 2, width: 16, height: 16, borderRadius: "50%",
+              background: "white", boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+              transform: ajusteActivo ? "translateX(22px)" : "translateX(2px)",
+              transition: "transform 0.2s",
+            }} />
+          </div>
+          <span style={{ fontSize: 14, color: "var(--antracita-700)", fontWeight: 500 }}>
+            Ajuste automático de precio activo
+          </span>
+        </label>
+
+        {ajusteActivo && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: 16, background: "#F7F5F2", border: "1px solid #E8E5E0", borderRadius: 12 }}>
+
+            {/* Selector de índice */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-400)", marginBottom: 8 }}>
+                Índice de actualización
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {(["ICL", "IPC"] as const).map((idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setAjusteIndice(idx)}
+                    style={{
+                      borderRadius: 10, padding: "10px 12px", textAlign: "left",
+                      border: `2px solid ${ajusteIndice === idx ? "#1B4332" : "#D4D0CB"}`,
+                      background: ajusteIndice === idx ? "#1B433210" : "white",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 700, color: ajusteIndice === idx ? "#1B4332" : "#3a3a3a" }}>
+                      {idx === "ICL" ? "ICL — BCRA" : "IPC — INDEC"}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: "#7a7a7a", marginTop: 2, lineHeight: 1.4 }}>
+                      {idx === "ICL"
+                        ? "Índice de Contratos de Locación. Obligatorio por Ley 27.737."
+                        : "Índice de Precios al Consumidor."}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Frecuencia + día */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-400)", marginBottom: 6 }}>
+                  Frecuencia
+                </div>
+                <select
+                  className={INP}
+                  style={INP_STYLE}
+                  value={ajusteMeses}
+                  onChange={(e) => setAjusteMeses(Number(e.target.value))}
+                >
+                  <option value={1}>Cada 1 mes</option>
+                  <option value={2}>Cada 2 meses</option>
+                  <option value={3}>Cada 3 meses</option>
+                  <option value={6}>Cada 6 meses</option>
+                  <option value={12}>Cada 12 meses</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-400)", marginBottom: 6 }}>
+                  Día del mes
+                </div>
+                <input
+                  type="number" min={1} max={28}
+                  className={INP}
+                  style={INP_STYLE}
+                  value={ajusteDia}
+                  onChange={(e) => setAjusteDia(Math.max(1, Math.min(28, Number(e.target.value))))}
+                />
+              </div>
+            </div>
+
+            {/* Próximo ajuste estimado */}
+            {proximoEstimado && (
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", background: "#1B433210", border: "1px solid #1B433230", borderRadius: 8 }}>
+                <Calendar size={14} style={{ color: "#1B4332", marginTop: 1, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#1B4332" }}>Próximo ajuste estimado</div>
+                  <div style={{ fontSize: 12, color: "#3a5a3a", marginTop: 2 }}>
+                    {proximoEstimado} — el sistema lo notificará para confirmación.
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!ajusteActivo && (
+          <p style={{ fontSize: 13, color: "var(--antracita-400)" }}>
+            El precio se mantiene fijo durante toda la vigencia del contrato.
+          </p>
+        )}
+
+        {/* Botón guardar */}
+        {dirty && (
+          <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+            <button
+              className="il-btn il-btn--primary"
+              style={{ height: 36, fontSize: 13, gap: 6 }}
+              onClick={guardar}
+              disabled={saving}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : <Save size={14} />}
+              {saving ? "Guardando…" : "Guardar configuración"}
+            </button>
+          </div>
+        )}
+
+        {/* Índice base registrado */}
+        {contrato.indiceUltimoAjuste != null && (
+          <div style={{ marginTop: 12, fontSize: 11.5, color: "var(--antracita-400)" }}>
+            Índice base registrado al inicio: <strong>{contrato.indiceUltimoAjuste.toFixed(4)}</strong>
+            {contrato.precioOriginal != null && (
+              <> · Precio original: <strong>{formatPrice(contrato.precioOriginal, contrato.moneda)}</strong></>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Historial ── */}
+      <div>
+        <AjustesHistorial contratoId={contrato.id} />
+      </div>
+    </div>
+  );
+}
+
+// ─── ContratoFirmadoPanel ─────────────────────────────────────────────────────
+
+function ContratoFirmadoPanel({
+  contrato,
+  onUpdated,
+}: {
+  contrato: Contrato;
+  onUpdated: (url: string, fecha: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setProgress(0);
+    try {
+      const result = await uploadToCloudinary(
+        file,
+        `contratos-firmados/${contrato.inmobiliariaId}`,
+        setProgress
+      );
+      const fecha = new Date().toISOString();
+      const res = await fetch(`/api/alquileres/${contrato.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contratoFirmadoUrl: result.secure_url, fechaFirmado: fecha }),
+      });
+      if (!res.ok) throw new Error();
+      onUpdated(result.secure_url, fecha);
+      toast.success("Contrato firmado subido correctamente");
+    } catch {
+      toast.error("Error al subir el archivo");
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  const yaFirmado = !!contrato.contratoFirmadoUrl;
+
+  return (
+    <div className="il-card" style={{ padding: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <h3 className="display" style={{ fontSize: 16, margin: 0, color: "var(--antracita-900)" }}>Contrato firmado</h3>
+        {yaFirmado && (
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--success-600, #16a34a)", display: "flex", alignItems: "center", gap: 4 }}>
+            <CheckCircle2 size={13} /> Subido
+          </span>
+        )}
+      </div>
+
+      {contrato.tipoFirma === "DIGITAL" && !yaFirmado && (
+        <div style={{ fontSize: 12, color: "var(--antracita-500)", padding: "10px 12px", background: "var(--crema-100)", borderRadius: 8 }}>
+          ✍️ Contrato con firma digital incluida
+        </div>
+      )}
+
+      {yaFirmado ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <a
+            href={contrato.contratoFirmadoUrl!}
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--terracota-600)", fontWeight: 600, textDecoration: "none" }}
+          >
+            <Download size={13} /> Ver / descargar contrato
+          </a>
+          {contrato.fechaFirmado && (
+            <p style={{ fontSize: 11, color: "var(--antracita-400)" }}>
+              Subido el {new Date(contrato.fechaFirmado).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            style={{ fontSize: 11, color: "var(--antracita-500)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+          >
+            Reemplazar
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="il-btn il-btn--ghost"
+          style={{ width: "100%", justifyContent: "center", fontSize: 12, gap: 6, height: 36 }}
+        >
+          {uploading ? (
+            <><Loader2 size={13} className="animate-spin" /> Subiendo… {progress}%</>
+          ) : (
+            <><Upload size={13} /> Subir contrato firmado</>
+          )}
+        </button>
+      )}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".pdf,.jpg,.jpeg,.png"
+        className="hidden"
+        onChange={handleFile}
+      />
+      <p style={{ fontSize: 10, color: "var(--antracita-300)", marginTop: 8 }}>PDF, JPG o PNG · máx. 15 MB</p>
     </div>
   );
 }
@@ -981,6 +1380,23 @@ function ContratoDetalleModal({
   const [deleting, setDeleting] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
 
+  // Estado local de firma — se actualiza al subir el contrato firmado
+  const [firmaState, setFirmaState] = useState({
+    contratoFirmadoUrl: contrato.contratoFirmadoUrl,
+    fechaFirmado: contrato.fechaFirmado,
+  });
+
+  // Estado local de ajuste — se actualiza cuando AjustesTab guarda sin cerrar el modal
+  const [ajusteState, setAjusteState] = useState({
+    ajusteActivo: contrato.ajusteActivo,
+    ajusteIndice: contrato.ajusteIndice as "ICL" | "IPC",
+    ajusteMeses:  contrato.ajusteMeses,
+    ajusteDia:    contrato.ajusteDia,
+  });
+
+  // Contrato "vivo": unión de la prop original + cambios de ajuste y firma guardados en esta sesión
+  const contratoVivo = { ...contrato, ...ajusteState, ...firmaState };
+
   const ctr  = `CTR-${contrato.id.slice(-4).toUpperCase()}`;
   const key  = getEstadoKey(contrato);
   const dias = getDiasRestantes(contrato.fechaFin);
@@ -1106,9 +1522,11 @@ function ContratoDetalleModal({
                 >
                   <Send size={13} /> Enviar al inquilino
                 </a>
-                <button className="il-btn il-btn--primary" style={{ height: 36, fontSize: 13, gap: 6 }}>
-                  <CheckCircle2 size={13} color="#fff" /> Solicitar firma digital
-                </button>
+                {contratoVivo.contratoFirmadoUrl && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--success-600, #16a34a)", padding: "6px 10px", background: "var(--success-50, #f0fdf4)", borderRadius: 8, border: "1px solid var(--success-200, #bbf7d0)" }}>
+                    <CheckCircle2 size={12} /> Contrato firmado subido
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1117,7 +1535,7 @@ function ContratoDetalleModal({
               <StatusItem label="Estado"         value={estadoLabel}               tone={estadoTone} />
               <StatusItem label="Mes corriente"  value={`Día ${contrato.diaVencimientoPago}`} mono />
               <StatusItem label="Próximo pago"   value={proximoPago}               mono />
-              <StatusItem label="Próximo ajuste" value="ICL · BCRA"               mono small />
+              <StatusItem label="Próximo ajuste" value={contratoVivo.ajusteActivo ? `${contratoVivo.ajusteIndice} · c/${contratoVivo.ajusteMeses}m` : "Sin ajuste"} mono small />
               <StatusItem label="Fin contrato"   value={fmtFecha(contrato.fechaFin)} mono />
               <div style={{ padding: "14px 16px", display: "flex", alignItems: "center" }}>
                 <Pill tone={estadoTone} style={{ fontSize: 11, height: 24, whiteSpace: "nowrap" }}>
@@ -1157,7 +1575,9 @@ function ContratoDetalleModal({
               {/* Left: document */}
               <div style={{ borderRight: "1px solid var(--border)", padding: "22px 24px", position: "relative" }}>
                 {subTab === "documento" && (
-                  <DocumentoPreview contrato={contrato} config={config} inmobiliaria={inmobiliaria} onPrint={() => setShowPrint(true)} />
+                  contratoVivo.contratoFirmadoUrl
+                    ? <DocumentoFirmadoPreview url={contratoVivo.contratoFirmadoUrl} fecha={contratoVivo.fechaFirmado} />
+                    : <DocumentoPreview contrato={contratoVivo} config={config} inmobiliaria={inmobiliaria} onPrint={() => setShowPrint(true)} />
                 )}
                 {subTab === "pagos" && (
                   <PagosHistorial
@@ -1167,7 +1587,7 @@ function ContratoDetalleModal({
                   />
                 )}
                 {subTab === "ajustes" && (
-                  <AjustesHistorial contratoId={contrato.id} />
+                  <AjustesTab contrato={contratoVivo} onSaved={setAjusteState} />
                 )}
                 {subTab === "partes" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -1188,7 +1608,7 @@ function ContratoDetalleModal({
                 {subTab === "clausulas" && (
                   <div>
                     <h3 className="display" style={{ fontSize: 17, margin: "0 0 14px", color: "var(--antracita-900)" }}>Cláusulas</h3>
-                    <pre style={{ fontSize: 12, color: "var(--antracita-700)", lineHeight: 1.7, fontFamily: "var(--font-body)", whiteSpace: "pre-wrap" }}>
+                    <pre style={{ fontSize: 12, color: "var(--antracita-700)", lineHeight: 1.7, fontFamily: "Georgia, 'Times New Roman', serif", whiteSpace: "pre-wrap" }}>
                       {config?.clausulasAdicionales ?? DEFAULT_CLAUSULAS}
                     </pre>
                   </div>
@@ -1236,31 +1656,52 @@ function ContratoDetalleModal({
                 {/* Timeline */}
                 <div className="il-card" style={{ padding: 18 }}>
                   <h3 className="display" style={{ fontSize: 16, margin: "0 0 14px", color: "var(--antracita-900)" }}>Línea de tiempo</h3>
-                  <div style={{ position: "relative", height: 56, background: "var(--crema-100)", borderRadius: 10, padding: "12px 14px" }}>
-                    {/* Track */}
-                    <div style={{ position: "absolute", left: 14, right: 14, top: 28, height: 3, background: "var(--crema-300)", borderRadius: 999 }} />
-                    {/* Progress */}
-                    <div style={{ position: "absolute", left: 14, top: 28, width: `${pct}%`, maxWidth: "calc(100% - 28px)", height: 3, background: "var(--terracota-500)", borderRadius: 999, transition: "width 0.6s ease" }} />
-                    {/* Markers */}
-                    {[
-                      { p: 0,   l: "Inicio", d: fmtFecha(contrato.fechaInicio), done: true },
-                      { p: pct, l: "Hoy",    d: new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }), current: true },
-                      { p: 100, l: "Fin",    d: fmtFecha(contrato.fechaFin),   done: dias < 0 },
-                    ].map((m, i) => (
+                  {/* Track container — altura fija para que los labels no se corten */}
+                  <div style={{ position: "relative", height: 80, background: "var(--crema-100)", borderRadius: 10, padding: "0 14px" }}>
+                    {/* Track (riel) */}
+                    <div style={{ position: "absolute", left: 14, right: 14, top: 32, height: 4, background: "var(--crema-300)", borderRadius: 999 }} />
+                    {/* Progress fill */}
+                    <div style={{ position: "absolute", left: 14, top: 32, width: `${pct}%`, maxWidth: "calc(100% - 28px)", height: 4, background: "var(--terracota-500)", borderRadius: 999, transition: "width 0.6s ease" }} />
+                    {/* Markers: Inicio y Fin siempre; Hoy solo si no solapa con ninguno */}
+                    {((): { p: number; l: string; d: string; current?: boolean; done?: boolean }[] => {
+                      type M = { p: number; l: string; d: string; current?: boolean; done?: boolean };
+                      const hoyLabel = new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+                      const base: M[] = [
+                        { p: 0,   l: "Inicio", d: fmtFecha(contrato.fechaInicio), done: true },
+                        { p: 100, l: "Fin",    d: fmtFecha(contrato.fechaFin),    done: dias < 0 },
+                      ];
+                      // Mostrar "Hoy" solo si está suficientemente lejos de Inicio (>5%) y de Fin (<95%)
+                      if (pct > 5 && pct < 95) {
+                        base.splice(1, 0, { p: pct, l: "Hoy", d: hoyLabel, current: true });
+                      }
+                      return base;
+                    })().map((m, i) => (
                       <div key={i} style={{
                         position: "absolute",
-                        left: `calc(${m.p}% - ${m.p === 0 ? 0 : m.p >= 95 ? 20 : 10}px + 14px)`,
-                        top: 20,
+                        // Inicio: alineado a la izquierda; Fin: compensar ancho del label; Hoy: centrado
+                        left: m.p === 0
+                          ? "14px"
+                          : m.p === 100
+                            ? "calc(100% - 14px)"
+                            : `calc(${m.p}% + 14px)`,
+                        top: 22,
+                        transform: m.p === 0 ? "none" : m.p === 100 ? "translateX(-100%)" : "translateX(-50%)",
                       }}>
-                        <div style={{ width: 14, height: 14, borderRadius: 999, background: m.current ? "var(--terracota-500)" : m.done ? "var(--success-500)" : "var(--crema-300)", border: "2px solid #fff", boxShadow: "0 0 0 1px var(--border)" }} />
-                        <div style={{ marginTop: 5, fontSize: 9, color: m.current ? "var(--terracota-600)" : "var(--antracita-400)", fontWeight: m.current ? 700 : 500, whiteSpace: "nowrap" }}>
+                        <div style={{
+                          width: 12, height: 12, borderRadius: 999,
+                          background: m.current ? "var(--terracota-500)" : m.done ? "var(--success-500, #22C55E)" : "var(--crema-300)",
+                          border: "2px solid #fff",
+                          boxShadow: "0 0 0 1.5px var(--border)",
+                          margin: m.p === 100 ? "0 0 0 auto" : "0",
+                        }} />
+                        <div style={{ marginTop: 5, fontSize: 9, color: m.current ? "var(--terracota-600)" : "var(--antracita-400)", fontWeight: m.current ? 700 : 500, whiteSpace: "nowrap", textAlign: m.p === 100 ? "right" : "left" }}>
                           <div className="mono" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{m.l}</div>
                           <div className="mono" style={{ fontSize: 9, color: "var(--antracita-600)" }}>{m.d}</div>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div style={{ marginTop: 28, display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--antracita-500)" }}>
+                  <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--antracita-500)" }}>
                     <span>Transcurrido: <strong className="mono" style={{ color: "var(--antracita-900)" }}>{transcurrido}d</strong></span>
                     <span>Restante: <strong className="mono" style={{ color: dias > 0 ? "var(--terracota-600)" : "var(--danger-500)" }}>{Math.abs(dias)}d</strong></span>
                   </div>
@@ -1292,6 +1733,12 @@ function ContratoDetalleModal({
                     <span className="mono" style={{ fontWeight: 600, color: "var(--antracita-700)" }}>{proximoPago}</span>
                   </div>
                 </div>
+
+                {/* Contrato firmado */}
+                <ContratoFirmadoPanel
+                  contrato={contratoVivo}
+                  onUpdated={(url, fecha) => setFirmaState({ contratoFirmadoUrl: url, fechaFirmado: fecha })}
+                />
 
                 {/* Config note */}
                 <div className="il-card" style={{ padding: 14, background: "rgba(212,168,83,0.08)", border: "1px solid rgba(212,168,83,0.25)", display: "flex", gap: 10 }}>
@@ -1380,7 +1827,7 @@ function DocumentoVentaPreview({
       </div>
 
       {/* Document page */}
-      <div style={{ background: "#fff", borderRadius: "0 0 10px 10px", padding: "36px 40px 32px", boxShadow: "var(--shadow-lg, 0 8px 32px rgba(58,35,18,0.12))", borderTop: `4px solid ${colorPrimario}`, fontFamily: "var(--font-body)", position: "relative" }}>
+      <div style={{ background: "#fff", borderRadius: "0 0 10px 10px", padding: "36px 40px 32px", boxShadow: "var(--shadow-lg, 0 8px 32px rgba(58,35,18,0.12))", borderTop: `4px solid ${colorPrimario}`, fontFamily: "Georgia, 'Times New Roman', serif", position: "relative" }}>
 
         {/* Header band */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 18, borderBottom: "1px solid var(--border)", marginBottom: 22 }}>
@@ -1472,23 +1919,33 @@ function DocumentoVentaPreview({
         {/* Signatures — 3 columns */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24, paddingTop: 20, borderTop: "1px solid var(--border)" }}>
           {[
-            { r: "Vendedor",                    n: venta.vendedorNombre },
-            { r: "Comprador",                   n: venta.compradorNombre },
-            { r: "Corredor Inmobiliario",        n: razonSocial },
-          ].map((s) => (
-            <div key={s.r} style={{ textAlign: "center" }}>
-              <div style={{ height: 52, borderBottom: "1px solid var(--antracita-700)", marginBottom: 6 }} />
-              <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--antracita-700)" }}>{s.r}</div>
-              <div style={{ fontSize: 10, color: "var(--antracita-500)", marginTop: 2 }}>{s.n}</div>
-            </div>
-          ))}
+            { r: "Vendedor",              n: venta.vendedorNombre,  firmable: false },
+            { r: "Comprador",             n: venta.compradorNombre, firmable: false },
+            { r: "Corredor Inmobiliario", n: razonSocial,           firmable: true },
+          ].map((s) => {
+            const mostrarFirma = s.firmable && venta.tipoFirma === "DIGITAL" && inmobiliaria?.firmaUrl;
+            return (
+              <div key={s.r} style={{ textAlign: "center" }}>
+                {mostrarFirma ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={inmobiliaria!.firmaUrl!}
+                    alt="Firma"
+                    style={{ height: 52, maxWidth: 150, objectFit: "contain", margin: "0 auto 6px", display: "block" }}
+                  />
+                ) : (
+                  <div style={{ height: 52, borderBottom: "1px solid var(--antracita-700)", marginBottom: 6 }} />
+                )}
+                <div style={{ fontSize: 10.5, fontWeight: 600, color: "var(--antracita-700)" }}>{s.r}</div>
+                <div style={{ fontSize: 10, color: "var(--antracita-500)", marginTop: 2 }}>{s.n}</div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Footer */}
-        <div style={{ marginTop: 20, paddingTop: 12, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--antracita-300)", fontFamily: "var(--font-mono)" }}>
-          <span>Generado por InmoLibres</span>
-          <span>{pie}</span>
-          <span>Página 1 de 1</span>
+        <div style={{ marginTop: 20, paddingTop: 12, borderTop: "1px solid var(--border)", textAlign: "center", fontSize: 9, color: "var(--antracita-300)", fontFamily: "var(--font-mono)" }}>
+          {pie}
         </div>
 
         {/* Watermark */}
@@ -1518,16 +1975,6 @@ function ContratoVentaDetalleModal({
 
   const bcv = `BCV-${venta.id.slice(-4).toUpperCase()}`;
 
-  const colorPrimario   = config?.colorPrimario   ?? "#1B4332";
-  const colorSecundario = config?.colorSecundario  ?? "#2C2C2C";
-  const razonSocial     = config?.razonSocial ?? inmobiliaria?.nombre ?? "Inmobiliaria";
-  const cuit            = config?.cuit ?? "";
-  const domicilio       = config?.domicilioLegal ?? "";
-  const matricula       = config?.matriculaCorredora ?? "";
-  const pie             = config?.piePaginaContrato ?? [razonSocial, inmobiliaria?.whatsapp && `Tel: ${inmobiliaria.whatsapp}`].filter(Boolean).join(" · ");
-  const hoyStr          = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
-  const clausulas       = venta.clausulas ?? "";
-
   const handleDelete = useCallback(async () => {
     if (!confirm(`¿Eliminar el boleto de compraventa de ${venta.compradorNombre}?`)) return;
     setDeleting(true);
@@ -1544,96 +1991,12 @@ function ContratoVentaDetalleModal({
   }, [venta.id, venta.compradorNombre, onDelete]);
 
   function handlePrint() {
-    const w = window.open("", "_blank", "width=900,height=1200");
-    if (!w) { toast.error("Habilitá las ventanas emergentes para imprimir"); return; }
-
-    const logoHtml = inmobiliaria?.logoUrl
-      ? `<img src="${inmobiliaria.logoUrl}" alt="${razonSocial}" style="height:48px;width:auto;object-fit:contain;background:#fff;border-radius:8px;padding:4px;flex-shrink:0"/>`
-      : `<div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,${colorPrimario},${colorSecundario});display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:600;flex-shrink:0">${razonSocial.charAt(0).toUpperCase()}</div>`;
-
-    const clausulaParrafos = clausulas
-      .split(/\n\n+/).filter(Boolean)
-      .map((p) => `<p style="margin:0 0 8px">${p.replace(/\n/g, "<br>")}</p>`).join("");
-
-    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Boleto CV — ${venta.compradorNombre}</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,Arial,sans-serif;font-size:11px;line-height:1.6;color:#221E19;background:#fff}
-.page{background:#fff;border-top:4px solid ${colorPrimario};padding:36px 40px 32px;position:relative}
-.hband{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;border-bottom:1px solid #E5DED4;margin-bottom:22px}
-.hleft{display:flex;gap:12px;align-items:center}
-.aname{font-size:18px;font-weight:600;color:#221E19;line-height:1}
-.ameta{font-size:10px;color:#7A7268;margin-top:4px;font-family:monospace}
-.fnum{font-size:20px;font-weight:600;color:#221E19;margin-top:2px;font-family:monospace}
-.flabel{font-size:9px;color:#B8AFA8;text-transform:uppercase;letter-spacing:.12em;font-family:monospace}
-.fdate{font-size:10px;color:#7A7268;margin-top:6px}
-.tarea{text-align:center;margin-bottom:24px}
-.tsub{font-size:9.5px;color:${colorPrimario};text-transform:uppercase;letter-spacing:.16em;font-weight:600;font-family:monospace}
-.ttit{font-size:24px;font-weight:600;color:#221E19;margin-top:8px}
-.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
-.pcard{padding:11px 13px;background:#F7F4EE;border:1px solid #E5DED4;border-radius:8px}
-.prole{font-size:9px;color:#B8AFA8;text-transform:uppercase;letter-spacing:.1em;font-weight:600;font-family:monospace}
-.pname{font-size:13px;font-weight:600;color:#221E19;margin-top:4px}
-.pdet{font-size:10px;color:#7A7268;margin-top:2px;font-family:monospace}
-.propbox{background:#FDFCF9;border:1px dashed #E5DED4;border-radius:9px;padding:13px;margin-bottom:20px}
-.proplab{font-size:9px;color:#B8AFA8;text-transform:uppercase;letter-spacing:.1em;font-weight:600;font-family:monospace;margin-bottom:6px}
-.ptit{font-size:13.5px;font-weight:600;color:#221E19}
-.padr{font-size:11px;color:#7A7268;margin-top:3px}
-.sectit{font-size:12px;font-weight:600;color:#221E19;margin:0 0 10px;letter-spacing:.02em}
-.cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
-.fc{padding:9px 11px;background:#F7F4EE;border:1px solid #E5DED4;border-radius:7px}
-.fch{padding:9px 11px;background:#FAE8E2;border:1px solid #E0A088;border-radius:7px}
-.fl{font-size:9px;color:#B8AFA8;text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-family:monospace}
-.flh{font-size:9px;color:${colorPrimario};text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-family:monospace}
-.fv{font-size:12px;font-weight:600;color:#221E19;margin-top:4px;font-family:monospace;word-break:break-word}
-.fvh{font-size:12px;font-weight:600;color:${colorPrimario};margin-top:4px;font-family:monospace}
-.fs{font-size:9.5px;color:#7A7268;margin-top:2px}
-.escrbox{background:#FDFCF9;border:1px solid #E5DED4;border-radius:8px;padding:10px 13px;margin-bottom:16px}
-.clauses{font-size:11px;color:#524D48;line-height:1.7;columns:2;column-gap:20px;margin-bottom:24px}
-.sigs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;padding-top:20px;border-top:1px solid #E5DED4}
-.sline{height:52px;border-bottom:1px solid #221E19;margin-bottom:6px}
-.srole{font-size:10.5px;font-weight:600;color:#524D48;text-align:center}
-.sname{font-size:10px;color:#7A7268;text-align:center;margin-top:2px}
-.footer{margin-top:20px;padding-top:12px;border-top:1px solid #E5DED4;display:flex;justify-content:space-between;font-size:9px;color:#B8AFA8;font-family:monospace}
-.wm{position:fixed;top:60px;right:30px;transform:rotate(8deg);opacity:.04;font-size:72px;color:${colorPrimario};font-weight:700;pointer-events:none}
-@media print{@page{margin:10mm}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body>
-<div class="wm">BOLETO</div>
-<div class="page">
-<div class="hband">
-  <div class="hleft">${logoHtml}<div><div class="aname">${razonSocial}</div>${cuit ? `<div class="ameta">CUIT ${cuit}${matricula ? ` · Mat. ${matricula}` : ""}</div>` : ""}${domicilio ? `<div class="ameta" style="font-family:inherit">${domicilio}</div>` : ""}</div></div>
-  <div style="text-align:right"><div class="flabel">Folio</div><div class="fnum">${bcv}</div><div class="fdate">Emitido ${hoyStr}</div></div>
-</div>
-<div class="tarea"><div class="tsub">Instrumento privado</div><div class="ttit">Boleto de Compraventa</div></div>
-<div class="pgrid">
-  <div class="pcard" style="border-top:3px solid ${colorPrimario}"><div class="prole">Vendedor</div><div class="pname">${venta.vendedorNombre}</div><div class="pdet">DNI ${venta.vendedorDni}</div>${venta.vendedorDomicilio ? `<div class="pdet" style="font-family:inherit">${venta.vendedorDomicilio}</div>` : ""}</div>
-  <div class="pcard" style="border-top:3px solid #D4A853"><div class="prole">Comprador</div><div class="pname">${venta.compradorNombre}</div><div class="pdet">DNI ${venta.compradorDni}</div>${venta.compradorDomicilio ? `<div class="pdet" style="font-family:inherit">${venta.compradorDomicilio}</div>` : ""}</div>
-</div>
-<div class="propbox">
-  <div class="proplab">Inmueble objeto de la operación</div>
-  <div class="ptit">${venta.propiedadDireccion}</div>
-  ${venta.propiedadDescripcion ? `<div class="padr">${venta.propiedadDescripcion}</div>` : ""}
-  ${venta.matriculaInmueble ? `<div style="font-size:10px;color:#7A7268;margin-top:4px;font-family:monospace">Matrícula: ${venta.matriculaInmueble}</div>` : ""}
-</div>
-<div class="sectit">I — Condiciones económicas</div>
-<div class="cgrid">
-  <div class="fch"><div class="flh">Precio de venta</div><div class="fvh">${formatPrice(venta.precioVenta, venta.moneda)}</div><div class="fs">${venta.moneda} · contado</div></div>
-  <div class="fc"><div class="fl">Seña / Reserva</div><div class="fv">${venta.sena ? formatPrice(venta.sena, venta.moneda) : "—"}</div><div class="fs">al momento de firma</div></div>
-  <div class="fc"><div class="fl">Forma de pago</div><div class="fv">${venta.formaPago}</div><div class="fs">acordada entre partes</div></div>
-  <div class="fc"><div class="fl">Comisiones</div><div class="fv">V ${venta.comisionVendedorPct}% · C ${venta.comisionCompradorPct}%</div><div class="fs">sobre precio de venta</div></div>
-</div>
-${(venta.escribanoNombre || venta.fechaEscritura) ? `<div class="escrbox"><div class="fl" style="margin-bottom:6px">Escribanía</div>${venta.escribanoNombre ? `<div style="font-size:12.5px;font-weight:600;color:#221E19">${venta.escribanoNombre}${venta.escribanoRegistro ? ` · Reg. ${venta.escribanoRegistro}` : ""}</div>` : ""}${venta.fechaEscritura ? `<div style="font-size:11px;color:#7A7268;margin-top:3px">Fecha de escritura tentativa: ${fmtFechaLarga(venta.fechaEscritura)}</div>` : ""}</div>` : ""}
-${clausulaParrafos ? `<div class="sectit">II — Cláusulas especiales</div><div class="clauses">${clausulaParrafos}</div>` : ""}
-<div class="sigs">
-  <div><div class="sline"></div><div class="srole">Vendedor</div><div class="sname">${venta.vendedorNombre}</div></div>
-  <div><div class="sline"></div><div class="srole">Comprador</div><div class="sname">${venta.compradorNombre}</div></div>
-  <div><div class="sline"></div><div class="srole">Corredor Inmobiliario</div><div class="sname">${razonSocial}</div>${matricula ? `<div class="sname">Mat. N° ${matricula}</div>` : ""}</div>
-</div>
-<div class="footer"><span>Generado por InmoLibres</span><span>${pie}</span><span>Página 1 de 1</span></div>
-</div></body></html>`);
-    w.document.close();
-    setTimeout(() => { w.focus(); w.print(); }, 400);
+    const html = buildContratoVentaHtml(
+      { ...venta, clausulas: venta.clausulas ?? "" },
+      config as PdfConfig | null,
+      inmobiliaria,
+    );
+    printHtml(html, () => toast.error("Habilitá las ventanas emergentes para imprimir"));
   }
 
   const SUB_TABS = [
@@ -1898,112 +2261,15 @@ function ContratoDocumentoModal({
   inmobiliaria: WizardInmobiliaria | null;
   onClose: () => void;
 }) {
-  const colorPrimario   = config?.colorPrimario   ?? "#1B4332";
-  const colorSecundario = config?.colorSecundario  ?? "#2C2C2C";
-  const razonSocial     = config?.razonSocial ?? inmobiliaria?.nombre ?? "Inmobiliaria";
-  const cuit            = config?.cuit ?? "";
-  const domicilio       = config?.domicilioLegal ?? "";
-  const matricula       = config?.matriculaCorredora ?? "";
-  const clausulas       = config?.clausulasAdicionales ?? DEFAULT_CLAUSULAS;
-  const pie             = config?.piePaginaContrato ?? [razonSocial, inmobiliaria?.whatsapp && `Tel: ${inmobiliaria.whatsapp}`].filter(Boolean).join(" · ");
-  const hoyStr          = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
-  const meses           = duracionMeses(contrato.fechaInicio, contrato.fechaFin);
-  const ctr             = `CTR-${contrato.id.slice(-4).toUpperCase()}`;
+  const clausulas = config?.clausulasAdicionales ?? DEFAULT_CLAUSULAS;
 
   function handlePrint() {
-    const w = window.open("", "_blank", "width=900,height=1200");
-    if (!w) { toast.error("Habilitá las ventanas emergentes para imprimir"); return; }
-
-    const logoHtml = inmobiliaria?.logoUrl
-      ? `<img src="${inmobiliaria.logoUrl}" alt="${razonSocial}" style="height:48px;width:auto;object-fit:contain;background:#fff;border-radius:8px;padding:4px;flex-shrink:0"/>`
-      : `<div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,${colorPrimario},${colorSecundario});display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:600;flex-shrink:0">${razonSocial.charAt(0).toUpperCase()}</div>`;
-
-    const clausulaParrafos = clausulas
-      .split(/\n\n+/)
-      .filter(Boolean)
-      .map((p) => `<p style="margin:0 0 8px">${p.replace(/\n/g, "<br>")}</p>`)
-      .join("");
-
-    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Contrato — ${contrato.inquilinoNombre}</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,Arial,sans-serif;font-size:11px;line-height:1.6;color:#221E19;background:#fff}
-.page{background:#fff;border-top:4px solid ${colorPrimario};padding:36px 40px 32px;position:relative}
-.hband{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:18px;border-bottom:1px solid #E5DED4;margin-bottom:22px}
-.hleft{display:flex;gap:12px;align-items:center}
-.aname{font-size:18px;font-weight:600;color:#221E19;line-height:1}
-.ameta{font-size:10px;color:#7A7268;margin-top:4px;font-family:monospace}
-.fnum{font-size:20px;font-weight:600;color:#221E19;margin-top:2px;font-family:monospace}
-.flabel{font-size:9px;color:#B8AFA8;text-transform:uppercase;letter-spacing:.12em;font-family:monospace}
-.fdate{font-size:10px;color:#7A7268;margin-top:6px}
-.tarea{text-align:center;margin-bottom:24px}
-.tsub{font-size:9.5px;color:${colorPrimario};text-transform:uppercase;letter-spacing:.16em;font-weight:600;font-family:monospace}
-.ttit{font-size:24px;font-weight:600;color:#221E19;margin-top:8px}
-.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
-.pcard{padding:11px 13px;background:#F7F4EE;border:1px solid #E5DED4;border-radius:8px}
-.prole{font-size:9px;color:#B8AFA8;text-transform:uppercase;letter-spacing:.1em;font-weight:600;font-family:monospace}
-.pname{font-size:13px;font-weight:600;color:#221E19;margin-top:4px}
-.pdet{font-size:10px;color:#7A7268;margin-top:2px;font-family:monospace}
-.propbox{background:#FDFCF9;border:1px dashed #E5DED4;border-radius:9px;padding:13px;margin-bottom:20px}
-.proplab{font-size:9px;color:#B8AFA8;text-transform:uppercase;letter-spacing:.1em;font-weight:600;font-family:monospace;margin-bottom:8px}
-.propgr{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;align-items:center}
-.ptit{font-size:13.5px;font-weight:600;color:#221E19}
-.padr{font-size:11px;color:#7A7268}
-.dlabel{font-size:9px;color:#B8AFA8;text-transform:uppercase;font-family:monospace}
-.dval{font-size:13px;font-weight:600;color:#221E19;margin-top:3px}
-.sectit{font-size:12px;font-weight:600;color:#221E19;margin:0 0 10px;letter-spacing:.02em}
-.cgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
-.fc{padding:9px 11px;background:#F7F4EE;border:1px solid #E5DED4;border-radius:7px}
-.fch{padding:9px 11px;background:#FAE8E2;border:1px solid #E0A088;border-radius:7px}
-.fl{font-size:9px;color:#B8AFA8;text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-family:monospace}
-.flh{font-size:9px;color:${colorPrimario};text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-family:monospace}
-.fv{font-size:13px;font-weight:600;color:#221E19;margin-top:4px;font-family:monospace}
-.fvh{font-size:13px;font-weight:600;color:${colorPrimario};margin-top:4px;font-family:monospace}
-.fs{font-size:9.5px;color:#7A7268;margin-top:2px}
-.intro{font-size:11px;color:#524D48;line-height:1.7;margin-bottom:16px}
-.clauses{font-size:11px;color:#524D48;line-height:1.7;columns:2;column-gap:20px;margin-bottom:24px}
-.sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;padding-top:20px;border-top:1px solid #E5DED4}
-.sline{height:52px;border-bottom:1px solid #221E19;margin-bottom:6px}
-.srole{font-size:10.5px;font-weight:600;color:#524D48;text-align:center}
-.sname{font-size:10px;color:#7A7268;text-align:center;margin-top:2px}
-.footer{margin-top:20px;padding-top:12px;border-top:1px solid #E5DED4;display:flex;justify-content:space-between;font-size:9px;color:#B8AFA8;font-family:monospace}
-.wm{position:fixed;top:60px;right:30px;transform:rotate(8deg);opacity:.04;font-size:72px;color:${colorPrimario};font-weight:700;pointer-events:none}
-@media print{@page{margin:10mm}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body>
-<div class="wm">VIGENTE</div>
-<div class="page">
-<div class="hband">
-  <div class="hleft">${logoHtml}<div><div class="aname">${razonSocial}</div>${cuit ? `<div class="ameta">CUIT ${cuit}${matricula ? ` · Mat. ${matricula}` : ""}</div>` : ""}${domicilio ? `<div class="ameta" style="font-family:inherit">${domicilio}</div>` : ""}</div></div>
-  <div style="text-align:right"><div class="flabel">Folio</div><div class="fnum">${ctr}</div><div class="fdate">Emitido ${hoyStr}</div></div>
-</div>
-<div class="tarea"><div class="tsub">Ley 27.551 — Régimen general</div><div class="ttit">Contrato de Locación de Inmueble</div></div>
-<div class="pgrid">
-  <div class="pcard" style="border-top:3px solid ${colorPrimario}"><div class="prole">Locador / Inmobiliaria</div><div class="pname">${razonSocial}</div>${cuit ? `<div class="pdet">CUIT ${cuit}</div>` : ""}${domicilio ? `<div class="pdet" style="font-family:inherit">${domicilio}</div>` : ""}</div>
-  <div class="pcard" style="border-top:3px solid #D4A853"><div class="prole">Locatario</div><div class="pname">${contrato.inquilinoNombre}</div><div class="pdet">${contrato.inquilinoTel}</div></div>
-</div>
-<div class="propbox">
-  <div class="proplab">Inmueble objeto del contrato</div>
-  <div class="propgr"><div><div class="ptit">${contrato.propiedad.titulo}</div><div class="padr">${contrato.propiedad.direccion}</div></div><div><div class="dlabel">Duración</div><div class="dval">${meses} meses</div></div><div><div class="dlabel">Día de pago</div><div class="dval">Día ${contrato.diaVencimientoPago}</div></div></div>
-</div>
-<div class="sectit">I — Condiciones económicas</div>
-<div class="cgrid">
-  <div class="fch"><div class="flh">Valor inicial</div><div class="fvh">${formatPrice(contrato.precioMensual, contrato.moneda)}</div><div class="fs">${contrato.moneda} · mensual</div></div>
-  <div class="fc"><div class="fl">Día de pago</div><div class="fv">${contrato.diaVencimientoPago}</div><div class="fs">de cada mes</div></div>
-  <div class="fc"><div class="fl">Plazo</div><div class="fv">${meses} meses</div><div class="fs">${fmtFecha(contrato.fechaInicio)} – ${fmtFecha(contrato.fechaFin)}</div></div>
-  <div class="fc"><div class="fl">Ajuste</div><div class="fv">ICL · BCRA</div><div class="fs">cada 12 meses</div></div>
-</div>
-<p class="intro">En la ciudad de <strong>Paso de los Libres, Corrientes</strong>, entre <strong>${razonSocial}</strong>${cuit ? `, CUIT ${cuit}` : ""}${domicilio ? `, con domicilio en ${domicilio}` : ""}${matricula ? `, corredor inmobiliario matrícula N° ${matricula}` : ""}, en adelante el <strong>LOCADOR</strong>; y <strong>${contrato.inquilinoNombre}</strong>, tel. ${contrato.inquilinoTel}, en adelante el <strong>LOCATARIO</strong>; se celebra el presente Contrato de Locación bajo los siguientes términos y condiciones:</p>
-<div class="sectit">II — Cláusulas y condiciones</div>
-<div class="clauses">${clausulaParrafos}</div>
-<div class="sigs">
-  <div><div class="sline"></div><div class="srole">Locador / Inmobiliaria</div><div class="sname">${razonSocial}</div>${matricula ? `<div class="sname">Mat. N° ${matricula}</div>` : ""}</div>
-  <div><div class="sline"></div><div class="srole">Locatario</div><div class="sname">${contrato.inquilinoNombre}</div><div class="sname">Tel: ${contrato.inquilinoTel}</div></div>
-</div>
-<div class="footer"><span>Generado por InmoLibres</span><span>${pie}</span><span>Página 1 de 1</span></div>
-</div></body></html>`);
-    w.document.close();
-    setTimeout(() => { w.focus(); w.print(); }, 400);
+    const html = buildContratoAlquilerHtml(
+      { ...contrato, clausulasOverride: clausulas },
+      config as PdfConfig | null,
+      inmobiliaria,
+    );
+    printHtml(html, () => toast.error("Habilitá las ventanas emergentes para imprimir"));
   }
 
   return (

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PropiedadCard } from "@/components/propiedades/PropiedadCard";
 import { PropiedadesFilters } from "@/components/propiedades/PropiedadesFilters";
-import { ImportButton } from "@/components/propiedades/ImportButton";
 import { TIPO_PROPIEDAD_LABELS, TIPO_OPERACION_LABELS } from "@/lib/utils";
 import { LIMITES_PLAN } from "@/lib/planes";
 import type { TipoPropiedad, TipoOperacion, EstadoPropiedad } from "@prisma/client";
@@ -148,17 +147,14 @@ export default async function PropiedadesPage({
 
         <div className="flex gap-2">
           {puedeAgregar && (
-            <>
-              <ImportButton />
-              <Link
-                href="/propiedades/nueva"
-                className="il-btn il-btn--primary"
-                style={{ height: 36, fontSize: 13, gap: 6, textDecoration: "none" }}
-              >
-                <Plus size={14} color="#fff" />
-                Nueva propiedad
-              </Link>
-            </>
+            <Link
+              href="/propiedades/nueva"
+              className="il-btn il-btn--primary"
+              style={{ height: 36, fontSize: 13, gap: 6, textDecoration: "none" }}
+            >
+              <Plus size={14} color="#fff" />
+              Nueva propiedad
+            </Link>
           )}
         </div>
       </div>

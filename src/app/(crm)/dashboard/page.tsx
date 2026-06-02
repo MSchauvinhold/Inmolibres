@@ -130,6 +130,24 @@ export default async function DashboardPage() {
   if (!inmobiliariaId) redirect("/login");
 
   const hoy = new Date();
+
+  // ── Timezone: Argentina = UTC-3 (sin DST) ────────────────────────────────────
+  // Usamos Intl para obtener la fecha local correcta en Argentina,
+  // independientemente del timezone del servidor Vercel (UTC).
+  const AR_TZ = "America/Argentina/Buenos_Aires";
+  const AR_MS = 3 * 60 * 60 * 1000; // UTC-3 en ms
+
+  const arDateParts = new Intl.DateTimeFormat("es-AR", {
+    timeZone: AR_TZ, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(hoy);
+  const arY = parseInt(arDateParts.find(p => p.type === "year")!.value);
+  const arM = parseInt(arDateParts.find(p => p.type === "month")!.value) - 1; // 0-indexed
+  const arD = parseInt(arDateParts.find(p => p.type === "day")!.value);
+
+  // Medianoche Argentina = 03:00 UTC
+  const hoyARStart = new Date(Date.UTC(arY, arM, arD) + AR_MS);
+  const hoyAREnd   = new Date(hoyARStart.getTime() + 86_400_000);
+
   const inicioSemana = new Date(hoy);
   inicioSemana.setDate(hoy.getDate() - 7);
   const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -149,6 +167,7 @@ export default async function DashboardPage() {
     contratosAtrasados,
     consultasNoLeidas,
     operacionesMes,
+    visitasHoy,
     visitasProximas,
     contratosPorVencer,
     consultasRecientes,
@@ -162,10 +181,25 @@ export default async function DashboardPage() {
     db.contratoAlquiler.count({ where: { inmobiliariaId, fechaFin: { gte: hoy }, estadoPago: "ATRASADO" } }),
     db.consulta.count({ where: { inmobiliariaId, leida: false } }),
     db.operacionCerrada.count({ where: { inmobiliariaId, fechaCierre: { gte: inicioMes } } }),
+    // Visitas de HOY (prioridad) — ordenadas por hora
     db.visita.findMany({
-      where: { inmobiliariaId, estado: "PENDIENTE", fechaHora: { gte: hoy } },
+      where: {
+        inmobiliariaId,
+        estado: "PENDIENTE",
+        fechaHora: { gte: hoyARStart, lt: hoyAREnd },
+      },
       orderBy: { fechaHora: "asc" },
-      take: 4,
+      include: {
+        propiedad: { select: { titulo: true } },
+        cliente: { select: { nombre: true } },
+        agente: { select: { nombre: true } },
+      },
+    }),
+    // Visitas próximas (desde mañana)
+    db.visita.findMany({
+      where: { inmobiliariaId, estado: "PENDIENTE", fechaHora: { gte: hoyAREnd } },
+      orderBy: { fechaHora: "asc" },
+      take: 3,
       include: {
         propiedad: { select: { titulo: true } },
         cliente: { select: { nombre: true } },
@@ -186,18 +220,19 @@ export default async function DashboardPage() {
         propiedad: { select: { titulo: true } },
       },
     }),
-    // Actividad de los últimos 7 días (visitas + consultas por día)
+    // Actividad de los últimos 7 días usando boundaries de medianoche Argentina
+    // diaStart = medianoche AR (03:00 UTC). Usada tanto para el query como para el label.
+    // El label se formatea con timeZone explícito para evitar hidratación mismatch.
     Promise.all(
       Array.from({ length: 7 }, (_, i) => {
-        const dia = new Date(hoy);
-        dia.setDate(hoy.getDate() - (6 - i));
-        const siguiente = new Date(dia);
-        siguiente.setDate(dia.getDate() + 1);
+        const offset   = 6 - i;                                         // 0 = hoy, 6 = hace 6 días
+        const diaStart = new Date(Date.UTC(arY, arM, arD - offset) + AR_MS); // medianoche AR en UTC
+        const diaSig   = new Date(diaStart.getTime() + 86_400_000);
         return Promise.all([
-          db.visita.count({ where: { inmobiliariaId, createdAt: { gte: dia, lt: siguiente } } }),
-          db.consulta.count({ where: { inmobiliariaId, createdAt: { gte: dia, lt: siguiente } } }),
-          db.operacionCerrada.count({ where: { inmobiliariaId, fechaCierre: { gte: dia, lt: siguiente } } }),
-        ]).then(([visitas, consultas, cierres]) => ({ dia, visitas, consultas, cierres }));
+          db.visita.count({ where: { inmobiliariaId, createdAt: { gte: diaStart, lt: diaSig } } }),
+          db.consulta.count({ where: { inmobiliariaId, createdAt: { gte: diaStart, lt: diaSig } } }),
+          db.operacionCerrada.count({ where: { inmobiliariaId, fechaCierre: { gte: diaStart, lt: diaSig } } }),
+        ]).then(([visitas, consultas, cierres]) => ({ diaStart, visitas, consultas, cierres }));
       })
     ),
   ]);
@@ -253,64 +288,111 @@ export default async function DashboardPage() {
 
       {/* ── Dos columnas: Visitas + Consultas recientes ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }} className="grid-cols-1 lg:[grid-template-columns:1.5fr_1fr]">
-        {/* Próximas visitas */}
+        {/* Visitas — hoy como prioridad, luego próximas */}
         <div className="il-card" style={{ padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <CalendarCheck style={{ width: 16, height: 16, color: "var(--terracota-500)" }} />
               <h3 style={{ fontFamily: "var(--font-fraunces-display), Georgia, serif", fontSize: 18, margin: 0, color: "var(--antracita-900)" }}>
-                Próximas visitas
+                Visitas
               </h3>
+              {visitasHoy.length > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 700, background: "var(--terracota-500)", color: "#fff", borderRadius: 999, padding: "2px 8px" }}>
+                  {visitasHoy.length} hoy
+                </span>
+              )}
             </div>
             <Link href="/visitas" style={{ fontSize: 12, color: "var(--terracota-600)", textDecoration: "none", fontWeight: 500 }}>
               Ver todas →
             </Link>
           </div>
 
-          {visitasProximas.length === 0 ? (
+          {visitasHoy.length === 0 && visitasProximas.length === 0 ? (
             <p style={{ textAlign: "center", fontSize: 13, padding: "32px 0", color: "var(--antracita-300)" }}>
               Sin visitas pendientes
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {visitasProximas.map((v, i) => {
-                const esHoy = v.fechaHora.toDateString() === hoy.toDateString();
-                const hora = v.fechaHora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
-                const fechaLabel = esHoy ? "Hoy" : formatDate(v.fechaHora, { day: "numeric", month: "short" });
-                return (
-                  <div key={v.id} style={{
-                    display: "grid",
-                    gridTemplateColumns: "60px 1fr auto",
-                    gap: 14, alignItems: "center",
-                    padding: "12px 14px",
-                    background: i === 0 ? "var(--crema-100)" : "transparent",
-                    border: i === 0 ? "1px solid var(--border)" : "1px solid transparent",
-                    borderRadius: 10,
-                  }}>
-                    <div style={{ textAlign: "center" }}>
-                      <div style={{
-                        fontSize: 10, color: "var(--terracota-600)", textTransform: "uppercase",
-                        fontWeight: 600, letterSpacing: "0.06em", fontFamily: "var(--font-jetbrains-mono), monospace",
-                      }}>{fechaLabel}</div>
-                      <div style={{
-                        fontFamily: "var(--font-jetbrains-mono), monospace",
-                        fontSize: 15, fontWeight: 600, color: "var(--antracita-900)",
-                      }}>{hora}</div>
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--antracita-900)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {v.propiedad.titulo}
+
+              {/* ── Visitas de HOY ── */}
+              {visitasHoy.length > 0 && (
+                <>
+                  <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--terracota-600)", fontFamily: "var(--font-jetbrains-mono), monospace", margin: "0 0 4px 2px" }}>
+                    Hoy — {formatDate(hoy, { weekday: "long", day: "numeric", month: "long" })}
+                  </p>
+                  {visitasHoy.map((v) => {
+                    const hora = v.fechaHora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" });
+                    const yaPaso = v.fechaHora < hoy;
+                    return (
+                      <div key={v.id} style={{
+                        display: "grid", gridTemplateColumns: "56px 1fr auto",
+                        gap: 12, alignItems: "center", padding: "11px 14px",
+                        background: yaPaso ? "var(--crema-50)" : "var(--terracota-50, #FBF1EC)",
+                        border: `1px solid ${yaPaso ? "var(--border)" : "var(--terracota-200, #F0C9BA)"}`,
+                        borderRadius: 10,
+                      }}>
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: 16, fontWeight: 700, color: yaPaso ? "var(--antracita-400)" : "var(--terracota-600)" }}>
+                            {hora}
+                          </div>
+                          {yaPaso && <div style={{ fontSize: 9, color: "var(--antracita-300)", marginTop: 2 }}>pasada</div>}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--antracita-900)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {v.propiedad.titulo}
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--antracita-500)", marginTop: 2 }}>
+                            {v.cliente.nombre}
+                            <span style={{ color: "var(--antracita-300)", margin: "0 5px" }}>·</span>
+                            {v.agente.nombre}
+                          </div>
+                        </div>
+                        <Pill tone="warning" style={{ fontSize: 10 }}>
+                          Pendiente
+                        </Pill>
                       </div>
-                      <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginTop: 2 }}>
-                        {v.cliente.nombre}
-                        <span style={{ color: "var(--antracita-300)", margin: "0 6px" }}>·</span>
-                        {v.agente.nombre}
+                    );
+                  })}
+                </>
+              )}
+
+              {/* ── Próximas (días siguientes) ── */}
+              {visitasProximas.length > 0 && (
+                <>
+                  {visitasHoy.length > 0 && (
+                    <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-400)", fontFamily: "var(--font-jetbrains-mono), monospace", margin: "8px 0 4px 2px" }}>
+                      Próximas
+                    </p>
+                  )}
+                  {visitasProximas.map((v) => {
+                    const hora = v.fechaHora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" });
+                    const fechaLabel = formatDate(v.fechaHora, { day: "numeric", month: "short" });
+                    return (
+                      <div key={v.id} style={{
+                        display: "grid", gridTemplateColumns: "56px 1fr auto",
+                        gap: 12, alignItems: "center", padding: "10px 14px",
+                        background: "transparent", border: "1px solid transparent", borderRadius: 10,
+                      }}>
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: 9.5, color: "var(--antracita-400)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.05em" }}>{fechaLabel}</div>
+                          <div style={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: 14, fontWeight: 600, color: "var(--antracita-700)" }}>{hora}</div>
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: "var(--antracita-900)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {v.propiedad.titulo}
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--antracita-500)", marginTop: 2 }}>
+                            {v.cliente.nombre}
+                            <span style={{ color: "var(--antracita-300)", margin: "0 5px" }}>·</span>
+                            {v.agente.nombre}
+                          </div>
+                        </div>
+                        <Pill tone="warning" style={{ fontSize: 10 }}>Pendiente</Pill>
                       </div>
-                    </div>
-                    <Pill tone="warning" style={{ fontSize: 10.5 }}>Pendiente</Pill>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -397,7 +479,11 @@ export default async function DashboardPage() {
             </div>
           </div>
           <DashboardActivityChart data={actividadSemanal.map(d => ({
-            dia: d.dia.toLocaleDateString("es-AR", { weekday: "short" }),
+            // Formatear con timezone Argentina explícito → idéntico en server y client
+            dia: d.diaStart.toLocaleDateString("es-AR", {
+              weekday: "short",
+              timeZone: "America/Argentina/Buenos_Aires",
+            }),
             visitas: d.visitas,
             consultas: d.consultas,
             cierres: d.cierres,

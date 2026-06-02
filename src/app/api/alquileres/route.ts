@@ -73,6 +73,8 @@ export async function POST(request: NextRequest) {
 
   const parsed = contratoSchema.safeParse(body);
   if (!parsed.success) {
+    console.error("[POST /api/alquileres] Zod errors:", JSON.stringify(parsed.error.flatten(), null, 2));
+    console.error("[POST /api/alquileres] Body recibido:", JSON.stringify(body, null, 2));
     return NextResponse.json(
       { error: "Datos inválidos", details: parsed.error.flatten() },
       { status: 400 }
@@ -96,15 +98,18 @@ export async function POST(request: NextRequest) {
       indiceBase = idx?.valor ?? null;
     }
 
+    // Extraer campos que NO van directo al modelo (son solo meta-datos del request)
+    const { inquilinoContactoId, garanteContactoId, ...contratoData } = parsed.data;
+
     const contrato = await db.$transaction(async (tx) => {
       const created = await tx.contratoAlquiler.create({
         data: {
-          ...parsed.data,
-          precioMensual: parsed.data.precioMensual,
-          fechaInicio: new Date(parsed.data.fechaInicio),
-          fechaFin: new Date(parsed.data.fechaFin),
+          ...contratoData,
+          precioMensual: contratoData.precioMensual,
+          fechaInicio: new Date(contratoData.fechaInicio),
+          fechaFin: new Date(contratoData.fechaFin),
           inmobiliariaId,
-          precioOriginal: parsed.data.precioMensual,
+          precioOriginal: contratoData.precioMensual,
           indiceUltimoAjuste: indiceBase,
         },
         include: {
@@ -113,9 +118,17 @@ export async function POST(request: NextRequest) {
       });
 
       await tx.propiedad.update({
-        where: { id: parsed.data.propiedadId },
+        where: { id: contratoData.propiedadId },
         data: { estado: "ALQUILADA" },
       });
+
+      // Vincular contactos al contrato (para acceso desde el módulo de Contactos)
+      const personas: { contratoId: string; contactoId: string; rol: string }[] = [];
+      if (inquilinoContactoId) personas.push({ contratoId: created.id, contactoId: inquilinoContactoId, rol: "INQUILINO" });
+      if (garanteContactoId)   personas.push({ contratoId: created.id, contactoId: garanteContactoId,   rol: "GARANTE" });
+      if (personas.length > 0) {
+        await tx.contratoPersona.createMany({ data: personas, skipDuplicates: true });
+      }
 
       return created;
     });

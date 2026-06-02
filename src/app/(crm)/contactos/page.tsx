@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ContactosClient } from "@/components/contactos/ContactosClient";
 import type { RolContacto } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Contactos" };
 
 export default async function ContactosPage() {

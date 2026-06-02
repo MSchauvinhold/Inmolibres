@@ -39,6 +39,7 @@ export default async function ConfiguracionPage() {
 
   const serialized = {
     ...inmobiliaria,
+    firmaUrl: inmobiliaria.firmaUrl ?? null,
     fechaVencimiento: inmobiliaria.fechaVencimiento?.toISOString() ?? null,
     createdAt: inmobiliaria.createdAt.toISOString(),
     updatedAt: inmobiliaria.updatedAt.toISOString(),

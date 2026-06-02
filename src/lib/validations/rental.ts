@@ -21,10 +21,15 @@ export const contratoSchema = z.object({
     .max(28, "Máximo día 28"),
   fechaInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de inicio inválida"),
   fechaFin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de fin inválida"),
+  // Firma
+  tipoFirma: z.enum(["DIGITAL", "MANUAL"]).optional().default("MANUAL"),
+  // IDs de contactos vinculados (para crear ContratoPersona)
+  inquilinoContactoId: z.string().optional().nullable(),
+  garanteContactoId:   z.string().optional().nullable(),
   // Configuración de ajuste periódico (opcional con defaults)
   ajusteActivo: z.boolean().optional().default(true),
   ajusteIndice: z.enum(["ICL", "IPC"]).optional().default("ICL"),
-  ajusteMeses:  z.number().int().optional().default(6),
+  ajusteMeses:  z.number().int().min(1).optional().default(6),
   ajusteDia:    z.number().int().min(1).max(28).optional().default(14),
 }).refine(
   (data) => new Date(data.fechaFin) > new Date(data.fechaInicio),
@@ -42,10 +47,18 @@ export const actualizarPagoSchema = z.object({
 
 export type ActualizarPagoInput = z.infer<typeof actualizarPagoSchema>;
 
-// Actualización general de contrato de alquiler (estadoPago y/o notas)
+// Actualización general de contrato de alquiler (estadoPago, notas, config de ajuste y firma)
 export const actualizarContratoAlquilerSchema = z.object({
-  estadoPago: z.enum(["AL_DIA", "ATRASADO"]).optional(),
-  notas: z.string().max(3000, "Máximo 3000 caracteres").optional().nullable(),
+  estadoPago:          z.enum(["AL_DIA", "ATRASADO"]).optional(),
+  notas:               z.string().max(3000, "Máximo 3000 caracteres").optional().nullable(),
+  // Configuración de ajuste periódico
+  ajusteActivo:        z.boolean().optional(),
+  ajusteIndice:        z.enum(["ICL", "IPC"]).optional(),
+  ajusteMeses:         z.number().int().min(1).max(12).optional(),
+  ajusteDia:           z.number().int().min(1).max(28).optional(),
+  // Firma
+  contratoFirmadoUrl:  z.string().url().optional().nullable(),
+  fechaFirmado:        z.string().datetime().optional().nullable(),
 });
 
 export type ActualizarContratoAlquilerInput = z.infer<typeof actualizarContratoAlquilerSchema>;

@@ -33,7 +33,7 @@ export default async function AlquileresPage() {
     db.configuracionInmobiliaria.findUnique({ where: { inmobiliariaId } }),
     db.inmobiliaria.findUnique({
       where: { id: inmobiliariaId },
-      select: { nombre: true, logoUrl: true, whatsapp: true, email: true },
+      select: { nombre: true, logoUrl: true, firmaUrl: true, whatsapp: true, email: true },
     }),
   ]);
 
@@ -52,6 +52,17 @@ export default async function AlquileresPage() {
     notas: c.notas ?? null,
     createdAt: c.createdAt.toISOString(),
     propiedad: c.propiedad,
+    // Configuración de ajuste periódico
+    ajusteActivo: c.ajusteActivo,
+    ajusteIndice: c.ajusteIndice,
+    ajusteMeses:  c.ajusteMeses,
+    ajusteDia:    c.ajusteDia,
+    indiceUltimoAjuste: c.indiceUltimoAjuste ?? null,
+    precioOriginal:     c.precioOriginal !== null ? Number(c.precioOriginal) : null,
+    // Firma
+    tipoFirma:          c.tipoFirma ?? null,
+    contratoFirmadoUrl: c.contratoFirmadoUrl ?? null,
+    fechaFirmado:       c.fechaFirmado ? c.fechaFirmado.toISOString() : null,
   }));
 
   const serializedVentas = ventas.map((v) => ({

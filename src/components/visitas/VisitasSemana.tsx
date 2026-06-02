@@ -22,7 +22,7 @@ const ESTADO_COLOR: Record<string, string> = {
 };
 
 const DIAS = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
-const HORAS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+const HORAS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 const ROW_H = 52;
 
 function getMondayOf(d: Date): Date {

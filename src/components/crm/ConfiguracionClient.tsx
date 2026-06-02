@@ -5,12 +5,13 @@ import { toast } from "sonner";
 import {
   Loader2, Plus, Eye, EyeOff, UserCheck, UserX, AlertTriangle,
   Settings, Shield, ChevronDown, ChevronUp, ImageIcon, Upload, Trash2,
-  Volume2, VolumeX, Lock,
+  Volume2, VolumeX, Lock, PenLine,
 } from "lucide-react";
 import { formatDate, ESTADO_INMOBILIARIA_LABELS, ESTADO_INMOBILIARIA_COLORS } from "@/lib/utils";
 import { puedeAgregarAgente, toPlanKey, LIMITES_PLAN } from "@/lib/planes";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { PermisosSheet } from "./PermisosSheet";
+import { FirmaCanvas } from "./FirmaCanvas";
 
 interface PermisosAgente {
   verPropiedades: boolean;
@@ -47,6 +48,7 @@ interface Inmobiliaria {
   estado: "ACTIVA" | "INACTIVA" | "PRUEBA" | "SUSPENDIDA";
   fechaVencimiento: string | null;
   logoUrl: string | null;
+  firmaUrl: string | null;
   usuarios: Usuario[];
   _count: { propiedades: number; clientes: number };
 }
@@ -808,6 +810,22 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                 {savingConfig && <Loader2 className="w-3 h-3 animate-spin" />}
                 Guardar identidad visual
               </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── FIRMA DIGITAL ─── */}
+      {isAdmin && (
+        <div className="card p-5 space-y-4">
+          <SectionHeader id="firma" title="Firma digital" icon={PenLine} />
+          {openSection === "firma" && (
+            <div className="pt-1">
+              <FirmaCanvas
+                inmobiliariaId={inmo.id}
+                firmaActual={inmo.firmaUrl ?? null}
+                onGuardada={(url) => setInmo((p) => ({ ...p, firmaUrl: url }))}
+              />
             </div>
           )}
         </div>

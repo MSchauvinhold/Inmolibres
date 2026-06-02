@@ -109,16 +109,16 @@ export function VisitaListClient({ visitas: initialVisitas }: Props) {
                 className="mono"
                 style={{ fontSize: 22, fontWeight: 600, color: "var(--terracota-500)", lineHeight: 1 }}
               >
-                {fecha.getDate()}
+                {parseInt(fecha.toLocaleString("es-AR", { day: "numeric", timeZone: "America/Argentina/Buenos_Aires" }))}
               </div>
               <div style={{ fontSize: 10, color: "var(--antracita-400)", textTransform: "uppercase", marginTop: 1 }}>
-                {fecha.toLocaleString("es-AR", { month: "short" })}
+                {fecha.toLocaleString("es-AR", { month: "short", timeZone: "America/Argentina/Buenos_Aires" })}
               </div>
               <div
                 className="mono"
                 style={{ fontSize: 11, color: "var(--antracita-500)", fontWeight: 600, marginTop: 3 }}
               >
-                {fecha.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                {fecha.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Argentina/Buenos_Aires" })}
               </div>
             </div>
 

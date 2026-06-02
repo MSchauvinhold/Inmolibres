@@ -161,8 +161,8 @@ export async function GET(request: NextRequest) {
     const diasRestantes = Math.ceil(
       (contrato.fechaFin.getTime() - hoy.getTime()) / 86_400_000
     );
-    // Only notify at 30, 15, 7, 3, 1 days to avoid daily spam
-    if ([30, 15, 7, 3, 1].includes(diasRestantes)) {
+    // Notificar a los 90, 60, 30, 15, 7, 3 y 1 días
+    if ([90, 60, 30, 15, 7, 3, 1].includes(diasRestantes)) {
       const notif = NotifMessages.contratoPorVencer(
         contrato.propiedad.titulo,
         contrato.fechaFin,

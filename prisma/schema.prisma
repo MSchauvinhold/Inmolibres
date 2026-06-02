@@ -165,6 +165,7 @@ model Inmobiliaria {
   id               String             @id @default(dbgenerated("gen_random_uuid()"))
   nombre           String
   logoUrl          String?            @map("logo_url")
+  firmaUrl         String?            @map("firma_url")  // PNG de la firma del administrador en Cloudinary
   whatsapp         String
   email            String
   plan             String             @default("AVANZADO")
@@ -388,6 +389,11 @@ model ContratoAlquiler {
   notas              String?
   createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  // Firma del contrato
+  tipoFirma          String?   @map("tipo_firma")             // "DIGITAL" | "MANUAL"
+  contratoFirmadoUrl String?   @map("contrato_firmado_url")   // URL Cloudinary del contrato escaneado
+  fechaFirmado       DateTime? @map("fecha_firmado")          // cuándo se subió el firmado
+
   // Configuración de ajuste periódico de alquiler (ICL/IPC)
   ajusteActivo       Boolean   @default(true)  @map("ajuste_activo")
   ajusteIndice       String    @default("ICL") @map("ajuste_indice")   // "ICL" | "IPC"
@@ -466,6 +472,11 @@ model ContratoVenta {
 
   clausulas            String?
   notas                String?
+
+  // Firma del contrato
+  tipoFirma            String?   @map("tipo_firma")
+  contratoFirmadoUrl   String?   @map("contrato_firmado_url")
+  fechaFirmado         DateTime? @map("fecha_firmado")
 
   createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime  @updatedAt      @map("updated_at") @db.Timestamptz(6)

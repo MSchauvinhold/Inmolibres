@@ -71,10 +71,10 @@ const PIE_COLORS = ["#C1694F", "#2D4A6B", "#C9A55C"];
 // ─── FinKPI card ───────────────────────────────────────────────────────────────
 
 function FinKPI({
-  label, value, sub, trend, up, highlight,
+  label, value, sub, trend, up, neutral, highlight,
 }: {
   label: string; value: string; sub?: string;
-  trend?: string; up?: boolean; highlight?: boolean;
+  trend?: string; up?: boolean; neutral?: boolean; highlight?: boolean;
 }) {
   return (
     <div
@@ -131,16 +131,20 @@ function FinKPI({
             alignItems: "center",
             fontSize: 11,
             fontWeight: 600,
-            color: up
-              ? (highlight ? "#9CD3A8" : "var(--success-500)")
-              : "var(--danger-500)",
+            color: neutral
+              ? (highlight ? "var(--crema-300)" : "var(--antracita-400)")
+              : up
+                ? (highlight ? "#9CD3A8" : "var(--success-500)")
+                : "var(--danger-500)",
             background: highlight
               ? "rgba(255,255,255,0.1)"
-              : (up ? "var(--success-100)" : "var(--danger-100)"),
+              : neutral
+                ? "var(--crema-100)"
+                : (up ? "var(--success-100)" : "var(--danger-100)"),
             padding: "2px 7px",
             borderRadius: 999,
           }}>
-            {up ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+            {neutral ? null : up ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
             {trend}
           </span>
         )}
@@ -314,6 +318,78 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
       ? totalComisionesMes / opsMesVista.length
       : 0;
 
+  // ── Mes anterior (para calcular la variación real, no hardcodeada) ──────────
+  const inicioMesAnterior = useMemo(() => {
+    const d = new Date(inicioMes);
+    d.setMonth(d.getMonth() - 1);
+    return d;
+  }, [inicioMes]);
+
+  const opsMesAnteriorVista = useMemo(
+    () => opsVista.filter((o) => {
+      const f = new Date(o.fechaCierre);
+      return f >= inicioMesAnterior && f < inicioMes;
+    }),
+    [opsVista, inicioMesAnterior, inicioMes]
+  );
+  const egresosMesAnteriorVista = useMemo(
+    () => egresosVista.filter((e) => {
+      const f = new Date(e.fecha);
+      return f >= inicioMesAnterior && f < inicioMes;
+    }),
+    [egresosVista, inicioMesAnterior, inicioMes]
+  );
+
+  const totalComisionesMesAnterior = useMemo(() => {
+    let total = 0;
+    for (const op of opsMesAnteriorVista) {
+      const v = convertirOp(op);
+      if (v === null) return null;
+      total += v;
+    }
+    return total;
+  }, [opsMesAnteriorVista, convertirOp]);
+
+  const totalEgresosMesAnterior = useMemo(() => {
+    let total = 0;
+    for (const e of egresosMesAnteriorVista) {
+      if (vistaMoneda !== "CONSOLIDADO") total += e.monto;
+      else if (e.moneda === "ARS") total += e.monto;
+      else if (cotizacionVenta !== null) total += e.monto * cotizacionVenta;
+      else return null;
+    }
+    return total;
+  }, [egresosMesAnteriorVista, vistaMoneda, cotizacionVenta]);
+
+  const resultadoNetoAnterior =
+    totalComisionesMesAnterior !== null && totalEgresosMesAnterior !== null
+      ? totalComisionesMesAnterior - totalEgresosMesAnterior
+      : null;
+
+  const comisionPromedioAnterior =
+    opsMesAnteriorVista.length > 0 && totalComisionesMesAnterior !== null
+      ? totalComisionesMesAnterior / opsMesAnteriorVista.length
+      : 0;
+
+  // Variación % vs mes anterior. Si no hay datos → 0%. Devuelve label + signo.
+  const calcTrend = useCallback(
+    (actual: number | null, anterior: number | null): { label: string; up: boolean; neutral: boolean } | undefined => {
+      if (actual === null || anterior === null) return undefined;
+      if (anterior === 0) {
+        if (actual === 0) return { label: "0%", up: true, neutral: true };
+        return { label: "+100%", up: true, neutral: false };
+      }
+      const pct = Math.round(((actual - anterior) / Math.abs(anterior)) * 100);
+      return { label: `${pct >= 0 ? "+" : ""}${pct}%`, up: pct >= 0, neutral: pct === 0 };
+    },
+    []
+  );
+
+  const trendComisiones = calcTrend(totalComisionesMes, totalComisionesMesAnterior);
+  const trendPromedio   = calcTrend(comisionPromedio, comisionPromedioAnterior);
+  const trendEgresos    = calcTrend(totalEgresosMes, totalEgresosMesAnterior);
+  const trendNeto       = calcTrend(resultadoNeto, resultadoNetoAnterior);
+
   const ingresosPorMes = useMemo(() => {
     return groupByMes(opsVista, (op) => {
       if (vistaMoneda !== "CONSOLIDADO") return op.comisionInmob;
@@ -388,7 +464,6 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
 
   // ─── Trend strings (simplified) ─────────────────────────────────────────────
   const comisionTrend = opsMesVista.length > 0 ? `${opsMesVista.length} ops.` : undefined;
-  const netoPositivo = resultadoNeto !== null ? resultadoNeto >= 0 : true;
 
   return (
     <div className="w-full max-w-[1060px] mx-auto space-y-5">
@@ -565,29 +640,33 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
               label={vistaMoneda === "USD" ? "Comisiones USD" : vistaMoneda === "CONSOLIDADO" ? "Total est. ARS" : "Comisiones ARS"}
               value={fmtVal(totalComisionesMes)}
               sub={comisionTrend}
-              trend="+18%"
-              up
+              trend={trendComisiones?.label}
+              up={trendComisiones?.up}
+              neutral={trendComisiones?.neutral}
             />
             <FinKPI
               label="Promedio por op."
               value={totalComisionesMes !== null ? formatMonto(comisionPromedio, monedaDisplay) : "—"}
               sub="Este mes"
-              trend="+5%"
-              up
+              trend={trendPromedio?.label}
+              up={trendPromedio?.up}
+              neutral={trendPromedio?.neutral}
             />
             <FinKPI
               label={vistaMoneda === "USD" ? "Egresos USD" : vistaMoneda === "CONSOLIDADO" ? "Egresos est. ARS" : "Egresos ARS"}
               value={fmtVal(totalEgresosMes)}
               sub={`${egresosMesVista.length} conceptos`}
-              trend="-4%"
-              up
+              trend={trendEgresos?.label}
+              up={trendEgresos?.up}
+              neutral={trendEgresos?.neutral}
             />
             <FinKPI
               label={vistaMoneda === "CONSOLIDADO" ? "Neto estimado" : "Resultado neto"}
               value={fmtVal(resultadoNeto)}
               sub={resultadoNeto !== null ? (resultadoNeto >= 0 ? "Positivo" : "Negativo") : undefined}
-              trend={resultadoNeto !== null ? (resultadoNeto >= 0 ? "+24%" : "-") : undefined}
-              up={netoPositivo}
+              trend={trendNeto?.label}
+              up={trendNeto?.up}
+              neutral={trendNeto?.neutral}
               highlight
             />
           </div>

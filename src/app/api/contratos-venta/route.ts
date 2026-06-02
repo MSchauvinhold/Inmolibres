@@ -27,6 +27,7 @@ const createSchema = z.object({
   escribanoRegistro:    z.string().optional(),
   fechaEscritura:       z.string().optional(),
   clausulas:            z.string().optional(),
+  tipoFirma:            z.enum(["DIGITAL", "MANUAL"]).optional().default("MANUAL"),
 });
 
 export async function GET() {

@@ -15,7 +15,7 @@ interface Notificacion {
   url?: string | null;
 }
 
-const TIPOS_URGENTES = ["SUSCRIPCION_24_HORAS", "SUSCRIPCION_VENCIDA"];
+const TIPOS_URGENTES = ["SUSCRIPCION_24_HORAS", "SUSCRIPCION_VENCIDA", "CONSULTA_NUEVA", "VISITA_PROXIMA"];
 
 export function NotificationBell() {
   const [open, setOpen]       = useState(false);
@@ -60,6 +60,20 @@ export function NotificationBell() {
     }
   }, [noLeidas, notifs]);
 
+  // Chequeo de visitas próximas (cubre el hueco del cron en plan Hobby).
+  // Crea notificaciones server-side; si genera alguna, refrescamos al instante
+  // para que el badge + sonido se disparen sin esperar al polling de 30s.
+  const checkVisitasProximas = useCallback(async () => {
+    try {
+      const res = await fetch("/api/visitas/check-proximas", { method: "POST" });
+      if (!res.ok) return;
+      const json = await res.json() as { creadas?: number };
+      if (json.creadas && json.creadas > 0) {
+        void fetchNotifs(false);
+      }
+    } catch {/* ignorar errores de red */}
+  }, [fetchNotifs]);
+
   // Polling: primer fetch es silencioso (isFirst=true), luego cada 30s
   useEffect(() => {
     void fetchNotifs(true);
@@ -72,6 +86,13 @@ export function NotificationBell() {
     };
   }, [fetchNotifs]);
 
+  // Chequeo de visitas próximas: al montar y luego cada 2 minutos
+  useEffect(() => {
+    void checkVisitasProximas();
+    const interval = setInterval(() => void checkVisitasProximas(), 2 * 60_000);
+    return () => clearInterval(interval);
+  }, [checkVisitasProximas]);
+
   // Cerrar dropdown al hacer click fuera
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -80,6 +101,17 @@ export function NotificationBell() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const markOne = async (id: string) => {
+    setNotifs((prev) => prev.map((n) => n.id === id ? { ...n, leida: true } : n));
+    setNoLeidas((prev) => Math.max(0, prev - 1));
+    prevCountRef.current = Math.max(0, (prevCountRef.current ?? 1) - 1);
+    await fetch("/api/notificaciones", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [id] }),
+    });
+  };
 
   const markAll = async () => {
     await fetch("/api/notificaciones", {
@@ -200,7 +232,7 @@ export function NotificationBell() {
                 <a
                   key={n.id}
                   href={n.url ?? "#"}
-                  onClick={() => setOpen(false)}
+                  onClick={() => { setOpen(false); if (!n.leida) void markOne(n.id); }}
                   className="block px-4 py-3 border-b last:border-0 transition-colors"
                   style={{
                     borderColor: "var(--border, #E8DFD0)",
