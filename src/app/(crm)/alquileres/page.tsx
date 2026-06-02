@@ -59,6 +59,7 @@ export default async function AlquileresPage() {
     ajusteDia:    c.ajusteDia,
     indiceUltimoAjuste: c.indiceUltimoAjuste ?? null,
     precioOriginal:     c.precioOriginal !== null ? Number(c.precioOriginal) : null,
+    administracionPct:  c.administracionPct,
     // Firma
     tipoFirma:          c.tipoFirma ?? null,
     contratoFirmadoUrl: c.contratoFirmadoUrl ?? null,
@@ -86,6 +87,7 @@ export default async function AlquileresPage() {
         matriculaCorredora: config.matriculaCorredora,
         comisionVendedorPct: config.comisionVendedorPct,
         comisionCompradorPct: config.comisionCompradorPct,
+        comisionAdministracionPct: config.comisionAdministracionPct,
       }
     : null;
 

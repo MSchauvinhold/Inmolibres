@@ -46,6 +46,12 @@ interface Props {
   agentes: { id: string; nombre: string }[];
   isAdmin: boolean;
   userId: string;
+  adminMensual: { ARS: number; USD: number; contratos: number };
+  adminContratos: {
+    id: string; inquilino: string; propiedad: string;
+    precioMensual: number; administracionPct: number;
+    moneda: "ARS" | "USD"; diaVencimientoPago: number; fee: number;
+  }[];
 }
 
 type VistaMoneda = "ARS" | "USD" | "CONSOLIDADO";
@@ -178,7 +184,7 @@ function groupByMes<T extends { fechaCierre?: string; fecha?: string }>(
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
+export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual, adminContratos }: Props) {
   const [tab, setTab] = useState<"dashboard" | "operaciones" | "egresos">("dashboard");
 
   const [vistaMoneda, setVistaMoneda] = useState<VistaMoneda>("ARS");
@@ -465,6 +471,50 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
   // ─── Trend strings (simplified) ─────────────────────────────────────────────
   const comisionTrend = opsMesVista.length > 0 ? `${opsMesVista.length} ops.` : undefined;
 
+  // ─── Exportar a CSV ──────────────────────────────────────────────────────────
+  function exportarCSV() {
+    if (ops.length === 0 && egresos.length === 0) {
+      toast.error("No hay datos para exportar");
+      return;
+    }
+    const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+    const lineas: string[] = [];
+
+    // Operaciones
+    lineas.push("OPERACIONES");
+    lineas.push(["Fecha", "Tipo", "Agente", "Precio op.", "Moneda", "Comisión total", "Comisión inmob.", "Comisión agente", "IVA", "Gastos"].map(esc).join(","));
+    for (const o of ops) {
+      lineas.push([
+        new Date(o.fechaCierre).toLocaleDateString("es-AR"),
+        TIPO_LABELS[o.tipo],
+        o.agente.nombre,
+        o.precioOperacion, o.moneda,
+        o.comisionTotal, o.comisionInmob, o.comisionAgente, o.ivaComision, o.gastos,
+      ].map(esc).join(","));
+    }
+    lineas.push("");
+
+    // Egresos
+    lineas.push("EGRESOS");
+    lineas.push(["Fecha", "Concepto", "Categoría", "Monto", "Moneda"].map(esc).join(","));
+    for (const e of egresos) {
+      lineas.push([
+        new Date(e.fecha).toLocaleDateString("es-AR"),
+        e.concepto, e.categoria ?? "", e.monto, e.moneda,
+      ].map(esc).join(","));
+    }
+
+    // BOM para que Excel reconozca acentos
+    const blob = new Blob(["﻿" + lineas.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `finanzas_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV descargado");
+  }
+
   return (
     <div className="w-full max-w-[1060px] mx-auto space-y-5">
 
@@ -511,8 +561,10 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
 
           {/* Export */}
           <button
+            onClick={exportarCSV}
             className="il-btn il-btn--ghost"
             style={{ height: 36, fontSize: 13, gap: 6, color: "var(--antracita-700)" }}
+            title="Descargar operaciones y egresos en CSV"
           >
             <Download size={14} />
             Exportar
@@ -670,6 +722,73 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId }: Props) {
               highlight
             />
           </div>
+
+          {/* Ingresos próximo mes — administración de alquileres */}
+          {adminMensual.contratos > 0 && (() => {
+            // Filtrar contratos según la vista de moneda
+            const lista = vistaMoneda === "CONSOLIDADO"
+              ? adminContratos
+              : adminContratos.filter((c) => c.moneda === vistaMoneda);
+            if (lista.length === 0) return null;
+
+            const totalVista =
+              vistaMoneda === "USD" ? adminMensual.USD
+              : vistaMoneda === "ARS" ? adminMensual.ARS
+              : adminMensual.ARS + (cotizacionVenta !== null ? adminMensual.USD * cotizacionVenta : 0);
+            const faltaCotiz = vistaMoneda === "CONSOLIDADO" && cotizacionVenta === null && adminMensual.USD > 0;
+
+            return (
+              <div className="il-card" style={{ padding: 0, overflow: "hidden", borderColor: "rgba(212,168,83,0.35)" }}>
+                {/* Header */}
+                <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", background: "var(--crema-50, #FBF8F2)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 9, background: "var(--dorado-400, #D4A853)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <RefreshCw size={14} color="#fff" />
+                    </div>
+                    <div>
+                      <h3 className="display" style={{ fontSize: 16, margin: 0, color: "var(--antracita-900)" }}>Ingresos del próximo mes</h3>
+                      <p style={{ fontSize: 11, color: "var(--antracita-400)" }}>
+                        Administración de {lista.length} alquiler{lista.length !== 1 ? "es" : ""} · ingreso estimado que ya tenés asegurado
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <p className="mono" style={{ fontSize: 22, fontWeight: 600, color: "var(--dorado-700, #8a5c00)", lineHeight: 1 }}>
+                      {faltaCotiz ? "—" : formatMonto(totalVista, monedaDisplay)}
+                    </p>
+                    <p style={{ fontSize: 10.5, color: "var(--antracita-400)", marginTop: 2 }}>estimado / mes</p>
+                  </div>
+                </div>
+                {/* Lista de contratos */}
+                <div>
+                  {lista.map((c, i) => (
+                    <div key={c.id} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                      padding: "11px 20px",
+                      borderBottom: i < lista.length - 1 ? "1px solid var(--border)" : "none",
+                    }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--antracita-900)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {c.propiedad}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--antracita-400)" }}>
+                          {c.inquilino} · vence día {c.diaVencimientoPago}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div className="mono" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--antracita-900)" }}>
+                          {formatMonto(c.fee, c.moneda)}
+                        </div>
+                        <div style={{ fontSize: 10.5, color: "var(--antracita-400)" }}>
+                          {c.administracionPct}% de {formatMonto(c.precioMensual, c.moneda)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Bar chart + Donut */}
           <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 14 }}>

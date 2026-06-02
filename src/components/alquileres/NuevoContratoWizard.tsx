@@ -24,6 +24,7 @@ export interface WizardConfig {
   matriculaCorredora: string | null;
   comisionVendedorPct: number;
   comisionCompradorPct: number;
+  comisionAdministracionPct: number;
 }
 
 export interface WizardInmobiliaria {
@@ -109,6 +110,7 @@ interface AlquilerData {
   moneda: "ARS" | "USD";
   diaVencimientoPago: number;
   deposito: string;
+  administracionPct: string;
   clausulas: string;
   fechaInicio: string;
   fechaFin: string;
@@ -226,6 +228,7 @@ function mkAlqInit(cfg: WizardConfig | null): AlquilerData {
     moneda: "ARS",
     diaVencimientoPago: 10,
     deposito: "",
+    administracionPct: cfg?.comisionAdministracionPct ? String(cfg.comisionAdministracionPct) : "",
     clausulas: cfg?.clausulasAdicionales ?? DEFAULT_CLAUSULAS_ALQ,
     fechaInicio: hoy,
     fechaFin: dosAnios,
@@ -617,6 +620,29 @@ function AlqStep3({
           <Field label="Día de vencimiento del pago">
             <input type="number" min={1} max={28} className={inp} style={inpStyle} value={data.diaVencimientoPago} onChange={(e) => onChange({ diaVencimientoPago: Number(e.target.value) })} />
           </Field>
+        </div>
+
+        {/* Administración mensual (opcional) */}
+        <div className="grid grid-cols-2 gap-3 items-start">
+          <Field label="Administración mensual (%)">
+            <input
+              type="number" min={0} max={100} step={0.5}
+              className={inp} style={inpStyle}
+              value={data.administracionPct}
+              onChange={(e) => onChange({ administracionPct: e.target.value })}
+              placeholder="0 (sin administración)"
+            />
+            <p className="text-[11px] text-[#9a9a9a] mt-1">% del alquiler que cobrás de honorarios cada mes. Dejalo en 0 si no administrás.</p>
+          </Field>
+          {Number(data.administracionPct) > 0 && Number(data.precioMensual) > 0 && (
+            <div className="rounded-xl p-3 mt-5" style={{ background: `${color}0D`, border: `1px solid ${color}30` }}>
+              <p className="text-[11px] font-semibold" style={{ color }}>Cobrás por administración</p>
+              <p className="text-base font-bold mt-0.5" style={{ color }}>
+                {formatPrice(Number(data.precioMensual) * Number(data.administracionPct) / 100, data.moneda)}<span className="text-[11px] font-normal text-[#7a7a7a]"> / mes</span>
+              </p>
+              <p className="text-[10px] text-[#7a7a7a] mt-0.5">{data.administracionPct}% de {formatPrice(Number(data.precioMensual), data.moneda)}</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1493,6 +1519,7 @@ export function NuevoContratoWizard({
           precioMensual: Number(alquiler.precioMensual),
           moneda: alquiler.moneda,
           diaVencimientoPago: alquiler.diaVencimientoPago,
+          administracionPct: Number(alquiler.administracionPct) || 0,
           fechaInicio: alquiler.fechaInicio,
           fechaFin: alquiler.fechaFin,
           ajusteActivo: alquiler.ajusteActivo,

@@ -394,6 +394,9 @@ model ContratoAlquiler {
   contratoFirmadoUrl String?   @map("contrato_firmado_url")   // URL Cloudinary del contrato escaneado
   fechaFirmado       DateTime? @map("fecha_firmado")          // cuándo se subió el firmado
 
+  // Administración mensual: % del canon que cobra la inmobiliaria cada mes (0 = no cobra)
+  administracionPct  Float     @default(0)     @map("administracion_pct")
+
   // Configuración de ajuste periódico de alquiler (ICL/IPC)
   ajusteActivo       Boolean   @default(true)  @map("ajuste_activo")
   ajusteIndice       String    @default("ICL") @map("ajuste_indice")   // "ICL" | "IPC"
@@ -568,6 +571,7 @@ model ConfiguracionInmobiliaria {
   comisionVendedorPct  Float    @default(3.0)  @map("comision_vendedor_pct")
   comisionCompradorPct Float    @default(3.0)  @map("comision_comprador_pct")
   comisionAlquilerMeses Float   @default(1.0)  @map("comision_alquiler_meses")
+  comisionAdministracionPct Float @default(0.0) @map("comision_administracion_pct") // % mensual de administración (default a pre-cargar)
   comisionAgentePct    Float    @default(30.0) @map("comision_agente_pct")
   comisionInmobPct     Float    @default(70.0) @map("comision_inmob_pct")
   ivaIncluido          Boolean  @default(true) @map("iva_incluido")

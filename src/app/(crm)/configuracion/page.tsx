@@ -51,6 +51,7 @@ export default async function ConfiguracionPage() {
     comisionVendedorPct: 3,
     comisionCompradorPct: 3,
     comisionAlquilerMeses: 1,
+    comisionAdministracionPct: 0,
     comisionAgentePct: 30,
     comisionInmobPct: 70,
     ivaIncluido: true,

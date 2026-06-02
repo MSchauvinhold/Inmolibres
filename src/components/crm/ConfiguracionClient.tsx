@@ -58,6 +58,7 @@ interface Config {
   comisionVendedorPct: number;
   comisionCompradorPct: number;
   comisionAlquilerMeses: number;
+  comisionAdministracionPct: number;
   comisionAgentePct: number;
   comisionInmobPct: number;
   ivaIncluido: boolean;
@@ -550,7 +551,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
               <div>
                 <label className={lbl}>Comisión alquiler (meses)</label>
                 <div className="flex gap-2">
-                  {[0.5, 1, 1.5, 2].map((v) => (
+                  {[0, 0.5, 1, 1.5, 2].map((v) => (
                     <button
                       key={v}
                       onClick={() => setConfig((p) => ({ ...p, comisionAlquilerMeses: v }))}
@@ -565,6 +566,21 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Administración mensual (default) */}
+              <div>
+                <label className={lbl}>Administración mensual (%) — opcional</label>
+                <input
+                  type="number" min={0} max={100} step={0.5}
+                  className={inp}
+                  value={config.comisionAdministracionPct}
+                  onChange={(e) => setConfig((p) => ({ ...p, comisionAdministracionPct: Number(e.target.value) }))}
+                  placeholder="0"
+                />
+                <p className="text-xs text-text-muted mt-1">
+                  Valor por defecto que se sugiere al crear un contrato de alquiler. 0 = no se cobra administración.
+                </p>
               </div>
 
               {/* Distribución interna */}
@@ -622,6 +638,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                   comisionVendedorPct: config.comisionVendedorPct,
                   comisionCompradorPct: config.comisionCompradorPct,
                   comisionAlquilerMeses: config.comisionAlquilerMeses,
+                  comisionAdministracionPct: config.comisionAdministracionPct,
                   comisionAgentePct: config.comisionAgentePct,
                   comisionInmobPct: config.comisionInmobPct,
                   ivaIncluido: config.ivaIncluido,

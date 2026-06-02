@@ -52,6 +52,8 @@ interface Contrato {
   ajusteDia: number;
   indiceUltimoAjuste: number | null;
   precioOriginal: number | null;
+  // Administración mensual
+  administracionPct: number;
   // Firma
   tipoFirma: string | null;
   contratoFirmadoUrl: string | null;
@@ -592,6 +594,11 @@ function DocumentoPreview({
               { l: "Día de pago",    v: String(contrato.diaVencimientoPago), s: "de cada mes" },
               { l: "Plazo",          v: `${meses} meses`, s: `${fmtFecha(contrato.fechaInicio)} – ${fmtFecha(contrato.fechaFin)}` },
               { l: "Ajuste",         v: contrato.ajusteActivo ? `${contrato.ajusteIndice} · ${contrato.ajusteIndice === "ICL" ? "BCRA" : "INDEC"}` : "Sin ajuste", s: contrato.ajusteActivo ? `cada ${contrato.ajusteMeses} meses` : "precio fijo" },
+              ...(contrato.administracionPct > 0 ? [{
+                l: "Administración",
+                v: formatPrice(contrato.precioMensual * contrato.administracionPct / 100, contrato.moneda),
+                s: `${contrato.administracionPct}% · por mes`,
+              }] : []),
             ].map((f) => (
               <div key={f.l} style={{ padding: "9px 11px", background: f.terra ? "var(--terracota-100, #FAE8E2)" : "var(--crema-100)", border: f.terra ? "1px solid var(--terracota-300, #E0A088)" : "1px solid var(--border)", borderRadius: 7 }}>
                 <div className="mono" style={{ fontSize: 9, color: f.terra ? colorPrimario : "var(--antracita-300)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>{f.l}</div>
@@ -761,7 +768,7 @@ const INP_STYLE = { borderColor: "#D4D0CB", background: "#FAFAF8", color: "#1a1a
 
 function AjustesTab({ contrato, onSaved }: {
   contrato: Contrato;
-  onSaved?: (cfg: { ajusteActivo: boolean; ajusteIndice: "ICL" | "IPC"; ajusteMeses: number; ajusteDia: number }) => void;
+  onSaved?: (cfg: { ajusteActivo: boolean; ajusteIndice: "ICL" | "IPC"; ajusteMeses: number; ajusteDia: number; administracionPct: number }) => void;
 }) {
   const [ajusteActivo, setAjusteActivo] = useState(contrato.ajusteActivo);
   const [ajusteIndice, setAjusteIndice] = useState<"ICL" | "IPC">(
@@ -769,6 +776,7 @@ function AjustesTab({ contrato, onSaved }: {
   );
   const [ajusteMeses, setAjusteMeses] = useState(contrato.ajusteMeses ?? 6);
   const [ajusteDia, setAjusteDia] = useState(contrato.ajusteDia ?? 14);
+  const [administracionPct, setAdministracionPct] = useState(contrato.administracionPct ?? 0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -776,7 +784,8 @@ function AjustesTab({ contrato, onSaved }: {
     ajusteActivo !== contrato.ajusteActivo ||
     ajusteIndice !== contrato.ajusteIndice ||
     ajusteMeses  !== contrato.ajusteMeses  ||
-    ajusteDia    !== contrato.ajusteDia;
+    ajusteDia    !== contrato.ajusteDia     ||
+    administracionPct !== contrato.administracionPct;
 
   async function guardar() {
     setSaving(true);
@@ -785,13 +794,13 @@ function AjustesTab({ contrato, onSaved }: {
       const res = await fetch(`/api/alquileres/${contrato.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ajusteActivo, ajusteIndice, ajusteMeses, ajusteDia }),
+        body: JSON.stringify({ ajusteActivo, ajusteIndice, ajusteMeses, ajusteDia, administracionPct }),
       });
       if (!res.ok) throw new Error();
       setSaved(true);
-      toast.success("Configuración de ajuste guardada");
+      toast.success("Configuración guardada");
       // Notificar al padre para que actualice su estado local (status strip, etc.)
-      onSaved?.({ ajusteActivo, ajusteIndice, ajusteMeses, ajusteDia });
+      onSaved?.({ ajusteActivo, ajusteIndice, ajusteMeses, ajusteDia, administracionPct });
     } catch {
       toast.error("Error al guardar la configuración");
     } finally {
@@ -927,6 +936,38 @@ function AjustesTab({ contrato, onSaved }: {
           </p>
         )}
 
+        {/* Administración mensual */}
+        <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--border)" }}>
+          <h3 className="display" style={{ fontSize: 15, margin: "0 0 4px", color: "var(--antracita-900)" }}>
+            Administración mensual
+          </h3>
+          <p style={{ fontSize: 12, color: "var(--antracita-400)", marginBottom: 12 }}>
+            % del alquiler que cobrás de honorarios cada mes. 0 = no cobrás administración.
+          </p>
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+            <div style={{ width: 140 }}>
+              <input
+                type="number" min={0} max={100} step={0.5}
+                className={INP}
+                style={INP_STYLE}
+                value={administracionPct}
+                onChange={(e) => setAdministracionPct(Math.max(0, Math.min(100, Number(e.target.value))))}
+              />
+            </div>
+            {administracionPct > 0 && (
+              <div style={{ padding: "8px 14px", background: "rgba(212,168,83,0.1)", border: "1px solid rgba(212,168,83,0.35)", borderRadius: 8 }}>
+                <div className="mono" style={{ fontSize: 16, fontWeight: 600, color: "var(--dorado-700, #8a5c00)" }}>
+                  {formatPrice(contrato.precioMensual * administracionPct / 100, contrato.moneda)}
+                  <span style={{ fontSize: 11, fontWeight: 400, color: "var(--antracita-400)" }}> / mes</span>
+                </div>
+                <div style={{ fontSize: 10.5, color: "var(--antracita-400)" }}>
+                  {administracionPct}% de {formatPrice(contrato.precioMensual, contrato.moneda)}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Botón guardar */}
         {dirty && (
           <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
@@ -957,6 +998,65 @@ function AjustesTab({ contrato, onSaved }: {
       <div>
         <AjustesHistorial contratoId={contrato.id} />
       </div>
+    </div>
+  );
+}
+
+// ─── AdministracionPanel — registrar el cobro de administración del mes ────────
+
+function AdministracionPanel({ contrato }: { contrato: Contrato }) {
+  const [registrando, setRegistrando] = useState(false);
+  const [registrado, setRegistrado] = useState(false);
+
+  const fee = contrato.precioMensual * contrato.administracionPct / 100;
+  const mesActual = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+
+  async function registrar() {
+    setRegistrando(true);
+    try {
+      const res = await fetch(`/api/alquileres/${contrato.id}/administracion`, { method: "POST" });
+      const json = await res.json() as { ok?: boolean; monto?: number; mes?: string; error?: string };
+      if (res.status === 409) {
+        setRegistrado(true);
+        toast.info(json.error ?? "Ya registrada este mes");
+        return;
+      }
+      if (!res.ok) throw new Error(json.error);
+      setRegistrado(true);
+      toast.success(`Administración de ${json.mes ?? mesActual} registrada: ${formatPrice(json.monto ?? fee, contrato.moneda)}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al registrar");
+    } finally {
+      setRegistrando(false);
+    }
+  }
+
+  return (
+    <div className="il-card" style={{ padding: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <h3 className="display" style={{ fontSize: 16, margin: 0, color: "var(--antracita-900)" }}>Administración</h3>
+        <span className="mono" style={{ fontSize: 11, color: "var(--dorado-700, #8a5c00)", fontWeight: 600 }}>{contrato.administracionPct}%</span>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "10px 12px", background: "rgba(212,168,83,0.1)", borderRadius: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: 12, color: "var(--antracita-500)", textTransform: "capitalize" }}>{mesActual}</span>
+        <span className="mono" style={{ fontSize: 15, fontWeight: 600, color: "var(--dorado-700, #8a5c00)" }}>{formatPrice(fee, contrato.moneda)}</span>
+      </div>
+
+      <button
+        onClick={registrar}
+        disabled={registrando || registrado}
+        className="il-btn il-btn--ghost"
+        style={{ width: "100%", justifyContent: "center", fontSize: 12, gap: 6, height: 36 }}
+      >
+        {registrando ? <Loader2 size={13} className="animate-spin" />
+          : registrado ? <Check size={13} />
+          : <Receipt size={13} />}
+        {registrando ? "Registrando…" : registrado ? "Registrada este mes" : "Registrar cobro del mes"}
+      </button>
+      <p style={{ fontSize: 10, color: "var(--antracita-300)", marginTop: 8, textAlign: "center" }}>
+        Suma este ingreso a Finanzas. 1 vez por mes.
+      </p>
     </div>
   );
 }
@@ -1392,6 +1492,7 @@ function ContratoDetalleModal({
     ajusteIndice: contrato.ajusteIndice as "ICL" | "IPC",
     ajusteMeses:  contrato.ajusteMeses,
     ajusteDia:    contrato.ajusteDia,
+    administracionPct: contrato.administracionPct,
   });
 
   // Contrato "vivo": unión de la prop original + cambios de ajuste y firma guardados en esta sesión
@@ -1733,6 +1834,11 @@ function ContratoDetalleModal({
                     <span className="mono" style={{ fontWeight: 600, color: "var(--antracita-700)" }}>{proximoPago}</span>
                   </div>
                 </div>
+
+                {/* Administración mensual */}
+                {contratoVivo.administracionPct > 0 && (
+                  <AdministracionPanel contrato={contratoVivo} />
+                )}
 
                 {/* Contrato firmado */}
                 <ContratoFirmadoPanel

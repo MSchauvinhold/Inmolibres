@@ -86,7 +86,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    const { estadoPago, notas, ajusteActivo, ajusteIndice, ajusteMeses, ajusteDia, contratoFirmadoUrl, fechaFirmado } = parsed.data;
+    const { estadoPago, notas, ajusteActivo, ajusteIndice, ajusteMeses, ajusteDia, administracionPct, contratoFirmadoUrl, fechaFirmado } = parsed.data;
 
     const contrato = await db.contratoAlquiler.update({
       where: { id },
@@ -97,6 +97,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
         ...(ajusteIndice         !== undefined && { ajusteIndice }),
         ...(ajusteMeses          !== undefined && { ajusteMeses }),
         ...(ajusteDia            !== undefined && { ajusteDia }),
+        ...(administracionPct    !== undefined && { administracionPct }),
         ...(contratoFirmadoUrl   !== undefined && { contratoFirmadoUrl }),
         ...(fechaFirmado         !== undefined && { fechaFirmado: fechaFirmado ? new Date(fechaFirmado) : null }),
       },

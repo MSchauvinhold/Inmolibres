@@ -21,7 +21,7 @@ export default async function FinanzasPage() {
   inicioMes.setDate(1);
   inicioMes.setHours(0, 0, 0, 0);
 
-  const [operaciones, egresos, agentes] = await Promise.all([
+  const [operaciones, egresos, agentes, contratosAdmin] = await Promise.all([
     db.operacionCerrada.findMany({
       where: { inmobiliariaId, fechaCierre: { gte: desde } },
       include: { agente: { select: { id: true, nombre: true } } },
@@ -35,7 +35,37 @@ export default async function FinanzasPage() {
       where: { inmobiliariaId, rol: "AGENTE", activo: true },
       select: { id: true, nombre: true },
     }),
+    // Contratos de alquiler vigentes con administración mensual activa
+    db.contratoAlquiler.findMany({
+      where: { inmobiliariaId, administracionPct: { gt: 0 }, fechaFin: { gte: inicioMes } },
+      select: {
+        id: true, precioMensual: true, moneda: true, administracionPct: true,
+        inquilinoNombre: true, diaVencimientoPago: true,
+        propiedad: { select: { titulo: true } },
+      },
+      orderBy: { precioMensual: "desc" },
+    }),
   ]);
+
+  // Ingreso recurrente mensual por administración, separado por moneda
+  const adminMensual = { ARS: 0, USD: 0, contratos: contratosAdmin.length };
+  for (const c of contratosAdmin) {
+    const fee = Number(c.precioMensual) * (c.administracionPct / 100);
+    if (c.moneda === "USD") adminMensual.USD += fee;
+    else adminMensual.ARS += fee;
+  }
+
+  // Detalle para la vista "Ingresos próximo mes"
+  const adminContratos = contratosAdmin.map((c) => ({
+    id: c.id,
+    inquilino: c.inquilinoNombre,
+    propiedad: c.propiedad?.titulo ?? "—",
+    precioMensual: Number(c.precioMensual),
+    administracionPct: c.administracionPct,
+    moneda: c.moneda as "ARS" | "USD",
+    diaVencimientoPago: c.diaVencimientoPago,
+    fee: Number(c.precioMensual) * (c.administracionPct / 100),
+  }));
 
   const serialized = {
     operaciones: operaciones.map((o) => ({
@@ -61,6 +91,8 @@ export default async function FinanzasPage() {
       agentes={agentes}
       isAdmin={isAdmin}
       userId={session.user.id}
+      adminMensual={adminMensual}
+      adminContratos={adminContratos}
     />
   );
 }

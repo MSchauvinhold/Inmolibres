@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { generarOperacionVenta } from "@/lib/operaciones";
 import { z } from "zod";
 
 const createSchema = z.object({
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
   const session = await requireInmobiliariaAuth();
   if (isNextResponse(session)) return session;
 
-  const { inmobiliariaId } = session;
+  const { inmobiliariaId, userId } = session;
 
   let body: unknown;
   try { body = await req.json(); } catch {
@@ -79,6 +80,16 @@ export async function POST(req: Request) {
         sena: sena ?? null,
         fechaEscritura: fechaEscritura ? new Date(fechaEscritura) : null,
       },
+    });
+
+    // Generar la operación financiera automáticamente (no bloquea si falla)
+    await generarOperacionVenta({
+      inmobiliariaId,
+      agenteId: userId,
+      precioVenta: Number(venta.precioVenta),
+      moneda: venta.moneda,
+      comisionVendedorPct: venta.comisionVendedorPct,
+      comisionCompradorPct: venta.comisionCompradorPct,
     });
 
     return NextResponse.json({

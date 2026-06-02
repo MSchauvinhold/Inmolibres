@@ -21,6 +21,8 @@ export const contratoSchema = z.object({
     .max(28, "Máximo día 28"),
   fechaInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de inicio inválida"),
   fechaFin: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha de fin inválida"),
+  // Administración mensual (% del canon, 0 = no cobra)
+  administracionPct: z.number().min(0).max(100).optional().default(0),
   // Firma
   tipoFirma: z.enum(["DIGITAL", "MANUAL"]).optional().default("MANUAL"),
   // IDs de contactos vinculados (para crear ContratoPersona)
@@ -56,6 +58,7 @@ export const actualizarContratoAlquilerSchema = z.object({
   ajusteIndice:        z.enum(["ICL", "IPC"]).optional(),
   ajusteMeses:         z.number().int().min(1).max(12).optional(),
   ajusteDia:           z.number().int().min(1).max(28).optional(),
+  administracionPct:   z.number().min(0).max(100).optional(),
   // Firma
   contratoFirmadoUrl:  z.string().url().optional().nullable(),
   fechaFirmado:        z.string().datetime().optional().nullable(),

@@ -28,6 +28,7 @@ export async function PUT(req: Request) {
 
   const allowed = [
     "comisionVendedorPct", "comisionCompradorPct", "comisionAlquilerMeses",
+    "comisionAdministracionPct",
     "comisionAgentePct", "comisionInmobPct", "ivaIncluido", "monedaPreferida",
     "colorPrimario", "colorSecundario", "clausulasAdicionales", "piePaginaContrato",
     "cuit", "razonSocial", "domicilioLegal", "matriculaCorredora",

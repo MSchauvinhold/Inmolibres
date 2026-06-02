@@ -4,6 +4,7 @@ import { contratoSchema } from "@/lib/validations/rental";
 import { buildPaginationMeta } from "@/lib/utils";
 import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
 import { obtenerIndiceActual } from "@/lib/indices";
+import { generarOperacionAlquiler } from "@/lib/operaciones";
 import type { Prisma, EstadoPago } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await requireInmobiliariaAuth();
   if (isNextResponse(session)) return session;
-  const { inmobiliariaId, rol } = session;
+  const { inmobiliariaId, rol, userId } = session;
 
   if (rol !== "ADMIN" && rol !== "AGENTE") {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
@@ -131,6 +132,15 @@ export async function POST(request: NextRequest) {
       }
 
       return created;
+    });
+
+    // Generar la operación financiera automáticamente (no bloquea si falla)
+    await generarOperacionAlquiler({
+      inmobiliariaId,
+      agenteId: userId,
+      precioMensual: Number(contratoData.precioMensual),
+      moneda: contratoData.moneda,
+      propiedadId: contratoData.propiedadId,
     });
 
     return NextResponse.json({ data: contrato }, { status: 201 });
