@@ -419,7 +419,7 @@ function Step0({ onSelect }: { onSelect: (t: Tipo) => void }) {
         <p className="text-lg font-bold text-[#1a1a1a]">¿Qué tipo de contrato?</p>
         <p className="text-sm text-[#6a6a6a]">Seleccioná el tipo para comenzar el proceso</p>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
           onClick={() => onSelect("alquiler")}
           className="group p-6 rounded-2xl border-2 text-left space-y-3 transition-all hover:border-[#2C2C2C] hover:shadow-lg"
@@ -516,7 +516,7 @@ function AlqStep2({
       {/* ── Locador (datos de la inmobiliaria — no es un contacto) ── */}
       <div className="space-y-4">
         <SectionHeader color={color}>Locador / Inmobiliaria</SectionHeader>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Razón social / Nombre *" error={errs.locadorNombre}>
             <input className={inp} style={inpStyle} value={data.locadorNombre} onChange={(e) => onChange({ locadorNombre: e.target.value })} placeholder="Inmobiliaria SRL" />
           </Field>
@@ -571,7 +571,7 @@ function AlqStep2({
             />
             {/* Campos editables post-selección */}
             {data.garanteContactoId && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Teléfono">
                   <input className={inp} style={inpStyle} value={data.garanteTel} onChange={(e) => onChange({ garanteTel: e.target.value })} placeholder="+54 3772 ..." />
                 </Field>
@@ -599,8 +599,8 @@ function AlqStep3({
     <div className="space-y-6">
       <div className="space-y-4">
         <SectionHeader color={color}>Condiciones económicas</SectionHeader>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="sm:col-span-2">
             <Field label="Canon mensual (alquiler) *" error={errs.precioMensual}>
               <input type="number" min={0} className={inp} style={inpStyle} value={data.precioMensual} onChange={(e) => onChange({ precioMensual: e.target.value })} placeholder={`Monto en ${data.moneda}`} />
             </Field>
@@ -612,7 +612,7 @@ function AlqStep3({
             </select>
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Depósito en garantía (monto)">
             <input type="number" min={0} className={inp} style={inpStyle} value={data.deposito} onChange={(e) => onChange({ deposito: e.target.value })} placeholder={`Monto en ${data.moneda}`} />
             <p className="text-[11px] text-[#9a9a9a] mt-1">Ingresá el monto en {data.moneda} según corresponda. Suele equivaler a 1 mes de alquiler.</p>
@@ -623,7 +623,7 @@ function AlqStep3({
         </div>
 
         {/* Administración mensual (opcional) */}
-        <div className="grid grid-cols-2 gap-3 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
           <Field label="Administración mensual (%)">
             <input
               type="number" min={0} max={100} step={0.5}
@@ -694,7 +694,7 @@ function AlqStep4({
       {/* ── Vigencia ── */}
       <div className="space-y-4">
         <SectionHeader color={color}>Vigencia del contrato</SectionHeader>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Fecha de inicio *" error={errs.fechaInicio}>
             <input type="date" className={inp} style={inpStyle} value={data.fechaInicio} onChange={(e) => onChange({ fechaInicio: e.target.value })} />
           </Field>
@@ -728,7 +728,7 @@ function AlqStep4({
           >
             {/* Índice */}
             <Field label="Índice de actualización">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {(["ICL", "IPC"] as const).map((idx) => (
                   <button
                     key={idx}
@@ -754,7 +754,7 @@ function AlqStep4({
             </Field>
 
             {/* Frecuencia + Día */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Frecuencia del ajuste">
                 <select
                   className={inp}
@@ -926,7 +926,7 @@ function CvStep2({
         />
         {/* Campos editables para corregir/completar datos del contacto */}
         {data.vendedorContactoId && (
-          <div className="grid grid-cols-2 gap-3 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <Field label="DNI / CUIT *" error={errs.vendedorDni}>
               <input className={inp} style={inpStyle} value={data.vendedorDni} onChange={(e) => onChange({ vendedorDni: e.target.value })} placeholder="12.345.678" />
             </Field>
@@ -935,13 +935,13 @@ function CvStep2({
                 {ESTADO_CIVIL_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </Field>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Field label="Domicilio">
                 <input className={inp} style={inpStyle} value={data.vendedorDomicilio} onChange={(e) => onChange({ vendedorDomicilio: e.target.value })} placeholder="Calle 123" />
               </Field>
             </div>
             {data.vendedorEstadoCivil === "casado" && (
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <Field label="Cónyuge">
                   <input className={inp} style={inpStyle} value={data.vendedorConyuge} onChange={(e) => onChange({ vendedorConyuge: e.target.value })} placeholder="Nombre del cónyuge" />
                 </Field>
@@ -964,7 +964,7 @@ function CvStep2({
           error={errs.compradorNombre}
         />
         {data.compradorContactoId && (
-          <div className="grid grid-cols-2 gap-3 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <Field label="DNI / CUIT *" error={errs.compradorDni}>
               <input className={inp} style={inpStyle} value={data.compradorDni} onChange={(e) => onChange({ compradorDni: e.target.value })} placeholder="12.345.678" />
             </Field>
@@ -973,13 +973,13 @@ function CvStep2({
                 {ESTADO_CIVIL_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </Field>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Field label="Domicilio">
                 <input className={inp} style={inpStyle} value={data.compradorDomicilio} onChange={(e) => onChange({ compradorDomicilio: e.target.value })} placeholder="Calle 456" />
               </Field>
             </div>
             {data.compradorEstadoCivil === "casado" && (
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <Field label="Cónyuge">
                   <input className={inp} style={inpStyle} value={data.compradorConyuge} onChange={(e) => onChange({ compradorConyuge: e.target.value })} placeholder="Nombre del cónyuge" />
                 </Field>
@@ -1008,8 +1008,8 @@ function CvStep3({
     <div className="space-y-6">
       <div className="space-y-4">
         <SectionHeader color={color}>Precio de venta</SectionHeader>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="sm:col-span-2">
             <Field label="Precio acordado *" error={errs.precioVenta}>
               <input type="number" min={0} className={inp} style={inpStyle} value={data.precioVenta} onChange={(e) => onChange({ precioVenta: e.target.value })} placeholder="0" />
             </Field>
@@ -1021,7 +1021,7 @@ function CvStep3({
             </select>
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Seña / Reserva" error={errs.sena}>
             <input type="number" min={0} className={inp} style={inpStyle} value={data.sena} onChange={(e) => onChange({ sena: e.target.value })} placeholder="0" />
           </Field>
@@ -1038,7 +1038,7 @@ function CvStep3({
 
       <div className="space-y-4">
         <SectionHeader color={color}>Comisiones de la inmobiliaria</SectionHeader>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="% Comisión vendedor">
             <input type="number" min={0} max={20} step={0.5} className={inp} style={inpStyle} value={data.comisionVendedorPct} onChange={(e) => onChange({ comisionVendedorPct: e.target.value })} />
           </Field>
@@ -1047,7 +1047,7 @@ function CvStep3({
           </Field>
         </div>
         {precio > 0 && (
-          <div className="grid grid-cols-3 gap-2 p-4 rounded-xl" style={{ background: "#F3F1EE" }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-4 rounded-xl" style={{ background: "#F3F1EE" }}>
             <div className="text-center">
               <p className="text-[10px] text-[#6a6a6a] uppercase font-semibold">Precio</p>
               <p className="font-bold text-sm tabular-nums mt-0.5">{formatPrice(precio, data.moneda)}</p>
@@ -1088,14 +1088,14 @@ function CvStep4({
   return (
     <div className="space-y-4">
       <SectionHeader color={color}>Escribanía y cierre</SectionHeader>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Escribano designado">
           <input className={inp} style={inpStyle} value={data.escribanoNombre} onChange={(e) => onChange({ escribanoNombre: e.target.value })} placeholder="Dr. Juan López" />
         </Field>
         <Field label="Registro notarial Nº">
           <input className={inp} style={inpStyle} value={data.escribanoRegistro} onChange={(e) => onChange({ escribanoRegistro: e.target.value })} placeholder="Registro 15" />
         </Field>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <Field label="Fecha tentativa de escrituración" error={errs.fechaEscritura}>
             <input type="date" className={inp} style={inpStyle} value={data.fechaEscritura} onChange={(e) => onChange({ fechaEscritura: e.target.value })} />
           </Field>
@@ -1229,7 +1229,7 @@ function SelectorTipoFirma({
   return (
     <div className="space-y-3">
       <p className="text-xs font-bold uppercase tracking-widest" style={{ color }}>¿Cómo querés firmar este contrato?</p>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Firma digital */}
         <button
           type="button"

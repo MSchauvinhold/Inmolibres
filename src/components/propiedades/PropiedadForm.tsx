@@ -986,7 +986,7 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
       <StepperBar current={step} />
 
       {/* Two-column layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 20, alignItems: "start" }}>
+      <div className="rg-2col rg-2col--b" style={{ gap: 20, alignItems: "start" }}>
 
         {/* ── Form card ── */}
         <div style={{

@@ -277,7 +277,8 @@ export default async function DashboardPage() {
       ]} />
 
       {/* ── 6 KPI Cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }} className="grid-cols-2 sm:grid-cols-3 lg:[grid-template-columns:repeat(6,1fr)]">
+      {/* El gridTemplateColumns NO va inline: pisaría las clases responsive */}
+      <div style={{ gap: 12 }} className="grid grid-cols-2 sm:grid-cols-3 lg:[grid-template-columns:repeat(6,1fr)]">
         <KPICard label="Propiedades activas" value={totalPropiedades} sub={`${propiedadesDisponibles} disponibles`} icon={Building2} iconColor="var(--antracita-700)" iconBg="var(--crema-100)" href="/propiedades" />
         <KPICard label="Pipeline · clientes" value={totalClientes} sub="en el sistema" icon={Users} iconColor="var(--il-accent)" iconBg="var(--il-accent-soft)" href="/clientes" />
         <KPICard label="Visitas esta semana" value={visitasSemana} sub="agendadas" icon={Clock} iconColor="var(--antracita-700)" iconBg="var(--crema-100)" href="/visitas" />
@@ -287,7 +288,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Dos columnas: Visitas + Consultas recientes ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }} className="grid-cols-1 lg:[grid-template-columns:1.5fr_1fr]">
+      <div style={{ gap: 16 }} className="grid grid-cols-1 lg:[grid-template-columns:1.5fr_1fr]">
         {/* Visitas — hoy como prioridad, luego próximas */}
         <div className="il-card" style={{ padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -465,7 +466,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Dos columnas: Actividad semanal + Contratos por vencer ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16 }} className="grid-cols-1 lg:[grid-template-columns:1.6fr_1fr]">
+      <div style={{ gap: 16 }} className="grid grid-cols-1 lg:[grid-template-columns:1.6fr_1fr]">
         {/* Chart */}
         <div className="il-card" style={{ padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>

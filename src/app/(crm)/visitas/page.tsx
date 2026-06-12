@@ -118,7 +118,7 @@ export default async function VisitasPage({
       </div>
 
       {/* ── Grid content ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 18, alignItems: "start" }}>
+      <div className="rg-2col rg-2col--a" style={{ gap: 18, alignItems: "start" }}>
 
         {/* ── Main: list / semana / calendario ── */}
         <div>

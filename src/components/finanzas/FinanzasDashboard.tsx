@@ -687,7 +687,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
           )}
 
           {/* FinKPI cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+          <div className="rg-kpis">
             <FinKPI
               label={vistaMoneda === "USD" ? "Comisiones USD" : vistaMoneda === "CONSOLIDADO" ? "Total est. ARS" : "Comisiones ARS"}
               value={fmtVal(totalComisionesMes)}
@@ -791,7 +791,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
           })()}
 
           {/* Bar chart + Donut */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 14 }}>
+          <div className="rg-2col rg-2col--a">
 
             {/* Bar chart — Ingresos vs Egresos */}
             <div className="il-card" style={{ padding: 20 }}>
@@ -905,7 +905,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
           </div>
 
           {/* Evolution line + Ranking */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 14 }}>
+          <div className="rg-2col rg-2col--b">
 
             {/* Evolución de comisiones */}
             <div className="il-card" style={{ padding: 20 }}>

@@ -247,15 +247,7 @@ function ContratoCard({ contrato, onClick }: { contrato: Contrato; onClick: () =
       className="il-card w-full text-left"
       style={{ padding: 0, overflow: "hidden", borderLeft: `4px solid ${borderColor}` }}
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1.4fr 1fr 1.2fr auto",
-          gap: 24,
-          padding: "18px 22px",
-          alignItems: "center",
-        }}
-      >
+      <div className="rg-card-row rg-card-row--alq">
         <div>
           <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--antracita-900)" }}>
             {contrato.propiedad.titulo}
@@ -337,15 +329,7 @@ function ContratoVentaCard({ venta, onClick }: { venta: ContratoVenta; onClick: 
       className="il-card w-full text-left"
       style={{ padding: 0, overflow: "hidden", borderLeft: "4px solid var(--dorado-500, #C9A55C)" }}
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1.4fr 1fr auto",
-          gap: 24,
-          padding: "18px 22px",
-          alignItems: "center",
-        }}
-      >
+      <div className="rg-card-row rg-card-row--venta">
         <div>
           <div style={{ fontSize: 14.5, fontWeight: 600, color: "var(--antracita-900)" }}>
             {venta.propiedadDireccion}
@@ -588,7 +572,7 @@ function DocumentoPreview({
         {/* Economic conditions */}
         <div style={{ marginBottom: 4 }}>
           <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--antracita-900)", margin: "0 0 10px", letterSpacing: "0.02em" }}>I — Condiciones económicas</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
+          <div className="rg-cgrid" style={{ marginBottom: 16 }}>
             {[
               { l: "Valor inicial",   v: formatPrice(contrato.precioMensual, contrato.moneda), s: `${contrato.moneda} · mensual`, terra: true },
               { l: "Día de pago",    v: String(contrato.diaVencimientoPago), s: "de cada mes" },
@@ -1632,7 +1616,7 @@ function ContratoDetalleModal({
             </div>
 
             {/* Status strip */}
-            <div style={{ margin: "0 24px 20px", display: "grid", gridTemplateColumns: "repeat(5, 1fr) auto", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+            <div className="rg-status" style={{ margin: "0 24px 20px", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
               <StatusItem label="Estado"         value={estadoLabel}               tone={estadoTone} />
               <StatusItem label="Mes corriente"  value={`Día ${contrato.diaVencimientoPago}`} mono />
               <StatusItem label="Próximo pago"   value={proximoPago}               mono />
@@ -1671,7 +1655,7 @@ function ContratoDetalleModal({
             </div>
 
             {/* Two-column content */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr" }}>
+            <div className="rg-detail">
 
               {/* Left: document */}
               <div style={{ borderRight: "1px solid var(--border)", padding: "22px 24px", position: "relative" }}>
@@ -1986,7 +1970,7 @@ function DocumentoVentaPreview({
 
         {/* Economic conditions */}
         <h3 style={{ fontSize: 12, fontWeight: 600, color: "var(--antracita-900)", margin: "0 0 10px", letterSpacing: "0.02em" }}>I — Condiciones económicas</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
+        <div className="rg-cgrid" style={{ marginBottom: 16 }}>
           {[
             { l: "Precio de venta", v: formatPrice(venta.precioVenta, venta.moneda), s: `${venta.moneda} · contado`, terra: true },
             { l: "Seña / Reserva",  v: venta.sena ? formatPrice(venta.sena, venta.moneda) : "—", s: "al momento de firma" },
@@ -2174,7 +2158,7 @@ function ContratoVentaDetalleModal({
             </div>
 
             {/* Status strip */}
-            <div style={{ margin: "0 24px 20px", display: "grid", gridTemplateColumns: "repeat(5, 1fr) auto", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+            <div className="rg-status" style={{ margin: "0 24px 20px", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
               <StatusItem label="Tipo"         value="Boleto CV" />
               <StatusItem label="Precio"       value={formatPrice(venta.precioVenta, venta.moneda)} mono />
               <StatusItem label="Seña"         value={venta.sena ? formatPrice(venta.sena, venta.moneda) : "—"} mono />
@@ -2201,7 +2185,7 @@ function ContratoVentaDetalleModal({
             </div>
 
             {/* Two-column content */}
-            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr" }}>
+            <div className="rg-detail">
 
               {/* Left */}
               <div style={{ borderRight: "1px solid var(--border)", padding: "22px 24px", position: "relative" }}>

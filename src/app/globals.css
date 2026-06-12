@@ -859,3 +859,44 @@
   }
 }
 
+/* ─── CRM responsive (grillas que colapsan en pantallas chicas) ──────────── */
+
+/* KPIs de Finanzas: 4 → 2 → 1 columnas */
+.rg-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+/* Pares de paneles (gráfico + donut / evolución + ranking): 2 → 1 */
+.rg-2col { display: grid; gap: 14px; }
+.rg-2col--a { grid-template-columns: 1.6fr 1fr; }
+.rg-2col--b { grid-template-columns: 1.4fr 1fr; }
+
+/* Detalle de contrato: documento + barra lateral → 1 columna en móvil */
+.rg-detail { display: grid; grid-template-columns: 1.4fr 1fr; }
+
+/* Status strip del contrato: 5 col + pill → 2 col en móvil */
+.rg-status { display: grid; grid-template-columns: repeat(5, 1fr) auto; }
+
+/* Ficha de condiciones económicas: 4 → 2 columnas */
+.rg-cgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+/* Fila de card de contrato en el listado: columnas → apilado */
+.rg-card-row { display: grid; gap: 24px; padding: 18px 22px; align-items: center; }
+.rg-card-row--alq { grid-template-columns: 2fr 1.4fr 1fr 1.2fr auto; }
+.rg-card-row--venta { grid-template-columns: 2fr 1.4fr 1fr auto; }
+
+@media (max-width: 900px) {
+  .rg-kpis { grid-template-columns: repeat(2, 1fr); }
+  .rg-2col--a, .rg-2col--b { grid-template-columns: 1fr; }
+  .rg-detail { grid-template-columns: 1fr; }
+  .rg-detail > div:first-child { border-right: none !important; }
+  .rg-status { grid-template-columns: repeat(3, 1fr); }
+  .rg-cgrid { grid-template-columns: repeat(2, 1fr); }
+  .rg-card-row--alq, .rg-card-row--venta { grid-template-columns: 1fr 1fr; gap: 12px; }
+}
+
+@media (max-width: 480px) {
+  .rg-kpis { grid-template-columns: 1fr; }
+  .rg-status { grid-template-columns: repeat(2, 1fr); }
+  .rg-card-row--alq, .rg-card-row--venta { grid-template-columns: 1fr; gap: 10px; padding: 14px 16px; }
+}
+
+
