@@ -590,6 +590,10 @@ model ConfiguracionInmobiliaria {
   domicilioLegal       String?  @map("domicilio_legal")
   matriculaCorredora   String?  @map("matricula_corredora")
 
+  // Ubicación de la inmobiliaria — usada en contratos (lugar de celebración y jurisdicción)
+  ciudad               String   @default("Paso de los Libres")
+  provincia            String   @default("Corrientes")
+
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime @updatedAt      @map("updated_at") @db.Timestamptz(6)
 

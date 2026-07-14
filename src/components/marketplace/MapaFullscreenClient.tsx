@@ -89,7 +89,8 @@ export function MapaFullscreenClient({ properties }: Props) {
   const filteredProperties = properties.filter((p) => {
     if (operaciones.length > 0 && !operaciones.includes(p.operacion as Operacion)) return false;
     if (tipo && p.tipo !== tipo) return false;
-    if (inmobiliariaId && p.inmobiliariaId !== inmobiliariaId) return false;
+    if (inmobiliariaId === "PARTICULAR" && p.inmobiliariaId) return false;
+    if (inmobiliariaId && inmobiliariaId !== "PARTICULAR" && p.inmobiliariaId !== inmobiliariaId) return false;
     const pMin = precioMin ? parseFloat(precioMin) : null;
     const pMax = precioMax ? parseFloat(precioMax) : null;
     if ((pMin != null || pMax != null) && p.moneda !== moneda) return false;
@@ -188,25 +189,24 @@ export function MapaFullscreenClient({ properties }: Props) {
             ))}
           </select>
 
-          {/* Inmobiliaria select — shown when there's at least one */}
-          {inmobiliarias.length > 0 && (
-            <select
-              value={inmobiliariaId}
-              onChange={(e) => setInmobiliariaId(e.target.value)}
-              className="text-sm rounded-xl px-3 py-1.5 outline-none"
-              style={{
-                border: "1px solid var(--cream-border)",
-                background: "white",
-                color: "var(--antracite)",
-                fontFamily: "var(--font-jakarta)",
-              }}
-            >
-              <option value="">Todas las inmobiliarias</option>
-              {inmobiliarias.map(({ id, nombre }) => (
-                <option key={id} value={id}>{nombre}</option>
-              ))}
-            </select>
-          )}
+          {/* Inmobiliaria / dueño directo select */}
+          <select
+            value={inmobiliariaId}
+            onChange={(e) => setInmobiliariaId(e.target.value)}
+            className="text-sm rounded-xl px-3 py-1.5 outline-none"
+            style={{
+              border: "1px solid var(--cream-border)",
+              background: "white",
+              color: "var(--antracite)",
+              fontFamily: "var(--font-jakarta)",
+            }}
+          >
+            <option value="">Publicado por: todos</option>
+            <option value="PARTICULAR">Dueño directo</option>
+            {inmobiliarias.map(({ id, nombre }) => (
+              <option key={id} value={id}>{nombre}</option>
+            ))}
+          </select>
 
           <div className="hidden sm:block w-px h-6" style={{ background: "var(--cream-border)" }} />
 

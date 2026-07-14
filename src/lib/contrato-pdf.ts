@@ -19,6 +19,8 @@ export interface PdfConfig {
   piePaginaContrato?: string | null;
   clausulasAdicionales?: string | null;
   logoEnContrato?:    boolean | null;
+  ciudad?:            string | null;
+  provincia?:         string | null;
 }
 
 export interface PdfInmobiliaria {
@@ -183,6 +185,7 @@ export function buildContratoAlquilerHtml(
   const hoy   = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
   const meses = duracionMeses(contrato.fechaInicio, contrato.fechaFin);
   const ctr   = `CTR-${contrato.id.slice(-4).toUpperCase()}`;
+  const lugar = `${cfg?.ciudad ?? "Paso de los Libres"}, ${cfg?.provincia ?? "Corrientes"}`;
 
   // Cláusulas: override del wizard > config > default
   const clausulasRaw = contrato.clausulasOverride ?? cfg?.clausulasAdicionales ?? DEFAULT_CLAUSULAS_ALQ;
@@ -255,7 +258,7 @@ export function buildContratoAlquilerHtml(
   <div class="fc"><div class="fl">Plazo</div><div class="fv">${meses} meses</div><div class="fs">${fmtFecha(contrato.fechaInicio)} – ${fmtFecha(contrato.fechaFin)}</div></div>
   <div class="fc"><div class="fl">Ajuste</div><div class="fv">${ajusteLabel}</div><div class="fs">${ajusteSub}</div></div>
 </div>
-<p class="intro">En la ciudad de <strong>Paso de los Libres, Corrientes</strong>, entre <strong>${rs}</strong>${cuit ? `, CUIT ${cuit}` : ""}${dom ? `, con domicilio en ${dom}` : ""}${mat ? `, corredor inmobiliario matrícula N° ${mat}` : ""}, en adelante el <strong>LOCADOR</strong>; y <strong>${contrato.inquilinoNombre}</strong>, tel. ${contrato.inquilinoTel}, en adelante el <strong>LOCATARIO</strong>; se celebra el presente Contrato de Locación bajo los siguientes términos y condiciones:</p>
+<p class="intro">En la ciudad de <strong>${lugar}</strong>, entre <strong>${rs}</strong>${cuit ? `, CUIT ${cuit}` : ""}${dom ? `, con domicilio en ${dom}` : ""}${mat ? `, corredor inmobiliario matrícula N° ${mat}` : ""}, en adelante el <strong>LOCADOR</strong>; y <strong>${contrato.inquilinoNombre}</strong>, tel. ${contrato.inquilinoTel}, en adelante el <strong>LOCATARIO</strong>; se celebra el presente Contrato de Locación bajo los siguientes términos y condiciones:</p>
 <div class="sectit">II — Cláusulas y condiciones</div>
 <div class="clauses">${clausulas}</div>
 <div class="sigs">

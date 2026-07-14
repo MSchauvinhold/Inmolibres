@@ -16,7 +16,7 @@ interface LeafletMapProps {
   polygon?: [number, number][] | null;
 }
 
-// Default: Paso de los Libres, Corrientes
+// Centro por defecto cuando no hay propiedades con coordenadas
 const DEFAULT_CENTER: [number, number] = [-29.7139, -57.0847];
 
 export function LeafletMap({

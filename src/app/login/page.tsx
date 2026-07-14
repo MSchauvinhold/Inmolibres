@@ -217,7 +217,7 @@ export default function LoginPage() {
           }}
         >
           <span>v2.0 · Tierra Moderna</span>
-          <span>Paso de los Libres, Corrientes</span>
+          <span>Argentina</span>
         </div>
       </div>
 

@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 /* ── Metadata ─────────────────────────────────────────────────── */
 export const metadata: Metadata = {
   title: "Buscar propiedades — InmoLibres",
-  description: "Casas, departamentos, terrenos y locales en Paso de los Libres, Corrientes.",
+  description: "Casas, departamentos, terrenos y locales en venta y alquiler.",
 };
 
 /* ── Constantes ───────────────────────────────────────────────── */
@@ -33,6 +33,7 @@ interface SP {
   precioMax?: string;
   m2Min?: string;
   m2Max?: string;
+  inmobiliaria?: string;
   ordenar?: string;
   pagina?: string;
 }
@@ -64,6 +65,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   const precioMax = sp.precioMax ? parseFloat(sp.precioMax) : undefined;
   const m2Min     = sp.m2Min    ? parseFloat(sp.m2Min)    : undefined;
   const m2Max     = sp.m2Max    ? parseFloat(sp.m2Max)    : undefined;
+  const inmobiliariaId = sp.inmobiliaria?.trim() || undefined;
   const ordenar   = sp.ordenar ?? "recientes";
   const pagina    = Math.max(1, parseInt(sp.pagina ?? "1"));
 
@@ -75,6 +77,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     precioMax:  precioMax  != null ? String(precioMax)  : undefined,
     m2Min:      m2Min      != null ? String(m2Min)      : undefined,
     m2Max:      m2Max      != null ? String(m2Max)      : undefined,
+    inmobiliaria: inmobiliariaId,
     ordenar: ordenar !== "recientes" ? ordenar : undefined,
   };
 
@@ -83,24 +86,42 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     ordenar === "precio_desc" ? { precio: "desc" } :
     { createdAt: "desc" };
 
-  const where: Prisma.PropiedadWhereInput = {
-    publicada: true,
-    inmobiliaria: { estado: { in: ["ACTIVA", "PRUEBA"] } },
-    ...(operacion ? { operacion } : {}),
-    ...(tipo ? { tipo } : {}),
-    ...(search ? {
+  // Base: publicadas de inmobiliarias activas/en prueba, o de dueños particulares (inmobiliariaId null)
+  const condiciones: Prisma.PropiedadWhereInput[] = [{ publicada: true }];
+
+  if (inmobiliariaId === "PARTICULAR") {
+    condiciones.push({ inmobiliariaId: null });
+  } else if (inmobiliariaId) {
+    condiciones.push({ inmobiliariaId });
+  } else {
+    condiciones.push({
+      OR: [
+        { inmobiliaria: { estado: { in: ["ACTIVA", "PRUEBA"] } } },
+        { inmobiliariaId: null },
+      ],
+    });
+  }
+
+  if (operacion) condiciones.push({ operacion });
+  if (tipo) condiciones.push({ tipo });
+  if (search) {
+    condiciones.push({
       OR: [
         { titulo:    { contains: search, mode: "insensitive" } },
         { direccion: { contains: search, mode: "insensitive" } },
       ],
-    } : {}),
-    ...((precioMin != null || precioMax != null) ? {
+    });
+  }
+  if (precioMin != null || precioMax != null) {
+    condiciones.push({
       precio: {
         ...(precioMin != null ? { gte: new Prisma.Decimal(precioMin) } : {}),
         ...(precioMax != null ? { lte: new Prisma.Decimal(precioMax) } : {}),
       },
-    } : {}),
-    ...((m2Min != null || m2Max != null) ? {
+    });
+  }
+  if (m2Min != null || m2Max != null) {
+    condiciones.push({
       atributos: {
         OR: [
           {
@@ -119,10 +140,12 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
           },
         ],
       },
-    } : {}),
-  };
+    });
+  }
 
-  const [propiedades, total] = await Promise.all([
+  const where: Prisma.PropiedadWhereInput = { AND: condiciones };
+
+  const [propiedades, total, inmobiliarias] = await Promise.all([
     db.propiedad.findMany({
       where, orderBy,
       skip: (pagina - 1) * PER_PAGE,
@@ -141,16 +164,28 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
       },
     }),
     db.propiedad.count({ where }),
+    db.inmobiliaria.findMany({
+      where: { estado: { in: ["ACTIVA", "PRUEBA"] } },
+      orderBy: { nombre: "asc" },
+      select: { id: true, nombre: true },
+    }),
   ]);
 
+  const inmobiliariaSeleccionada = inmobiliariaId === "PARTICULAR"
+    ? { nombre: "Dueño directo" }
+    : inmobiliariaId
+    ? inmobiliarias.find((i) => i.id === inmobiliariaId)
+    : undefined;
+
   const totalPages = Math.ceil(total / PER_PAGE);
-  const hasFilters = !!(operacion || tipo || search || precioMin != null || precioMax != null || m2Min != null || m2Max != null);
+  const hasFilters = !!(operacion || tipo || search || precioMin != null || precioMax != null || m2Min != null || m2Max != null || inmobiliariaId);
 
   type Chip = { key: string; label: string };
   const chips: Chip[] = [
     operacion  && { key: "operacion", label: TIPO_OPERACION_LABELS[operacion] },
     tipo       && { key: "tipo",      label: TIPO_PROPIEDAD_LABELS[tipo] },
     search     && { key: "search",    label: `"${search}"` },
+    inmobiliariaId && { key: "inmobiliaria", label: inmobiliariaSeleccionada?.nombre ?? "Inmobiliaria" },
     precioMin != null && { key: "precioMin", label: `Desde ${precioMin.toLocaleString("es-AR")}` },
     precioMax != null && { key: "precioMax", label: `Hasta ${precioMax.toLocaleString("es-AR")}` },
     m2Min != null && { key: "m2Min", label: `${m2Min} m² mín.` },
@@ -200,7 +235,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
               </h1>
               <p style={{ fontSize: 13.5, color: "var(--antracita-500)", margin: "4px 0 0", fontFamily: "var(--font-dm-sans), sans-serif" }}>
                 <span style={{ fontWeight: 600, color: "var(--antracita-700)" }}>{total}</span>{" "}
-                {total === 1 ? "propiedad" : "propiedades"} · Paso de los Libres, Corrientes
+                {total === 1 ? "propiedad disponible" : "propiedades disponibles"}
               </p>
             </div>
 
@@ -213,6 +248,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
               {precioMax != null && <input type="hidden" name="precioMax" value={precioMax} />}
               {m2Min != null && <input type="hidden" name="m2Min" value={m2Min} />}
               {m2Max != null && <input type="hidden" name="m2Max" value={m2Max} />}
+              {inmobiliariaId && <input type="hidden" name="inmobiliaria" value={inmobiliariaId} />}
               <span style={{ fontSize: 12.5, color: "var(--antracita-500)" }}>Ordenar:</span>
               <select name="ordenar" defaultValue={ordenar}
                 style={{ padding: "7px 12px", border: "1px solid var(--border)", borderRadius: 10, fontSize: 13, color: "var(--antracita-700)", background: "white", outline: "none", cursor: "pointer" }}
@@ -301,6 +337,18 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                   </select>
                 </div>
 
+                {/* Inmobiliaria / dueño directo */}
+                <div>
+                  <label style={labelStyle}>Publicado por</label>
+                  <select name="inmobiliaria" defaultValue={inmobiliariaId ?? ""} style={inputStyle}>
+                    <option value="">Todos</option>
+                    <option value="PARTICULAR">Dueño directo</option>
+                    {inmobiliarias.map((i) => (
+                      <option key={i.id} value={i.id}>{i.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Precio */}
                 <div>
                   <span style={labelStyle}>Precio</span>
@@ -355,6 +403,13 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
               <select name="tipo" defaultValue={tipo ?? ""} style={{ ...inputStyle, flex: "1 1 140px", width: "auto" }}>
                 <option value="">Todos los tipos</option>
                 {TIPOS.map((t) => <option key={t} value={t}>{TIPO_PROPIEDAD_LABELS[t]}</option>)}
+              </select>
+              <select name="inmobiliaria" defaultValue={inmobiliariaId ?? ""} style={{ ...inputStyle, flex: "1 1 160px", width: "auto" }}>
+                <option value="">Publicado por: todos</option>
+                <option value="PARTICULAR">Dueño directo</option>
+                {inmobiliarias.map((i) => (
+                  <option key={i.id} value={i.id}>{i.nombre}</option>
+                ))}
               </select>
               <button type="submit" className="btn-primary shrink-0" style={{ height: 42, borderRadius: 10, padding: "0 18px", fontSize: 13 }}>
                 Filtrar

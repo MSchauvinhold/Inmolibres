@@ -14,7 +14,10 @@ export default async function MapaPage() {
       publicada: true,
       latitud: { not: null },
       longitud: { not: null },
-      inmobiliaria: { estado: { in: ["ACTIVA", "PRUEBA"] } },
+      OR: [
+        { inmobiliaria: { estado: { in: ["ACTIVA", "PRUEBA"] } } },
+        { inmobiliariaId: null },
+      ],
     },
     orderBy: { createdAt: "desc" },
     take: 200,

@@ -88,6 +88,8 @@ export default async function AlquileresPage() {
         comisionVendedorPct: config.comisionVendedorPct,
         comisionCompradorPct: config.comisionCompradorPct,
         comisionAdministracionPct: config.comisionAdministracionPct,
+        ciudad: config.ciudad,
+        provincia: config.provincia,
       }
     : null;
 

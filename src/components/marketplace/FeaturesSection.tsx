@@ -5,15 +5,15 @@ import { Home, Shield, MessageCircle } from "lucide-react";
 const FEATURES = [
   {
     icon: Home,
-    title: "Propiedades locales",
-    text: "Todas las inmobiliarias de Paso de los Libres en un solo lugar.",
+    title: "Todo en un solo lugar",
+    text: "Las inmobiliarias de tu zona reunidas en un mismo marketplace.",
     iconBg: "var(--terracota-50, #FBF1EC)",
     iconColor: "var(--terracota-500, #C1694F)",
   },
   {
     icon: Shield,
     title: "Publicaciones verificadas",
-    text: "Cada propiedad es publicada por inmobiliarias de confianza de la ciudad.",
+    text: "Cada propiedad es publicada por inmobiliarias y particulares verificados.",
     iconBg: "#E8F5E9",
     iconColor: "#2D6A4F",
   },
@@ -48,7 +48,7 @@ export function FeaturesSection() {
             className="mt-3 text-sm max-w-md mx-auto"
             style={{ color: "var(--antracita-300, #6F665C)", fontFamily: "var(--font-dm-sans), sans-serif" }}
           >
-            La forma más sencilla de encontrar propiedades en Paso de los Libres.
+            La forma más sencilla de encontrar tu próxima propiedad.
           </p>
         </div>
 

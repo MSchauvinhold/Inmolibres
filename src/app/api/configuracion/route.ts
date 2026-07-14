@@ -32,6 +32,7 @@ export async function PUT(req: Request) {
     "comisionAgentePct", "comisionInmobPct", "ivaIncluido", "monedaPreferida",
     "colorPrimario", "colorSecundario", "clausulasAdicionales", "piePaginaContrato",
     "cuit", "razonSocial", "domicilioLegal", "matriculaCorredora",
+    "ciudad", "provincia",
     "logoEnContrato",
   ];
   const data: Record<string, unknown> = {};

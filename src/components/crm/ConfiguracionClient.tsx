@@ -72,6 +72,8 @@ interface Config {
   razonSocial: string | null;
   domicilioLegal: string | null;
   matriculaCorredora: string | null;
+  ciudad: string;
+  provincia: string;
 }
 
 interface Props {
@@ -682,7 +684,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                   <input
                     value={config.domicilioLegal ?? ""}
                     onChange={(e) => setConfig((p) => ({ ...p, domicilioLegal: e.target.value }))}
-                    className={inp} placeholder="Av. San Martín 123, Paso de los Libres"
+                    className={inp} placeholder="Av. San Martín 123"
                   />
                 </div>
                 <div>
@@ -693,6 +695,23 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                     className={inp} placeholder="Nº de matrícula"
                   />
                 </div>
+                <div>
+                  <label className={lbl}>Ciudad</label>
+                  <input
+                    value={config.ciudad}
+                    onChange={(e) => setConfig((p) => ({ ...p, ciudad: e.target.value }))}
+                    className={inp} placeholder="Ciudad donde opera la inmobiliaria"
+                  />
+                  <p className="text-xs text-text-muted mt-1">Se usa en los contratos: lugar de celebración y jurisdicción.</p>
+                </div>
+                <div>
+                  <label className={lbl}>Provincia</label>
+                  <input
+                    value={config.provincia}
+                    onChange={(e) => setConfig((p) => ({ ...p, provincia: e.target.value }))}
+                    className={inp} placeholder="Provincia"
+                  />
+                </div>
               </div>
               <button
                 onClick={() => saveConfig({
@@ -700,6 +719,8 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                   razonSocial: config.razonSocial,
                   domicilioLegal: config.domicilioLegal,
                   matriculaCorredora: config.matriculaCorredora,
+                  ciudad: config.ciudad,
+                  provincia: config.provincia,
                 })}
                 disabled={savingConfig}
                 className="btn-primary text-sm flex items-center gap-2"

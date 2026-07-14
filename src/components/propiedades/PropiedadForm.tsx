@@ -1215,7 +1215,7 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
                     <input
                       {...register("direccion")}
                       style={W_INPUT}
-                      placeholder="Ej: Av. San Martín 450, Paso de los Libres"
+                      placeholder="Ej: Av. San Martín 450"
                     />
                   </WizardField>
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Building2, User, ShieldCheck, ChevronRight, LogOut, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Building2, User, ShieldCheck, ChevronRight, LogOut, MessageSquare, Users } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/crm/Logo";
@@ -11,6 +11,7 @@ import { Logo } from "@/components/crm/Logo";
 const navItems = [
   { href: "/admin",                  label: "Panel",           icon: LayoutDashboard },
   { href: "/admin/inmobiliarias",    label: "Inmobiliarias",   icon: Building2 },
+  { href: "/admin/usuarios",         label: "Usuarios",        icon: Users },
   { href: "/admin/particulares",     label: "Particulares",    icon: User },
   { href: "/admin/consultas-kai",    label: "Consultas Kai",   icon: MessageSquare },
 ];

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/crm/Logo";
+import { WA_INMOBILIARIA, WA_PARTICULAR } from "@/lib/contacto";
 
 const FOOTER_COLS = [
   {
@@ -12,20 +13,26 @@ const FOOTER_COLS = [
     ],
   },
   {
-    title: "Inmobiliarias",
+    title: "Sumate",
     links: [
-      // TODO: apuntar a https://inmolibres.com cuando el sitio esté deployado
-      { href: "https://inmolibres.com", label: "¿Sos inmobiliaria?" },
-      { href: "https://inmolibres.com", label: "Sumate" },
+      {
+        href: WA_INMOBILIARIA,
+        label: "¿Querés trabajar con nosotros?",
+      },
+      {
+        href: WA_PARTICULAR,
+        label: "¿Querés publicar tus propiedades?",
+      },
+      { href: "/preguntas-frecuentes", label: "Preguntas frecuentes" },
       { href: "/login", label: "Acceder" },
     ],
   },
   {
     title: "Legal",
     links: [
-      { href: "#", label: "Términos" },
-      { href: "#", label: "Privacidad" },
-      { href: "#", label: "Cookies" },
+      { href: "/terminos", label: "Términos" },
+      { href: "/privacidad", label: "Privacidad" },
+      { href: "/cookies", label: "Cookies" },
     ],
   },
 ];
@@ -60,7 +67,7 @@ export function MarketplaceFooter() {
                 fontFamily: "var(--font-dm-sans), sans-serif",
               }}
             >
-              Paso de los Libres, Corrientes · Argentina
+              Argentina
             </p>
           </div>
 
@@ -115,7 +122,7 @@ export function MarketplaceFooter() {
           }}
         >
           <span>© {new Date().getFullYear()} InmoLibres</span>
-          <span>Hecho en Corrientes</span>
+          <span>Hecho en Argentina</span>
         </div>
       </div>
     </footer>

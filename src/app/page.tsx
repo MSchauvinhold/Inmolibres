@@ -7,14 +7,14 @@ import { MarketplaceFooter } from "@/components/marketplace/MarketplaceFooter";
 import { HeroSection } from "@/components/marketplace/HeroSection";
 import { FeaturesSection } from "@/components/marketplace/FeaturesSection";
 import { MarketplacePropiedadCard } from "@/components/marketplace/MarketplacePropiedadCard";
-import { MascotaKai } from "@/components/marketplace/MascotaKai";
 import { TIPO_PROPIEDAD_LABELS } from "@/lib/utils";
-import type { TipoOperacion, TipoPropiedad } from "@prisma/client";
+import type { Prisma, TipoOperacion, TipoPropiedad } from "@prisma/client";
 
 interface SearchParams {
   operacion?: string;
   tipo?: string;
   search?: string;
+  inmobiliaria?: string;
   kai?: string;
 }
 
@@ -25,51 +25,70 @@ export default async function MarketplaceHome({
 }) {
   const sp = await searchParams;
 
-  const propiedades = await db.propiedad.findMany({
-    where: {
-      publicada: true,
-      inmobiliaria: { estado: { in: ["ACTIVA", "PRUEBA"] } },
-      ...(sp.operacion ? { operacion: sp.operacion as TipoOperacion } : {}),
-      ...(sp.tipo ? { tipo: sp.tipo as TipoPropiedad } : {}),
-      ...(sp.search
-        ? {
-            OR: [
-              { titulo: { contains: sp.search, mode: "insensitive" } },
-              { direccion: { contains: sp.search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: 24,
-    include: {
-      atributos: {
-        select: {
-          habitaciones: true,
-          banos: true,
-          superficieCubierta: true,
-          superficieTotal: true,
-          anchoMetros: true,
-          largoMetros: true,
-          garage: true,
-          caracteristicasCustom: true,
+  const condiciones: Prisma.PropiedadWhereInput[] = [{ publicada: true }];
+
+  if (sp.inmobiliaria === "PARTICULAR") {
+    condiciones.push({ inmobiliariaId: null });
+  } else if (sp.inmobiliaria) {
+    condiciones.push({ inmobiliariaId: sp.inmobiliaria });
+  } else {
+    condiciones.push({
+      OR: [
+        { inmobiliaria: { estado: { in: ["ACTIVA", "PRUEBA"] } } },
+        { inmobiliariaId: null },
+      ],
+    });
+  }
+  if (sp.operacion) condiciones.push({ operacion: sp.operacion as TipoOperacion });
+  if (sp.tipo) condiciones.push({ tipo: sp.tipo as TipoPropiedad });
+  if (sp.search) {
+    condiciones.push({
+      OR: [
+        { titulo: { contains: sp.search, mode: "insensitive" } },
+        { direccion: { contains: sp.search, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  const [propiedades, inmobiliarias] = await Promise.all([
+    db.propiedad.findMany({
+      where: { AND: condiciones },
+      orderBy: { createdAt: "desc" },
+      take: 24,
+      include: {
+        atributos: {
+          select: {
+            habitaciones: true,
+            banos: true,
+            superficieCubierta: true,
+            superficieTotal: true,
+            anchoMetros: true,
+            largoMetros: true,
+            garage: true,
+            caracteristicasCustom: true,
+          },
+        },
+        fotos: { where: { esPortada: true }, take: 1 },
+        inmobiliaria: {
+          select: { id: true, nombre: true, logoUrl: true, whatsapp: true },
         },
       },
-      fotos: { where: { esPortada: true }, take: 1 },
-      inmobiliaria: {
-        select: { id: true, nombre: true, logoUrl: true, whatsapp: true },
-      },
-    },
-  });
+    }),
+    db.inmobiliaria.findMany({
+      where: { estado: { in: ["ACTIVA", "PRUEBA"] } },
+      orderBy: { nombre: "asc" },
+      select: { id: true, nombre: true },
+    }),
+  ]);
 
-  const hasFilters = !!(sp.operacion || sp.tipo || sp.search);
+  const hasFilters = !!(sp.operacion || sp.tipo || sp.search || sp.inmobiliaria);
   const fromKai = sp.kai === "1";
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--background-mp)" }}>
       <MarketplaceHeader />
 
-      {!hasFilters && <HeroSection totalPropiedades={propiedades.length} />}
+      {!hasFilters && <HeroSection totalPropiedades={propiedades.length} inmobiliarias={inmobiliarias} />}
 
       {/* Active filter bar */}
       {hasFilters && (
@@ -139,6 +158,23 @@ export default async function MarketplaceHome({
                   <option key={t} value={t}>
                     {TIPO_PROPIEDAD_LABELS[t]}
                   </option>
+                ))}
+              </select>
+              <select
+                name="inmobiliaria"
+                defaultValue={sp.inmobiliaria ?? ""}
+                className="text-sm px-3 py-2 rounded-xl border outline-none cursor-pointer"
+                style={{
+                  borderColor: "var(--cream-border)",
+                  color: "var(--antracite-mid)",
+                  fontFamily: "var(--font-jakarta)",
+                  background: "white",
+                }}
+              >
+                <option value="">Publicado por: todos</option>
+                <option value="PARTICULAR">Dueño directo</option>
+                {inmobiliarias.map((i) => (
+                  <option key={i.id} value={i.id}>{i.nombre}</option>
                 ))}
               </select>
               <button
@@ -304,7 +340,6 @@ export default async function MarketplaceHome({
       </div>
 
       <MarketplaceFooter />
-      <MascotaKai />
     </div>
   );
 }

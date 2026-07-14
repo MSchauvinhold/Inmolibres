@@ -234,11 +234,11 @@ export function MapaFullscreen({ properties }: Props) {
     });
     new LocControl({ position: "bottomright" }).addTo(map);
 
-    // "Centrar en Paso de los Libres" button
+    // "Centrar mapa" button — vuelve a encuadrar todas las propiedades
     const CenterControl = L.Control.extend({
       onAdd() {
         const btn = document.createElement("button");
-        btn.title = "Centrar en Paso de los Libres";
+        btn.title = "Centrar el mapa en las propiedades";
         btn.style.cssText = `
           background:white;border:2px solid rgba(0,0,0,0.2);border-radius:6px;
           cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -246,8 +246,14 @@ export function MapaFullscreen({ properties }: Props) {
           padding:0 10px;height:34px;white-space:nowrap;color:#2C2C2C;
           font-family:system-ui,sans-serif;
         `;
-        btn.textContent = "Paso de los Libres";
-        btn.onclick = () => map.setView(DEFAULT_CENTER, 14);
+        btn.textContent = "Centrar mapa";
+        btn.onclick = () => {
+          const cluster = clusterRef.current as { getLayers: () => unknown[]; getBounds: () => L.LatLngBounds } | null;
+          if (cluster && cluster.getLayers().length > 0) {
+            try { map.fitBounds(cluster.getBounds(), { padding: [60, 60], maxZoom: 15 }); return; } catch { /* fallback */ }
+          }
+          map.setView(DEFAULT_CENTER, 14);
+        };
         return btn;
       },
     });

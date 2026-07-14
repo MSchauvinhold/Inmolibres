@@ -65,6 +65,8 @@ export default async function ConfiguracionPage() {
     razonSocial: null,
     domicilioLegal: null,
     matriculaCorredora: null,
+    ciudad: "Paso de los Libres",
+    provincia: "Corrientes",
     createdAt: new Date(),
     updatedAt: new Date(),
   };

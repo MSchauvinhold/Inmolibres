@@ -44,19 +44,18 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "InmoLibres — Inmobiliaria en Paso de los Libres",
+    default: "InmoLibres — Encontrá tu próxima propiedad",
     template: "%s | InmoLibres",
   },
   description:
-    "CRM y marketplace inmobiliario para Paso de los Libres, Corrientes. Encontrá tu próxima propiedad.",
+    "CRM y marketplace inmobiliario. Casas, departamentos, terrenos y locales en venta y alquiler.",
   keywords: [
     "inmobiliaria",
-    "paso de los libres",
-    "corrientes",
     "propiedades",
     "alquiler",
     "venta",
     "terrenos",
+    "argentina",
   ],
   authors: [{ name: "InmoLibres" }],
   creator: "InmoLibres",
@@ -67,14 +66,14 @@ export const metadata: Metadata = {
     type: "website",
     locale: "es_AR",
     siteName: "InmoLibres",
-    title: "InmoLibres — Inmobiliaria en Paso de los Libres",
+    title: "InmoLibres — Encontrá tu próxima propiedad",
     description:
-      "CRM y marketplace inmobiliario para Paso de los Libres, Corrientes.",
+      "CRM y marketplace inmobiliario. Propiedades en venta y alquiler.",
   },
   twitter: {
     card: "summary_large_image",
     title: "InmoLibres",
-    description: "Inmobiliaria en Paso de los Libres, Corrientes.",
+    description: "Marketplace inmobiliario. Encontrá tu próxima propiedad.",
   },
   robots: {
     index: true,

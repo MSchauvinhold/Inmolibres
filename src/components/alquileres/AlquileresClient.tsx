@@ -595,7 +595,7 @@ function DocumentoPreview({
 
         {/* Intro text */}
         <p style={{ fontSize: 11, color: "var(--antracita-700)", lineHeight: 1.7, marginBottom: 16 }}>
-          En la ciudad de <strong>Paso de los Libres, Corrientes</strong>, entre <strong>{razonSocial}</strong>{cuit ? `, CUIT ${cuit}` : ""}, y <strong>{contrato.inquilinoNombre}</strong>, tel. {contrato.inquilinoTel}, se celebra el presente Contrato de Locación bajo los términos y condiciones que se detallan:
+          En la ciudad de <strong>{config?.ciudad ?? "Paso de los Libres"}, {config?.provincia ?? "Corrientes"}</strong>, entre <strong>{razonSocial}</strong>{cuit ? `, CUIT ${cuit}` : ""}, y <strong>{contrato.inquilinoNombre}</strong>, tel. {contrato.inquilinoTel}, se celebra el presente Contrato de Locación bajo los términos y condiciones que se detallan:
         </p>
 
         {/* Clauses preview */}

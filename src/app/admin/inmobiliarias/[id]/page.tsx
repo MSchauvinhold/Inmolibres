@@ -7,6 +7,7 @@ import {
   ArrowLeft, Loader2, Save, CalendarDays,
   Building2, Users, Home, BarChart2,
   CheckCircle, XCircle, Clock, AlertTriangle,
+  KeyRound, Copy, X,
 } from "lucide-react";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
@@ -69,6 +70,44 @@ export default function InmobiliariaDetallePage() {
   const [plan,   setPlan]   = useState("");
   const [estado, setEstado] = useState("");
   const [fecha,  setFecha]  = useState("");
+
+  // Reset de contraseña de un usuario de esta inmobiliaria
+  const [resetTarget, setResetTarget] = useState<Usuario | null>(null);
+  const [nuevaPassword, setNuevaPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
+
+  function generarPassword(): string {
+    const palabras = ["Casa", "Llave", "Puerta", "Techo", "Patio", "Muro"];
+    const palabra = palabras[Math.floor(Math.random() * palabras.length)];
+    const numero = Math.floor(1000 + Math.random() * 9000);
+    return `${palabra}${numero}`;
+  }
+
+  function abrirReset(u: Usuario) {
+    setResetTarget(u);
+    setNuevaPassword(generarPassword());
+  }
+
+  async function confirmarReset() {
+    if (!resetTarget) return;
+    if (nuevaPassword.length < 8) { toast.error("Mínimo 8 caracteres"); return; }
+    setResetting(true);
+    try {
+      const res = await fetch(`/api/admin/usuarios/${resetTarget.id}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: nuevaPassword }),
+      });
+      const json = await res.json() as { error?: string };
+      if (!res.ok) { toast.error(json.error ?? "Error al blanquear la contraseña"); return; }
+      toast.success(`Contraseña actualizada para ${resetTarget.nombre}`);
+      setResetTarget(null);
+    } catch {
+      toast.error("Error inesperado");
+    } finally {
+      setResetting(false);
+    }
+  }
 
   async function load() {
     const res = await fetch(`/api/inmobiliarias/${id}`);
@@ -274,7 +313,7 @@ export default function InmobiliariaDetallePage() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "var(--crema-100)" }}>
-              {["Nombre", "Email", "Rol", "Estado", "Desde"].map((h) => (
+              {["Nombre", "Email", "Rol", "Estado", "Desde", "Acciones"].map((h) => (
                 <th
                   key={h}
                   style={{
@@ -317,11 +356,26 @@ export default function InmobiliariaDetallePage() {
                 <td style={{ padding: "12px 18px", color: "var(--antracita-400)", fontSize: 12 }}>
                   {formatDate(u.createdAt)}
                 </td>
+                <td style={{ padding: "12px 18px" }}>
+                  {u.rol !== "SUPERADMIN" && (
+                    <button
+                      onClick={() => abrirReset(u)}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        fontSize: 11.5, padding: "5px 10px", borderRadius: 8,
+                        border: "1px solid var(--border)", background: "transparent",
+                        color: "var(--antracita-600)", cursor: "pointer",
+                      }}
+                    >
+                      <KeyRound size={13} /> Blanquear contraseña
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
             {data.usuarios.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ padding: "20px 18px", textAlign: "center", color: "var(--antracita-300)", fontSize: 13 }}>
+                <td colSpan={6} style={{ padding: "20px 18px", textAlign: "center", color: "var(--antracita-300)", fontSize: 13 }}>
                   Sin usuarios registrados
                 </td>
               </tr>
@@ -329,6 +383,83 @@ export default function InmobiliariaDetallePage() {
           </tbody>
         </table>
       </div>
+
+      {/* Modal de reset de contraseña */}
+      {resetTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !resetting && setResetTarget(null)}
+        >
+          <div
+            className="il-card"
+            style={{ width: "100%", maxWidth: 380, padding: 20, display: "flex", flexDirection: "column", gap: 14 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h3 className="display" style={{ fontSize: 16, margin: 0, color: "var(--antracita-900)" }}>
+                Blanquear contraseña
+              </h3>
+              <button onClick={() => !resetting && setResetTarget(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--antracita-400)" }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: 13, color: "var(--antracita-600)" }}>
+              Se va a establecer una nueva contraseña para <strong>{resetTarget.nombre}</strong> ({resetTarget.email}).
+              Cualquier link de recuperación pendiente quedará invalidado.
+            </p>
+
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "var(--antracita-500)", display: "block", marginBottom: 6 }}>
+                Nueva contraseña
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={nuevaPassword}
+                  onChange={(e) => setNuevaPassword(e.target.value)}
+                  style={{ flex: 1, padding: "8px 11px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-jetbrains-mono, monospace)", color: "var(--antracita-800)", background: "var(--crema-50)", outline: "none" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setNuevaPassword(generarPassword())}
+                  style={{ fontSize: 12, padding: "0 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--crema-100)", color: "var(--antracita-600)", cursor: "pointer" }}
+                >
+                  Generar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard.writeText(nuevaPassword); toast.success("Copiada al portapapeles"); }}
+                  style={{ padding: "0 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--crema-100)", color: "var(--antracita-600)", cursor: "pointer" }}
+                >
+                  <Copy size={13} />
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: "var(--antracita-400)", marginTop: 6 }}>
+                Mínimo 8 caracteres, 1 mayúscula y 1 número. Pasásela al usuario por un canal seguro.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setResetTarget(null)}
+                disabled={resetting}
+                style={{ fontSize: 13, padding: "8px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "transparent", color: "var(--antracita-600)", cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarReset}
+                disabled={resetting}
+                className="il-btn il-btn--primary"
+                style={{ height: 34, fontSize: 13, gap: 6 }}
+              >
+                {resetting && <Loader2 size={14} className="animate-spin" />}
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

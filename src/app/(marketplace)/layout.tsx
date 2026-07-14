@@ -1,6 +1,5 @@
 import { MarketplaceHeader } from "@/components/marketplace/MarketplaceHeader";
 import { MarketplaceFooter } from "@/components/marketplace/MarketplaceFooter";
-import { MascotaKai } from "@/components/marketplace/MascotaKai";
 
 export default function MarketplaceLayout({
   children,
@@ -12,7 +11,6 @@ export default function MarketplaceLayout({
       <MarketplaceHeader />
       {children}
       <MarketplaceFooter />
-      <MascotaKai />
     </div>
   );
 }

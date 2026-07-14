@@ -23,9 +23,10 @@ const CHIPS = [
 
 interface HeroProps {
   totalPropiedades?: number;
+  inmobiliarias?: { id: string; nombre: string }[];
 }
 
-export function HeroSection({ totalPropiedades }: HeroProps) {
+export function HeroSection({ totalPropiedades, inmobiliarias = [] }: HeroProps) {
   return (
     <section
       className="relative overflow-hidden"
@@ -68,7 +69,7 @@ export function HeroSection({ totalPropiedades }: HeroProps) {
           }}
         >
           <MapPin className="w-3.5 h-3.5" style={{ color: "var(--terracota-600, #A85737)" }} />
-          Paso de los Libres, Corrientes
+          Propiedades verificadas · Argentina
         </motion.div>
 
         {/* H1 */}
@@ -130,7 +131,9 @@ export function HeroSection({ totalPropiedades }: HeroProps) {
               padding: 8,
               boxShadow: "var(--shadow-lg, 0 4px 14px rgba(58,35,18,0.08), 0 20px 50px -16px rgba(58,35,18,0.14))",
               display: "grid",
-              gridTemplateColumns: "1fr 200px 180px auto",
+              gridTemplateColumns: inmobiliarias.length > 0
+                ? "1fr 170px 150px 190px auto"
+                : "1fr 200px 180px auto",
               gap: 0,
               maxWidth: 860,
               margin: "0 auto",
@@ -242,6 +245,47 @@ export function HeroSection({ totalPropiedades }: HeroProps) {
                 ))}
               </select>
             </button>
+
+            {/* Inmobiliaria select */}
+            {inmobiliarias.length > 0 && (
+              <button
+                type="button"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  justifyContent: "center",
+                  background: "transparent",
+                  border: "none",
+                  padding: "0 18px",
+                  cursor: "pointer",
+                  borderRight: "1px solid var(--border, #E8DFD0)",
+                }}
+              >
+                <span style={{ fontSize: 10, color: "var(--antracita-300, #6F665C)", letterSpacing: "0.06em", textTransform: "uppercase", fontFamily: "var(--font-jetbrains-mono), monospace" }}>Inmobiliaria</span>
+                <select
+                  name="inmobiliaria"
+                  style={{
+                    fontSize: 13.5,
+                    color: "var(--antracita-700, #2A2219)",
+                    fontWeight: 500,
+                    marginTop: 2,
+                    background: "transparent",
+                    border: "none",
+                    outline: "none",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-dm-sans), sans-serif",
+                    width: "100%",
+                  }}
+                >
+                  <option value="">Todas</option>
+                  <option value="PARTICULAR">Dueño directo</option>
+                  {inmobiliarias.map((i) => (
+                    <option key={i.id} value={i.id}>{i.nombre}</option>
+                  ))}
+                </select>
+              </button>
+            )}
 
             {/* Submit */}
             <button

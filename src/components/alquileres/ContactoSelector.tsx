@@ -362,7 +362,7 @@ export function ContactoSelector({ label, required, selected, color = "#1B4332",
 
               <div>
                 <label className={lbl}>Domicilio</label>
-                <input className={inp} style={inpS} value={form.domicilio} onChange={(e) => setForm((f) => ({ ...f, domicilio: e.target.value }))} placeholder="Calle 123, Paso de los Libres" />
+                <input className={inp} style={inpS} value={form.domicilio} onChange={(e) => setForm((f) => ({ ...f, domicilio: e.target.value }))} placeholder="Calle 123" />
               </div>
 
               <div>

@@ -25,6 +25,8 @@ export interface WizardConfig {
   comisionVendedorPct: number;
   comisionCompradorPct: number;
   comisionAdministracionPct: number;
+  ciudad: string;
+  provincia: string;
 }
 
 export interface WizardInmobiliaria {
@@ -205,7 +207,14 @@ SEXTA — ESCRITURACIÓN: Las partes se comprometen a otorgar la escritura trasl
 
 SÉPTIMA — MORA: La mora se producirá de pleno derecho por el solo vencimiento de los plazos convenidos, sin necesidad de interpelación judicial o extrajudicial alguna.
 
-OCTAVA — DOMICILIOS Y JURISDICCIÓN: Las partes constituyen domicilios especiales en los indicados en el presente, donde se tendrán por válidas todas las notificaciones. Para cualquier divergencia se someten a la jurisdicción de los Tribunales Ordinarios de la ciudad de Paso de los Libres, Provincia de Corrientes, renunciando a todo otro fuero o jurisdicción.`;
+OCTAVA — DOMICILIOS Y JURISDICCIÓN: Las partes constituyen domicilios especiales en los indicados en el presente, donde se tendrán por válidas todas las notificaciones. Para cualquier divergencia se someten a la jurisdicción de los Tribunales Ordinarios de la ciudad de {CIUDAD}, Provincia de {PROVINCIA}, renunciando a todo otro fuero o jurisdicción.`;
+
+// Reemplaza los placeholders de jurisdicción con la ubicación de la inmobiliaria
+function clausulasCvConLugar(cfg: WizardConfig | null): string {
+  return DEFAULT_CLAUSULAS_CV
+    .replace("{CIUDAD}", cfg?.ciudad ?? "Paso de los Libres")
+    .replace("{PROVINCIA}", cfg?.provincia ?? "Corrientes");
+}
 
 function mkAlqInit(cfg: WizardConfig | null): AlquilerData {
   const hoy = new Date().toISOString().slice(0, 10);
@@ -268,7 +277,7 @@ function mkCvInit(cfg: WizardConfig | null): CompraventaData {
     escribanoNombre: "",
     escribanoRegistro: "",
     fechaEscritura: "",
-    clausulas: DEFAULT_CLAUSULAS_CV,
+    clausulas: clausulasCvConLugar(cfg),
   };
 }
 
@@ -855,7 +864,7 @@ function CvStep1({
       </Field>
 
       <Field label="Dirección *" error={errs.propiedadDireccion}>
-        <input className={inp} style={inpStyle} value={data.propiedadDireccion} onChange={(e) => onChange({ propiedadDireccion: e.target.value })} placeholder="Calle 123, Paso de los Libres" />
+        <input className={inp} style={inpStyle} value={data.propiedadDireccion} onChange={(e) => onChange({ propiedadDireccion: e.target.value })} placeholder="Calle 123" />
       </Field>
       <Field label="Descripción / Nomenclatura catastral">
         <input className={inp} style={inpStyle} value={data.propiedadDescripcion} onChange={(e) => onChange({ propiedadDescripcion: e.target.value })} placeholder="Casa 3 ambientes, planta baja..." />
@@ -1367,7 +1376,7 @@ function CvPreview({
         />
         <button
           type="button"
-          onClick={() => onChange({ clausulas: DEFAULT_CLAUSULAS_CV })}
+          onClick={() => onChange({ clausulas: clausulasCvConLugar(cfg) })}
           className="mt-1.5 text-xs font-medium hover:underline"
           style={{ color }}
         >
