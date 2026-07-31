@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { MessageCircle } from "lucide-react";
+import { SignOutLink } from "@/components/auth/SignOutLink";
 
 export default async function SuspendidoPage() {
   const session = await auth();
@@ -117,17 +117,19 @@ export default async function SuspendidoPage() {
         </a>
 
         <div className="mt-6">
-          <Link
-            href="/login"
+          <SignOutLink
             className="text-sm transition-opacity hover:opacity-60"
             style={{
               color: "var(--antracite-light)",
               fontFamily: "var(--font-jakarta)",
               textDecoration: "none",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
             }}
           >
             Volver al inicio de sesión
-          </Link>
+          </SignOutLink>
         </div>
       </div>
     </div>

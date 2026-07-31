@@ -44,7 +44,10 @@ export async function generarOperacionVenta(p: {
     const subtotal = comVend + comComp;
     const iva = ivaIncluido ? subtotal * 0.21 : 0;
     const comisionTotal = subtotal + iva;
-    const comisionAgente = comisionTotal * (agentePct / 100);
+    // El IVA no se reparte: es plata que va a AFIP, no ingreso de nadie.
+    // El agente cobra su % solo sobre el subtotal (sin IVA); el resto + el IVA
+    // completo quedan en la inmobiliaria, que es quien lo remite.
+    const comisionAgente = subtotal * (agentePct / 100);
     const comisionInmob = comisionTotal - comisionAgente;
 
     await db.operacionCerrada.create({
@@ -125,7 +128,8 @@ export async function generarOperacionAlquiler(p: {
     const subtotal = p.precioMensual * alquilerMeses;
     const iva = ivaIncluido ? subtotal * 0.21 : 0;
     const comisionTotal = subtotal + iva;
-    const comisionAgente = comisionTotal * (agentePct / 100);
+    // El IVA no se reparte con el agente — ver nota en generarOperacionVenta.
+    const comisionAgente = subtotal * (agentePct / 100);
     const comisionInmob = comisionTotal - comisionAgente;
 
     await db.operacionCerrada.create({

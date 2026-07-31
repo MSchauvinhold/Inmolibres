@@ -50,7 +50,11 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Operaciones",
     items: [
       { href: "/dashboard",   label: "Dashboard",   icon: LayoutDashboard, permKey: null,             modulo: null },
-      { href: "/propiedades", label: "Propiedades", icon: Building2,       permKey: "verPropiedades", modulo: "propiedades" },
+      // Propiedades nunca se bloquea por plan: si una inmobiliaria baja de plan (o se le
+      // vence la suscripción) con más propiedades que el límite nuevo, tiene que poder
+      // seguir viendo y gestionando (pausar/eliminar) su inventario existente. El límite
+      // de plan solo bloquea CREAR propiedades nuevas (ver /api/propiedades POST).
+      { href: "/propiedades", label: "Propiedades", icon: Building2,       permKey: "verPropiedades", modulo: null },
       { href: "/contactos",   label: "Contactos",   icon: BookUser,        permKey: "verClientes",    modulo: "contactos" },
       { href: "/clientes",    label: "Prospectos",  icon: Users,           permKey: "verClientes",    modulo: "clientes" },
       { href: "/visitas",     label: "Visitas",     icon: CalendarCheck,   permKey: "verVisitas",     modulo: "visitas" },

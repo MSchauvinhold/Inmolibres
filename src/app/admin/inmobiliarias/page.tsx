@@ -26,8 +26,8 @@ const PLANES = [
 const ESTADOS = [
   { value: "ACTIVA",     label: "Activa" },
   { value: "PRUEBA",     label: "Prueba" },
-  { value: "SUSPENDIDA", label: "Suspender" },
-  { value: "INACTIVA",   label: "Inactivar" },
+  { value: "SUSPENDIDA", label: "Suspendida" },
+  { value: "INACTIVA",   label: "Inactiva" },
 ];
 
 export default function AdminInmobiliariasPage() {

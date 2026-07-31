@@ -3,8 +3,6 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import type { TipoOperacionFinanciera, Moneda } from "@prisma/client";
 
-// Los campos Decimal de Prisma serializan a string en JSON — hay que convertirlos
-// a number explícitamente o el frontend termina sumándolos como texto.
 function serializeOperacion<T extends {
   precioOperacion: unknown; comisionTotal: unknown; comisionInmob: unknown;
   comisionAgente: unknown; ivaComision: unknown; gastos: unknown;
@@ -20,29 +18,20 @@ function serializeOperacion<T extends {
   };
 }
 
-export async function GET(req: Request) {
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await auth();
   if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (session.user.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
 
-  const inmobiliariaId = session.user.inmobiliariaId;
-  const { searchParams } = new URL(req.url);
-  const limit = Number(searchParams.get("limit") ?? "50");
+  const { id } = await params;
 
-  const operaciones = await db.operacionCerrada.findMany({
-    where: { inmobiliariaId },
-    include: { agente: { select: { id: true, nombre: true } } },
-    orderBy: { fechaCierre: "desc" },
-    take: limit,
+  const existente = await db.operacionCerrada.findFirst({
+    where: { id, inmobiliariaId: session.user.inmobiliariaId },
   });
-
-  return NextResponse.json({ data: operaciones.map(serializeOperacion) });
-}
-
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
-  const inmobiliariaId = session.user.inmobiliariaId;
+  if (!existente) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   const body = await req.json() as {
     agenteId: string;
@@ -58,14 +47,15 @@ export async function POST(req: Request) {
     gastos?: number;
     descripcionGastos?: string;
     notas?: string;
-    propiedadId?: string;
-    clienteId?: string;
     fechaCierre?: string;
   };
 
-  const op = await db.operacionCerrada.create({
+  const notaEdicion = `[Editado manualmente el ${new Date().toLocaleDateString("es-AR")}]`;
+  const notasBase = (body.notas ?? existente.notas ?? "").replace(/^\[Editado manualmente[^\]]*\]\s*/, "");
+
+  const op = await db.operacionCerrada.update({
+    where: { id },
     data: {
-      inmobiliariaId,
       agenteId: body.agenteId,
       tipo: body.tipo,
       precioOperacion: body.precioOperacion,
@@ -78,13 +68,31 @@ export async function POST(req: Request) {
       ivaComision: body.ivaComision ?? 0,
       gastos: body.gastos ?? 0,
       descripcionGastos: body.descripcionGastos,
-      notas: body.notas,
-      propiedadId: body.propiedadId,
-      clienteId: body.clienteId,
+      notas: `${notaEdicion} ${notasBase}`.trim(),
       fechaCierre: body.fechaCierre ? new Date(body.fechaCierre) : undefined,
     },
     include: { agente: { select: { id: true, nombre: true } } },
   });
 
-  return NextResponse.json({ data: serializeOperacion(op) }, { status: 201 });
+  return NextResponse.json({ data: serializeOperacion(op) });
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (session.user.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+
+  const { id } = await params;
+
+  const existente = await db.operacionCerrada.findFirst({
+    where: { id, inmobiliariaId: session.user.inmobiliariaId },
+  });
+  if (!existente) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+
+  await db.operacionCerrada.delete({ where: { id } });
+
+  return NextResponse.json({ ok: true });
 }

@@ -85,37 +85,42 @@ export async function POST(request: NextRequest) {
 
   const resetUrl = `${APP_URL}/reset-password?token=${tokenCrudo}&uid=${usuario.id}`;
 
-  // Enviar email
-  await getResend().emails.send({
-    from: FROM,
-    to: usuario.email,
-    subject: "Restablecer contraseña — InmoLibres",
-    html: `
-      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
-        <h2 style="color: #14110E; font-size: 24px; margin: 0 0 8px;">InmoLibres</h2>
-        <p style="color: #3A332C; margin: 0 0 16px;">Hola ${usuario.nombre},</p>
-        <p style="color: #3A332C; margin: 0 0 20px;">
-          Recibimos una solicitud para restablecer la contraseña de tu cuenta.
-        </p>
-        <a href="${resetUrl}" style="
-          display: inline-block;
-          background: #C1694F;
-          color: white;
-          padding: 12px 24px;
-          border-radius: 8px;
-          text-decoration: none;
-          font-weight: 600;
-          margin: 0 0 20px;
-        ">Restablecer contraseña</a>
-        <p style="color: #6F665C; font-size: 14px; margin: 0 0 8px;">
-          Este enlace expira en 1 hora. Si no solicitaste este cambio, ignorá este email.
-        </p>
-        <p style="color: #9CA3AF; font-size: 12px; margin: 0; word-break: break-all;">
-          Si el botón no funciona, copiá este enlace: ${resetUrl}
-        </p>
-      </div>
-    `,
-  });
+  // Enviar email — si Resend no está configurado o falla, no debe romper la
+  // respuesta al usuario (el token ya quedó creado en la base de cualquier forma).
+  try {
+    await getResend().emails.send({
+      from: FROM,
+      to: usuario.email,
+      subject: "Restablecer contraseña — InmoLibres",
+      html: `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+          <h2 style="color: #14110E; font-size: 24px; margin: 0 0 8px;">InmoLibres</h2>
+          <p style="color: #3A332C; margin: 0 0 16px;">Hola ${usuario.nombre},</p>
+          <p style="color: #3A332C; margin: 0 0 20px;">
+            Recibimos una solicitud para restablecer la contraseña de tu cuenta.
+          </p>
+          <a href="${resetUrl}" style="
+            display: inline-block;
+            background: #C1694F;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 0 0 20px;
+          ">Restablecer contraseña</a>
+          <p style="color: #6F665C; font-size: 14px; margin: 0 0 8px;">
+            Este enlace expira en 1 hora. Si no solicitaste este cambio, ignorá este email.
+          </p>
+          <p style="color: #9CA3AF; font-size: 12px; margin: 0; word-break: break-all;">
+            Si el botón no funciona, copiá este enlace: ${resetUrl}
+          </p>
+        </div>
+      `,
+    });
+  } catch (e) {
+    console.error("[forgot-password] Error enviando email (Resend no configurado o falló):", e);
+  }
 
   return RESPUESTA_GENERICA;
 }

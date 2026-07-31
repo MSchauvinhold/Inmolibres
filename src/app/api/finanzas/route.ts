@@ -65,11 +65,32 @@ export async function GET(req: Request) {
         totalEgresosMes,
         resultadoNeto,
       },
-      operacionesRecientes: operaciones.slice(0, 10),
-      egresos: egresos.slice(0, 20),
+      operacionesRecientes: operaciones.slice(0, 10).map(serializeOperacion),
+      egresos: egresos.slice(0, 20).map(serializeEgreso),
       rankingAgentes: ranking,
-      operacionesTodas: operaciones,
-      egresosTodos: egresos,
+      operacionesTodas: operaciones.map(serializeOperacion),
+      egresosTodos: egresos.map(serializeEgreso),
     },
   });
+}
+
+// Los campos Decimal de Prisma serializan a string en JSON — convertir a number
+// explícitamente evita que el frontend los sume como texto.
+function serializeOperacion<T extends {
+  precioOperacion: unknown; comisionTotal: unknown; comisionInmob: unknown;
+  comisionAgente: unknown; ivaComision: unknown; gastos: unknown;
+}>(op: T) {
+  return {
+    ...op,
+    precioOperacion: Number(op.precioOperacion),
+    comisionTotal: Number(op.comisionTotal),
+    comisionInmob: Number(op.comisionInmob),
+    comisionAgente: Number(op.comisionAgente),
+    ivaComision: Number(op.ivaComision),
+    gastos: Number(op.gastos),
+  };
+}
+
+function serializeEgreso<T extends { monto: unknown }>(e: T) {
+  return { ...e, monto: Number(e.monto) };
 }

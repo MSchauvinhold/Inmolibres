@@ -197,6 +197,8 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
   const [showNuevaOp, setShowNuevaOp] = useState(false);
   const [showNuevoEgreso, setShowNuevoEgreso] = useState(false);
   const [selectedOp, setSelectedOp] = useState<Operacion | null>(null);
+  const [editOp, setEditOp] = useState<Operacion | null>(null);
+  const [deletingOp, setDeletingOp] = useState(false);
 
   const [ops, setOps] = useState(data.operaciones);
   const [egresos, setEgresos] = useState(data.egresos);
@@ -1277,19 +1279,53 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
 
       {/* Sheet de detalle de operación */}
       {selectedOp && (
-        <OperacionDetailSheet op={selectedOp} onClose={() => setSelectedOp(null)} />
+        <OperacionDetailSheet
+          op={selectedOp}
+          isAdmin={isAdmin}
+          deleting={deletingOp}
+          onClose={() => setSelectedOp(null)}
+          onEdit={() => {
+            setEditOp(selectedOp);
+            setSelectedOp(null);
+          }}
+          onDelete={async () => {
+            if (!confirm("¿Eliminar esta operación? Esta acción no se puede deshacer.")) return;
+            setDeletingOp(true);
+            try {
+              const res = await fetch(`/api/finanzas/operaciones/${selectedOp.id}`, { method: "DELETE" });
+              const json = (await res.json()) as { error?: string };
+              if (!res.ok) throw new Error(json.error ?? "Error al eliminar");
+              setOps((p) => p.filter((o) => o.id !== selectedOp.id));
+              setSelectedOp(null);
+              toast.success("Operación eliminada");
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Error al eliminar");
+            } finally {
+              setDeletingOp(false);
+            }
+          }}
+        />
       )}
 
-      {/* Modal nueva operación */}
-      {showNuevaOp && (
+      {/* Modal nueva operación / edición */}
+      {(showNuevaOp || editOp) && (
         <NuevaOperacionModal
           agentes={agentes}
           userId={userId}
-          onClose={() => setShowNuevaOp(false)}
+          editTarget={editOp}
+          onClose={() => {
+            setShowNuevaOp(false);
+            setEditOp(null);
+          }}
           onCreated={(op) => {
             setOps((p) => [op, ...p]);
             setShowNuevaOp(false);
             toast.success("Operación registrada");
+          }}
+          onUpdated={(op) => {
+            setOps((p) => p.map((o) => (o.id === op.id ? op : o)));
+            setEditOp(null);
+            toast.success("Operación actualizada");
           }}
         />
       )}
@@ -1355,7 +1391,14 @@ function DetailRow({ label, value, bold, accent }: {
   );
 }
 
-function OperacionDetailSheet({ op, onClose }: { op: Operacion; onClose: () => void }) {
+function OperacionDetailSheet({ op, onClose, isAdmin, onEdit, onDelete, deleting }: {
+  op: Operacion;
+  onClose: () => void;
+  isAdmin: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
   const comVend = op.precioOperacion * (op.comisionVendedorPct / 100);
   const comComp = op.precioOperacion * (op.comisionCompradorPct / 100);
   const neto = op.comisionInmob - op.gastos;
@@ -1421,6 +1464,30 @@ function OperacionDetailSheet({ op, onClose }: { op: Operacion; onClose: () => v
               {op.moneda}
             </Pill>
           </div>
+
+          {isAdmin && (
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 18, display: "flex", gap: 10 }}>
+              <button
+                onClick={onEdit}
+                disabled={deleting}
+                className="il-btn"
+                style={{ flex: 1, height: 38, fontSize: 13 }}
+              >
+                Editar
+              </button>
+              <button
+                onClick={onDelete}
+                disabled={deleting}
+                style={{
+                  flex: 1, height: 38, fontSize: 13, borderRadius: 8,
+                  border: "1px solid var(--danger-300, #f2b8b8)", background: "transparent",
+                  color: "var(--danger-600, #c0392b)", cursor: "pointer",
+                }}
+              >
+                {deleting ? "Eliminando…" : "Eliminar"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1430,14 +1497,26 @@ function OperacionDetailSheet({ op, onClose }: { op: Operacion; onClose: () => v
 // ─── Nueva operación modal ─────────────────────────────────────────────────────
 
 function NuevaOperacionModal({
-  agentes, userId, onClose, onCreated,
+  agentes, userId, onClose, onCreated, onUpdated, editTarget,
 }: {
   agentes: { id: string; nombre: string }[];
   userId: string;
   onClose: () => void;
   onCreated: (op: Operacion) => void;
+  onUpdated?: (op: Operacion) => void;
+  editTarget?: Operacion | null;
 }) {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => editTarget ? {
+    tipo: editTarget.tipo,
+    precioOperacion: String(editTarget.precioOperacion),
+    moneda: editTarget.moneda as "ARS" | "USD",
+    agenteId: editTarget.agente.id,
+    comisionVendedorPct: editTarget.comisionVendedorPct,
+    comisionCompradorPct: editTarget.comisionCompradorPct,
+    ivaIncluido: editTarget.ivaComision > 0,
+    notas: editTarget.notas ?? "",
+    fechaCierre: new Date(editTarget.fechaCierre).toISOString().split("T")[0],
+  } : {
     tipo: "VENTA" as Operacion["tipo"],
     precioOperacion: "",
     moneda: "USD" as "ARS" | "USD",
@@ -1469,16 +1548,20 @@ function NuevaOperacionModal({
   const subtotal = comVend + comComp;
   const iva = form.ivaIncluido ? subtotal * 0.21 : 0;
   const comisionTotal = subtotal + iva;
-  const comisionAgente = comisionTotal * (splitAgentePct / 100);
+  // El IVA no se reparte con el agente: es plata que va a AFIP, no ingreso a repartir.
+  const comisionAgente = subtotal * (splitAgentePct / 100);
   const comisionInmob = comisionTotal - comisionAgente;
+
+  const isEdit = !!editTarget;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!precio) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/finanzas/operaciones", {
-        method: "POST",
+      const url = isEdit ? `/api/finanzas/operaciones/${editTarget!.id}` : "/api/finanzas/operaciones";
+      const res = await fetch(url, {
+        method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
@@ -1494,9 +1577,10 @@ function NuevaOperacionModal({
       });
       const data = (await res.json()) as { data?: Operacion; error?: string };
       if (!res.ok) throw new Error(data.error);
-      onCreated(data.data!);
+      if (isEdit) onUpdated?.(data.data!);
+      else onCreated(data.data!);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al registrar");
+      toast.error(err instanceof Error ? err.message : `Error al ${isEdit ? "actualizar" : "registrar"}`);
     } finally {
       setSaving(false);
     }
@@ -1509,7 +1593,7 @@ function NuevaOperacionModal({
     <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.36)", padding: 16 }}>
       <form onSubmit={submit} style={{ width: "100%", maxWidth: 460, background: "#fff", borderRadius: 18, boxShadow: "var(--shadow)", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px", borderBottom: "1px solid var(--border)" }}>
-          <p style={{ fontWeight: 600, color: "var(--antracita-900)", margin: 0 }}>Registrar operación</p>
+          <p style={{ fontWeight: 600, color: "var(--antracita-900)", margin: 0 }}>{isEdit ? "Editar operación" : "Registrar operación"}</p>
           <button type="button" onClick={onClose} style={{ background: "none", border: "none", fontSize: 22, color: "var(--antracita-400)", cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
         <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14, maxHeight: "68vh", overflowY: "auto" }}>
@@ -1578,11 +1662,11 @@ function NuevaOperacionModal({
                 <span className="mono">{formatMonto(comisionTotal, form.moneda)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", color: "var(--antracita-400)" }}>
-                <span>→ Inmobiliaria (70%)</span>
+                <span>→ Inmobiliaria ({100 - splitAgentePct}%{form.ivaIncluido ? " + IVA" : ""})</span>
                 <span className="mono">{formatMonto(comisionInmob, form.moneda)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", color: "var(--antracita-400)" }}>
-                <span>→ Agente (30%)</span>
+                <span>→ Agente ({splitAgentePct}% s/subtotal)</span>
                 <span className="mono">{formatMonto(comisionAgente, form.moneda)}</span>
               </div>
             </div>
@@ -1594,7 +1678,7 @@ function NuevaOperacionModal({
           </button>
           <button type="submit" disabled={saving || !precio} className="il-btn il-btn--primary" style={{ flex: 1, justifyContent: "center", height: 40, fontSize: 13, opacity: (!precio || saving) ? 0.6 : 1 }}>
             {saving && <Loader2 size={13} className="animate-spin" />}
-            Confirmar y registrar
+            {isEdit ? "Guardar cambios" : "Confirmar y registrar"}
           </button>
         </div>
       </form>

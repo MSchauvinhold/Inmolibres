@@ -102,7 +102,8 @@ export function ClienteForm({ clienteId, defaultValues }: Props) {
 
       <div>
         <label className={labelCls}>Notas internas</label>
-        <textarea {...register("notas")} rows={3} className={inputCls} placeholder="Observaciones, preferencias..." />
+        <textarea {...register("notas")} rows={3} maxLength={1000} className={inputCls} placeholder="Observaciones, preferencias... (máximo 1000 caracteres)" />
+        {errors.notas && <p className={errorCls}>{errors.notas.message}</p>}
       </div>
 
       <div className="flex gap-3">
