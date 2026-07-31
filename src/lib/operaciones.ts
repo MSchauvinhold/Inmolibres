@@ -34,6 +34,7 @@ export async function generarOperacionVenta(p: {
   comisionVendedorPct: number;
   comisionCompradorPct: number;
   propiedadId?: string | null;
+  contratoId?: string | null;
   notas?: string;
 }): Promise<void> {
   try {
@@ -64,6 +65,7 @@ export async function generarOperacionVenta(p: {
         comisionAgente,
         ivaComision: iva,
         propiedadId: p.propiedadId ?? undefined,
+        contratoId: p.contratoId ?? undefined,
         notas: p.notas ?? "Generado automáticamente desde el boleto de compraventa.",
       },
     });
@@ -103,6 +105,7 @@ export async function generarOperacionAdministracion(p: {
       comisionAgente: 0,
       ivaComision: 0,
       propiedadId: p.propiedadId ?? undefined,
+      contratoId: p.contratoId,
       notas: `Administración ${p.etiqueta}. adm:${p.contratoId}:${p.refMes}`,
     },
   });
@@ -117,6 +120,7 @@ export async function generarOperacionAlquiler(p: {
   precioMensual: number;
   moneda: Moneda;
   propiedadId?: string | null;
+  contratoId?: string | null;
   notas?: string;
 }): Promise<void> {
   try {
@@ -146,6 +150,7 @@ export async function generarOperacionAlquiler(p: {
         comisionAgente,
         ivaComision: iva,
         propiedadId: p.propiedadId ?? undefined,
+        contratoId: p.contratoId ?? undefined,
         notas: p.notas ?? `Generado automáticamente desde contrato de alquiler (${alquilerMeses} ${alquilerMeses === 1 ? "mes" : "meses"} de comisión).`,
       },
     });

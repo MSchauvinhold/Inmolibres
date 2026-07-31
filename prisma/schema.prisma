@@ -649,6 +649,10 @@ model OperacionCerrada {
   inmobiliariaId       String                  @map("inmobiliaria_id")
   propiedadId          String?                 @map("propiedad_id")
   clienteId            String?                 @map("cliente_id")
+  // Contrato de origen (ContratoAlquiler o ContratoVenta, según `tipo`) — sin relación
+  // formal de Prisma porque puede apuntar a cualquiera de las dos tablas. Se usa para
+  // borrar en cascada la operación cuando se elimina el contrato que la generó.
+  contratoId           String?                 @map("contrato_id")
   agenteId             String                  @map("agente_id")
 
   tipo                 TipoOperacionFinanciera
@@ -674,6 +678,7 @@ model OperacionCerrada {
   @@index([inmobiliariaId])
   @@index([fechaCierre])
   @@index([agenteId])
+  @@index([contratoId])
   @@map("operaciones_cerradas")
 }
 

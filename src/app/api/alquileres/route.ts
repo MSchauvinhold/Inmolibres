@@ -141,6 +141,7 @@ export async function POST(request: NextRequest) {
       precioMensual: Number(contratoData.precioMensual),
       moneda: contratoData.moneda,
       propiedadId: contratoData.propiedadId,
+      contratoId: contrato.id,
     });
 
     return NextResponse.json({ data: contrato }, { status: 201 });

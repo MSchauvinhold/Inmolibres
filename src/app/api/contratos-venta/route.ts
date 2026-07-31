@@ -90,6 +90,7 @@ export async function POST(req: Request) {
       moneda: venta.moneda,
       comisionVendedorPct: venta.comisionVendedorPct,
       comisionCompradorPct: venta.comisionCompradorPct,
+      contratoId: venta.id,
     });
 
     return NextResponse.json({

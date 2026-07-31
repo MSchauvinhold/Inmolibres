@@ -134,6 +134,9 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     }
 
     await db.$transaction([
+      // Borrar en cascada las operaciones de Finanzas que este contrato generó
+      // (comisión inicial + cobros de administración) — si no, quedan huérfanas.
+      db.operacionCerrada.deleteMany({ where: { contratoId: id } }),
       db.contratoAlquiler.delete({ where: { id } }),
       db.propiedad.updateMany({
         where: {

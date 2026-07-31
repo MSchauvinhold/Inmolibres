@@ -74,7 +74,12 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     const existing = await db.contratoVenta.findFirst({ where: { id, inmobiliariaId } });
     if (!existing) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
-    await db.contratoVenta.delete({ where: { id } });
+    await db.$transaction([
+      // Borrar en cascada la operación de Finanzas que este boleto generó —
+      // si no, queda huérfana (ver mismo fix en DELETE /api/alquileres/[id]).
+      db.operacionCerrada.deleteMany({ where: { contratoId: id } }),
+      db.contratoVenta.delete({ where: { id } }),
+    ]);
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error("[DELETE /api/contratos-venta]", e);
