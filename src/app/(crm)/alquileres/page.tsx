@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { toPlanKey } from "@/lib/planes";
 import { AlquileresClient } from "@/components/alquileres/AlquileresClient";
 import { AjustesPendientes } from "@/components/alquileres/AjustesPendientes";
 
@@ -9,6 +10,8 @@ export const metadata = { title: "Contratos" };
 export default async function AlquileresPage() {
   const session = await auth();
   if (!session?.user?.inmobiliariaId) redirect("/login");
+  // Módulo exclusivo del plan Pro — ver nota en /finanzas.
+  if (toPlanKey(session.user.plan) !== "PRO") redirect("/upgrade");
 
   const inmobiliariaId = session.user.inmobiliariaId;
   const isAdmin = session.user.rol === "ADMIN";

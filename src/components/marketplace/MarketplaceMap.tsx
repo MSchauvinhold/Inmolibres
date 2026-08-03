@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPriceMarkerIcon, tipoDeOperacion, PRICE_MARKER_STYLES } from "@/lib/map-markers";
 
 export interface MapProperty {
   id: string;
@@ -79,47 +80,7 @@ function buildPopupHtml(prop: MapProperty): string {
 }
 
 const MAP_STYLES = `
-  .price-marker-wrap {
-    position: relative;
-    width: 0;
-    height: 0;
-  }
-  .price-pill {
-    position: absolute;
-    transform: translate(-50%, -100%) translateY(-4px);
-    padding: 5px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 700;
-    white-space: nowrap;
-    color: white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    font-family: system-ui, sans-serif;
-    line-height: 1;
-    border: 2px solid rgba(255,255,255,0.25);
-    letter-spacing: 0.01em;
-    pointer-events: auto;
-  }
-  .price-pill::after {
-    content: '';
-    position: absolute;
-    bottom: -5px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 5px 4px 0;
-    border-style: solid;
-    border-color: inherit;
-    border-left-color: transparent;
-    border-right-color: transparent;
-    border-bottom-color: transparent;
-  }
-  .price-pill:hover {
-    transform: translate(-50%, -100%) translateY(-4px) scale(1.1);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.32);
-    z-index: 9999 !important;
-  }
+  ${PRICE_MARKER_STYLES}
   .mc-brand {
     background: rgba(27,67,50,0.14) !important;
     border: 2px solid #1B4332 !important;
@@ -248,21 +209,13 @@ export function MarketplaceMap({ properties, className = "w-full h-full" }: Mark
 
       // Add a marker per property
       properties.forEach((prop) => {
-        const color = OPERACION_COLOR[prop.operacion] ?? "#C1694F";
         const label = formatPrecio(prop.precio, prop.moneda);
-
-        const icon = L.divIcon({
-          html: `<div class="price-marker-wrap"><div class="price-pill" style="background:${color};">${label}</div></div>`,
-          className: "",
-          iconSize: L.point(0, 0),
-          iconAnchor: L.point(0, 0),
-        });
+        const icon = createPriceMarkerIcon(L, label, tipoDeOperacion(prop.operacion));
 
         const marker = L.marker([prop.latitud, prop.longitud], { icon });
         marker.bindPopup(buildPopupHtml(prop), {
           maxWidth: 260,
           minWidth: 240,
-          offset: L.point(0, -6),
         });
 
         cluster.addLayer(marker);

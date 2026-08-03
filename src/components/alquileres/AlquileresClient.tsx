@@ -980,7 +980,7 @@ function AjustesTab({ contrato, onSaved }: {
 
       {/* ── Historial ── */}
       <div>
-        <AjustesHistorial contratoId={contrato.id} />
+        <AjustesHistorial contratoId={contrato.id} ajusteActivo={ajusteActivo} />
       </div>
     </div>
   );
@@ -1170,9 +1170,17 @@ interface AjusteHist {
   aplicado: boolean;
 }
 
-function AjustesHistorial({ contratoId }: { contratoId: string }) {
+function AjustesHistorial({ contratoId, ajusteActivo }: { contratoId: string; ajusteActivo: boolean }) {
   const [ajustes, setAjustes] = useState<AjusteHist[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generando, setGenerando] = useState(false);
+
+  async function recargar() {
+    try {
+      const res = await fetch(`/api/alquileres/ajustes?contratoId=${contratoId}`);
+      if (res.ok) setAjustes((await res.json()).data ?? []);
+    } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     let cancel = false;
@@ -1186,7 +1194,30 @@ function AjustesHistorial({ contratoId }: { contratoId: string }) {
     return () => { cancel = true; };
   }, [contratoId]);
 
+  async function generarAhora() {
+    setGenerando(true);
+    try {
+      const res = await fetch(`/api/alquileres/${contratoId}/ajustes`, { method: "POST" });
+      const json = await res.json() as { error?: string; generado?: boolean; mensaje?: string };
+      if (!res.ok) {
+        toast.error(json.error ?? "No se pudo generar el ajuste");
+        return;
+      }
+      if (json.generado) {
+        toast.success("Ajuste generado. Queda pendiente de confirmación en el listado.");
+        await recargar();
+      } else {
+        toast.info(json.mensaje ?? "No corresponde ajuste en este momento.");
+      }
+    } catch {
+      toast.error("Error al generar el ajuste");
+    } finally {
+      setGenerando(false);
+    }
+  }
+
   const aplicados = ajustes.filter((a) => a.aplicado);
+  const pendientes = ajustes.filter((a) => !a.aplicado);
 
   if (loading) {
     return <div style={{ display: "flex", justifyContent: "center", padding: 30 }}><Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--terracota-500)" }} /></div>;
@@ -1194,7 +1225,36 @@ function AjustesHistorial({ contratoId }: { contratoId: string }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <h3 className="display" style={{ fontSize: 17, margin: 0, color: "var(--antracita-900)" }}>Historial de ajustes</h3>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <h3 className="display" style={{ fontSize: 17, margin: 0, color: "var(--antracita-900)" }}>Historial de ajustes</h3>
+        {ajusteActivo && (
+          <button
+            onClick={generarAhora}
+            disabled={generando || pendientes.length > 0}
+            title={pendientes.length > 0 ? "Ya hay un ajuste pendiente de confirmar" : "Calcula el ajuste con el índice de hoy, sin esperar al ciclo automático"}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              fontSize: 12, padding: "7px 13px", borderRadius: 9,
+              border: "1px solid var(--border)", background: "white",
+              color: "var(--antracita-700)",
+              cursor: (generando || pendientes.length > 0) ? "not-allowed" : "pointer",
+              opacity: (generando || pendientes.length > 0) ? 0.55 : 1,
+            }}
+          >
+            {generando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TrendingUp className="w-3.5 h-3.5" />}
+            Generar ajuste ahora
+          </button>
+        )}
+      </div>
+
+      {pendientes.length > 0 && (
+        <div style={{ padding: "10px 13px", borderRadius: 10, background: "var(--terracota-100, #FCEAE4)", border: "1px solid var(--terracota-200, #F4C0AA)" }}>
+          <p style={{ fontSize: 12.5, color: "var(--terracota-700, #8C3D27)", margin: 0 }}>
+            Hay {pendientes.length === 1 ? "un ajuste pendiente" : `${pendientes.length} ajustes pendientes`} de confirmación.
+            Se aplica desde la sección «Ajustes pendientes» del listado de contratos.
+          </p>
+        </div>
+      )}
 
       {aplicados.length === 0 ? (
         <div style={{ textAlign: "center", padding: "28px 16px", color: "var(--antracita-300)" }}>
@@ -1865,7 +1925,7 @@ function ContratoDetalleModal({
       {/* Print modal overlay */}
       {showPrint && (
         <ContratoDocumentoModal
-          contrato={contrato}
+          contrato={contratoVivo}
           config={config}
           inmobiliaria={inmobiliaria}
           onClose={() => setShowPrint(false)}
@@ -2395,6 +2455,13 @@ export function AlquileresClient({
 }: Props) {
   const [contratos, setContratos] = useState(initialContratos);
   const [ventas, setVentas] = useState(initialVentas);
+
+  // Re-sincronizar cuando el server manda datos nuevos (router.refresh()). Sin esto,
+  // useState conserva el valor del primer render para siempre: al confirmar un ajuste
+  // de precio, el listado —y el PDF que se genera desde él— seguían mostrando el
+  // precio viejo hasta recargar la página entera.
+  useEffect(() => { setContratos(initialContratos); }, [initialContratos]);
+  useEffect(() => { setVentas(initialVentas); }, [initialVentas]);
 
   const [tipoTab, setTipoTab] = useState<TipoTab>("alquiler");
   const [filtroAlq, setFiltroAlq] = useState<FiltroAlq>("al_dia");

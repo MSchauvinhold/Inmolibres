@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { actualizarContratoAlquilerSchema } from "@/lib/validations/rental";
 import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { obtenerIndiceEnFecha } from "@/lib/indices";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -11,7 +12,11 @@ type Params = { params: Promise<{ id: string }> };
 async function getContratoOwnedBy(id: string, inmobiliariaId: string) {
   const contrato = await db.contratoAlquiler.findUnique({
     where: { id },
-    select: { inmobiliariaId: true, propiedadId: true },
+    select: {
+      inmobiliariaId: true, propiedadId: true,
+      ajusteActivo: true, indiceUltimoAjuste: true,
+      fechaInicio: true, fechaUltimoAjuste: true,
+    },
   });
   if (!contrato) return null;
   if (contrato.inmobiliariaId !== inmobiliariaId) return false;
@@ -88,6 +93,19 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     const { estadoPago, notas, ajusteActivo, ajusteIndice, ajusteMeses, ajusteDia, administracionPct, contratoFirmadoUrl, fechaFirmado } = parsed.data;
 
+    // Si acá se está activando el ajuste (o cambiando de índice) y todavía no hay base
+    // registrada, hay que fijarla ahora — usando el valor del índice al inicio del
+    // contrato, no el de hoy. Sin esto el ajuste queda sin base y nunca calcula nada.
+    let indiceBaseUpdate: { indiceUltimoAjuste?: number } = {};
+    const activandoAjuste = ajusteActivo === true && !existing.ajusteActivo;
+    const cambiandoIndice = ajusteIndice !== undefined && ajusteActivo !== false;
+    if ((activandoAjuste || cambiandoIndice) && existing.indiceUltimoAjuste == null) {
+      const tipo = (ajusteIndice ?? "ICL") as "ICL" | "IPC";
+      const desde = existing.fechaUltimoAjuste ?? existing.fechaInicio;
+      const idx = await obtenerIndiceEnFecha(tipo, new Date(desde));
+      if (idx) indiceBaseUpdate = { indiceUltimoAjuste: idx.valor };
+    }
+
     const contrato = await db.contratoAlquiler.update({
       where: { id },
       data: {
@@ -100,6 +118,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
         ...(administracionPct    !== undefined && { administracionPct }),
         ...(contratoFirmadoUrl   !== undefined && { contratoFirmadoUrl }),
         ...(fechaFirmado         !== undefined && { fechaFirmado: fechaFirmado ? new Date(fechaFirmado) : null }),
+        ...indiceBaseUpdate,
       },
     });
 

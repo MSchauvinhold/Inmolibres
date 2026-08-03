@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { contratoSchema } from "@/lib/validations/rental";
 import { buildPaginationMeta } from "@/lib/utils";
 import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
-import { obtenerIndiceActual } from "@/lib/indices";
+import { obtenerIndiceEnFecha } from "@/lib/indices";
 import { generarOperacionAlquiler } from "@/lib/operaciones";
 import type { Prisma, EstadoPago } from "@prisma/client";
 
@@ -92,10 +92,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
     }
 
-    // Si tiene ajuste activo, guardar el índice base de hoy para futuros cálculos
+    // Índice base = valor del índice el día en que EMPEZÓ el contrato, no el de hoy.
+    // Si se usara el de hoy, un contrato ya en curso (lo habitual cuando una
+    // inmobiliaria carga su cartera existente) perdería toda la inflación acumulada
+    // desde su inicio y el primer ajuste daría 0%.
     let indiceBase: number | null = null;
     if (parsed.data.ajusteActivo) {
-      const idx = await obtenerIndiceActual(parsed.data.ajusteIndice);
+      const idx = await obtenerIndiceEnFecha(
+        parsed.data.ajusteIndice,
+        new Date(parsed.data.fechaInicio)
+      );
       indiceBase = idx?.valor ?? null;
     }
 

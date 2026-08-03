@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import type { MapProperty } from "./MarketplaceMap";
+import { createPriceMarkerIcon, tipoDeOperacion, PRICE_MARKER_STYLES } from "@/lib/map-markers";
 
 interface Props {
   properties: MapProperty[];
@@ -70,42 +71,7 @@ function buildPopupHtml(prop: MapProperty): string {
 }
 
 const MAP_STYLES = `
-  .price-pill-fs {
-    position: absolute;
-    transform: translate(-50%, -100%) translateY(-4px);
-    padding: 5px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 700;
-    white-space: nowrap;
-    color: white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, z-index 0s;
-    font-family: system-ui, sans-serif;
-    line-height: 1;
-    border: 2px solid rgba(255,255,255,0.25);
-    letter-spacing: 0.01em;
-    pointer-events: auto;
-  }
-  .price-pill-fs::after {
-    content: '';
-    position: absolute;
-    bottom: -5px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 5px 4px 0;
-    border-style: solid;
-    border-color: inherit;
-    border-left-color: transparent;
-    border-right-color: transparent;
-    border-bottom-color: transparent;
-  }
-  .price-pill-fs:hover {
-    transform: translate(-50%, -100%) translateY(-4px) scale(1.15);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.32);
-    z-index: 9999 !important;
-  }
+  ${PRICE_MARKER_STYLES}
   .mc-terra {
     background: rgba(193,105,79,0.15) !important;
     border: 2px solid #C1694F !important;
@@ -280,17 +246,11 @@ export function MapaFullscreen({ properties }: Props) {
     clusterRef.current = cluster;
 
     properties.forEach((prop) => {
-      const color = OPERACION_COLOR[prop.operacion] ?? "#C1694F";
       const label = formatPrecio(prop.precio, prop.moneda);
-      const icon = L.divIcon({
-        html: `<div style="position:relative;width:0;height:0;"><div class="price-pill-fs" style="background:${color};">${label}</div></div>`,
-        className: "",
-        iconSize: L.point(0, 0),
-        iconAnchor: L.point(0, 0),
-      });
+      const icon = createPriceMarkerIcon(L, label, tipoDeOperacion(prop.operacion));
       const marker = L.marker([prop.latitud, prop.longitud], { icon });
       marker.bindPopup(buildPopupHtml(prop), {
-        maxWidth: 280, minWidth: 260, offset: L.point(0, -8),
+        maxWidth: 280, minWidth: 260,
       });
       cluster.addLayer(marker);
     });
@@ -332,17 +292,11 @@ export function MapaFullscreen({ properties }: Props) {
     cluster.clearLayers();
 
     properties.forEach((prop) => {
-      const color = OPERACION_COLOR[prop.operacion] ?? "#C1694F";
       const label = formatPrecio(prop.precio, prop.moneda);
-      const icon = L.divIcon({
-        html: `<div style="position:relative;width:0;height:0;"><div class="price-pill-fs" style="background:${color};">${label}</div></div>`,
-        className: "",
-        iconSize: L.point(0, 0),
-        iconAnchor: L.point(0, 0),
-      });
+      const icon = createPriceMarkerIcon(L, label, tipoDeOperacion(prop.operacion));
       const marker = L.marker([prop.latitud, prop.longitud], { icon });
       marker.bindPopup(buildPopupHtml(prop), {
-        maxWidth: 280, minWidth: 260, offset: L.point(0, -8),
+        maxWidth: 280, minWidth: 260,
       });
       cluster.addLayer(marker);
     });

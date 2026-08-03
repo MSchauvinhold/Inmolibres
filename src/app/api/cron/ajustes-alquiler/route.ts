@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { obtenerIndiceActual } from "@/lib/indices";
+import { obtenerIndiceActual, obtenerIndiceEnFecha } from "@/lib/indices";
 import { formatPrice } from "@/lib/utils";
 
 function diferenciaEnMeses(desde: Date, hasta: Date): number {
@@ -62,14 +62,20 @@ export async function GET(request: NextRequest) {
     const indiceActual = await indiceDe(tipo);
     if (indiceActual == null) continue;
 
-    // Si no tiene índice base guardado, lo seteamos ahora y esperamos al próximo ciclo
-    const indiceBase = c.indiceUltimoAjuste;
+    // Sin índice base guardado, lo reconstruimos con el valor al INICIO del contrato
+    // (no el de hoy) y seguimos calculando en la misma pasada. Sembrarlo con el valor
+    // de hoy haría que el primer ajuste diera 0% y se perdiera toda la inflación
+    // acumulada desde que arrancó el alquiler.
+    let indiceBase = c.indiceUltimoAjuste;
     if (indiceBase == null) {
+      const desde = c.fechaUltimoAjuste ?? c.fechaInicio;
+      const idxBase = await obtenerIndiceEnFecha(tipo, new Date(desde));
+      if (idxBase == null) continue;
+      indiceBase = idxBase.valor;
       await db.contratoAlquiler.update({
         where: { id: c.id },
-        data: { indiceUltimoAjuste: indiceActual },
+        data: { indiceUltimoAjuste: indiceBase },
       });
-      continue;
     }
 
     const variacion = (indiceActual - indiceBase) / indiceBase;

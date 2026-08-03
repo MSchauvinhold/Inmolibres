@@ -28,10 +28,14 @@ export async function GET(req: Request) {
   ]);
 
   const ahora = new Date();
-  const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+  // Las fechas se guardan como medianoche UTC (vienen de inputs date). Un umbral en
+  // hora local dejaba fuera del mes los registros del día 1 — ver nota en
+  // FinanzasDashboard. Comparamos año-mes en UTC.
+  const mesActual = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}`;
+  const mesDe = (d: Date) => d.toISOString().slice(0, 7);
 
-  const opsMes = operaciones.filter((o) => o.fechaCierre >= inicioMes);
-  const egresosMes = egresos.filter((e) => e.fecha >= inicioMes);
+  const opsMes = operaciones.filter((o) => mesDe(o.fechaCierre) === mesActual);
+  const egresosMes = egresos.filter((e) => mesDe(e.fecha) === mesActual);
 
   const totalComisionesMes = opsMes.reduce((s, o) => s + Number(o.comisionInmob), 0);
   const totalEgresosMes = egresosMes.reduce((s, e) => s + Number(e.monto), 0);

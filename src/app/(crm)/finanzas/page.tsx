@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { toPlanKey } from "@/lib/planes";
 import { FinanzasDashboard } from "@/components/finanzas/FinanzasDashboard";
 
 export const metadata = { title: "Finanzas" };
@@ -8,6 +9,9 @@ export const metadata = { title: "Finanzas" };
 export default async function FinanzasPage() {
   const session = await auth();
   if (!session?.user?.inmobiliariaId) redirect("/login");
+  // Módulo exclusivo del plan Pro. No alcanza con ocultarlo en el menú ni con el
+  // middleware: sin este chequeo, entrar por URL directa renderiza la página igual.
+  if (toPlanKey(session.user.plan) !== "PRO") redirect("/upgrade");
 
   const inmobiliariaId = session.user.inmobiliariaId;
   const isAdmin = session.user.rol === "ADMIN";

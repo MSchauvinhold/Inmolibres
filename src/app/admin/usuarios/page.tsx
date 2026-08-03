@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, KeyRound, Copy, Search, X } from "lucide-react";
+import { Loader2, KeyRound, Copy, Search, X, Trash2, AlertTriangle } from "lucide-react";
 
 interface Usuario {
   id: string;
@@ -46,6 +46,55 @@ export default function AdminUsuariosPage() {
   const [resetTarget, setResetTarget] = useState<Usuario | null>(null);
   const [nuevaPassword, setNuevaPassword] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Eliminar usuario
+  const [deleteTarget, setDeleteTarget] = useState<Usuario | null>(null);
+  const [impacto, setImpacto] = useState<{ propiedades: number; clientes: number; visitas: number; operaciones: number } | null>(null);
+  const [bloqueo, setBloqueo] = useState<string | null>(null);
+  const [loadingImpacto, setLoadingImpacto] = useState(false);
+  const [confirmNombre, setConfirmNombre] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function abrirDelete(u: Usuario) {
+    setDeleteTarget(u);
+    setConfirmNombre("");
+    setImpacto(null);
+    setBloqueo(null);
+    setLoadingImpacto(true);
+    try {
+      const res = await fetch(`/api/admin/usuarios/${u.id}`);
+      if (res.ok) {
+        const json = await res.json() as { data: { impacto: typeof impacto; motivoBloqueo: string | null } };
+        setImpacto(json.data.impacto);
+        setBloqueo(json.data.motivoBloqueo);
+      }
+    } catch { /* el modal igual permite confirmar; el server valida */ }
+    finally { setLoadingImpacto(false); }
+  }
+
+  async function confirmarDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/usuarios/${deleteTarget.id}`, { method: "DELETE" });
+      const json = await res.json() as { error?: string; reasignado?: { visitas: number; operaciones: number } | null };
+      if (!res.ok) {
+        toast.error(json.error ?? "No se pudo eliminar el usuario");
+        return;
+      }
+      if (json.reasignado && (json.reasignado.operaciones > 0 || json.reasignado.visitas > 0)) {
+        toast.success(`Usuario eliminado. Se reasignaron ${json.reasignado.operaciones} operación(es) y ${json.reasignado.visitas} visita(s) al administrador.`);
+      } else {
+        toast.success("Usuario eliminado");
+      }
+      setUsuarios((prev) => prev.filter((x) => x.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch {
+      toast.error("Error inesperado");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -214,13 +263,22 @@ export default function AdminUsuariosPage() {
                     </td>
                     <td className="px-4 py-3">
                       {u.rol !== "SUPERADMIN" && (
-                        <button
-                          onClick={() => abrirReset(u)}
-                          className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-surface-raised transition-colors text-text-secondary"
-                        >
-                          <KeyRound className="w-3.5 h-3.5" />
-                          Blanquear contraseña
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => abrirReset(u)}
+                            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-surface-raised transition-colors text-text-secondary"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" />
+                            Blanquear contraseña
+                          </button>
+                          <button
+                            onClick={() => abrirDelete(u)}
+                            title="Eliminar usuario"
+                            className="flex items-center justify-center p-1.5 rounded-lg border border-border hover:bg-red-50 transition-colors text-text-muted hover:text-danger"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -234,6 +292,93 @@ export default function AdminUsuariosPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de eliminación de usuario */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div className="card w-full max-w-md p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-danger" />
+                Eliminar usuario
+              </h2>
+              <button onClick={() => !deleting && setDeleteTarget(null)} className="text-text-muted hover:text-text-primary">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-sm text-text-secondary">
+              Vas a eliminar a <strong>{deleteTarget.nombre}</strong> ({deleteTarget.email}).
+              Esta acción no se puede deshacer.
+            </p>
+
+            {loadingImpacto ? (
+              <div className="flex items-center gap-2 text-sm text-text-muted">
+                <Loader2 className="w-4 h-4 animate-spin" /> Calculando impacto…
+              </div>
+            ) : bloqueo ? (
+              <div
+                className="rounded-lg p-3 text-xs space-y-1"
+                style={{ background: "rgba(192,57,43,0.07)", border: "1px solid rgba(192,57,43,0.3)" }}
+              >
+                <p className="font-semibold" style={{ color: "var(--danger-600, #C0392B)" }}>
+                  No se puede eliminar este usuario
+                </p>
+                <p className="text-text-secondary">{bloqueo}</p>
+              </div>
+            ) : impacto && (
+              <div className="rounded-lg border border-border p-3 space-y-1.5 text-xs">
+                <p className="font-medium text-text-primary mb-1">Qué pasa con sus datos:</p>
+                <p className="text-text-secondary">
+                  · <strong>{impacto.operaciones}</strong> operación(es) de Finanzas y{" "}
+                  <strong>{impacto.visitas}</strong> visita(s) se <strong>reasignan al administrador</strong> de
+                  la inmobiliaria (no se pierde el historial contable).
+                </p>
+                <p className="text-text-secondary">
+                  · <strong>{impacto.propiedades}</strong> propiedad(es) y{" "}
+                  <strong>{impacto.clientes}</strong> cliente(s) quedan sin asesor asignado,
+                  pero siguen siendo de la inmobiliaria.
+                </p>
+              </div>
+            )}
+
+            {!bloqueo && (
+              <div>
+                <label className="block text-xs font-medium text-text-primary mb-1">
+                  Para confirmar, escribí <span className="font-mono">{deleteTarget.nombre}</span>
+                </label>
+                <input
+                  value={confirmNombre}
+                  onChange={(e) => setConfirmNombre(e.target.value)}
+                  className="input-base w-full text-sm"
+                  placeholder={deleteTarget.nombre}
+                  autoFocus
+                />
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setDeleteTarget(null)} className="btn-outline" disabled={deleting}>
+                {bloqueo ? "Entendido" : "Cancelar"}
+              </button>
+              {!bloqueo && (
+                <button
+                  onClick={confirmarDelete}
+                  disabled={deleting || confirmNombre.trim() !== deleteTarget.nombre}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: "var(--danger-600, #C0392B)" }}
+                >
+                  {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Eliminar definitivamente
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

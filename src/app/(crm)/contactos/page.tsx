@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { toPlanKey } from "@/lib/planes";
 import { ContactosClient } from "@/components/contactos/ContactosClient";
 import type { RolContacto } from "@prisma/client";
 
@@ -10,6 +11,8 @@ export const metadata = { title: "Contactos" };
 export default async function ContactosPage() {
   const session = await auth();
   if (!session?.user?.inmobiliariaId) redirect("/login");
+  // Módulo exclusivo del plan Pro — ver nota en /finanzas.
+  if (toPlanKey(session.user.plan) !== "PRO") redirect("/upgrade");
   const inmobiliariaId = session.user.inmobiliariaId;
 
   const contactos = await db.contacto.findMany({

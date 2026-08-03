@@ -161,9 +161,20 @@ function FinKPI({
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Las fechas de operaciones y egresos son fechas de calendario (vienen de inputs
+ * date) y se guardan como medianoche UTC. Formatearlas con toLocaleDateString()
+ * las convierte a hora local y en Argentina (UTC-3) muestran el día ANTERIOR:
+ * un egreso del 01/08 se veía como "31/7". Formateamos en UTC para que se lea
+ * la fecha que el usuario cargó.
+ */
+function fmtFechaUTC(fechaStr: string, opts: Intl.DateTimeFormatOptions = {}) {
+  return new Date(fechaStr).toLocaleDateString("es-AR", { timeZone: "UTC", ...opts });
+}
+
 function getMesLabel(fechaStr: string) {
   const d = new Date(fechaStr);
-  return d.toLocaleDateString("es-AR", { month: "short", year: "2-digit" });
+  return d.toLocaleDateString("es-AR", { timeZone: "UTC", month: "short", year: "2-digit" });
 }
 
 function groupByMes<T extends { fechaCierre?: string; fecha?: string }>(
@@ -253,11 +264,21 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
     ? Math.floor((Date.now() - cotizTs.getTime()) / 60_000)
     : null;
 
-  const inicioMes = useMemo(() => {
+  // Las fechas de operaciones y egresos vienen de inputs date ("YYYY-MM-DD") y se
+  // guardan como medianoche UTC. Comparar contra un umbral en hora local rompía el
+  // día 1 de cada mes: medianoche UTC del 1° son las 21:00 del último día del mes
+  // anterior en Argentina, así que esos registros desaparecían del Resumen (aunque
+  // seguían apareciendo en la lista cruda). Comparamos el año-mes del ISO, que ya es UTC.
+  const mesActual = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
+
+  const mesAnterior = useMemo(() => {
     const d = new Date();
     d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    d.setMonth(d.getMonth() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   }, []);
 
   const opsVista = useMemo(() => {
@@ -271,12 +292,12 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
   }, [egresos, vistaMoneda]);
 
   const opsMesVista = useMemo(
-    () => opsVista.filter((o) => new Date(o.fechaCierre) >= inicioMes),
-    [opsVista, inicioMes]
+    () => opsVista.filter((o) => o.fechaCierre.slice(0, 7) === mesActual),
+    [opsVista, mesActual]
   );
   const egresosMesVista = useMemo(
-    () => egresosVista.filter((e) => new Date(e.fecha) >= inicioMes),
-    [egresosVista, inicioMes]
+    () => egresosVista.filter((e) => e.fecha.slice(0, 7) === mesActual),
+    [egresosVista, mesActual]
   );
 
   const monedaDisplay: "ARS" | "USD" = vistaMoneda === "USD" ? "USD" : "ARS";
@@ -327,25 +348,14 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
       : 0;
 
   // ── Mes anterior (para calcular la variación real, no hardcodeada) ──────────
-  const inicioMesAnterior = useMemo(() => {
-    const d = new Date(inicioMes);
-    d.setMonth(d.getMonth() - 1);
-    return d;
-  }, [inicioMes]);
-
+  // Mismo criterio de año-mes en UTC que arriba, por la misma razón.
   const opsMesAnteriorVista = useMemo(
-    () => opsVista.filter((o) => {
-      const f = new Date(o.fechaCierre);
-      return f >= inicioMesAnterior && f < inicioMes;
-    }),
-    [opsVista, inicioMesAnterior, inicioMes]
+    () => opsVista.filter((o) => o.fechaCierre.slice(0, 7) === mesAnterior),
+    [opsVista, mesAnterior]
   );
   const egresosMesAnteriorVista = useMemo(
-    () => egresosVista.filter((e) => {
-      const f = new Date(e.fecha);
-      return f >= inicioMesAnterior && f < inicioMes;
-    }),
-    [egresosVista, inicioMesAnterior, inicioMes]
+    () => egresosVista.filter((e) => e.fecha.slice(0, 7) === mesAnterior),
+    [egresosVista, mesAnterior]
   );
 
   const totalComisionesMesAnterior = useMemo(() => {
@@ -487,7 +497,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
     lineas.push(["Fecha", "Tipo", "Agente", "Precio op.", "Moneda", "Comisión total", "Comisión inmob.", "Comisión agente", "IVA", "Gastos"].map(esc).join(","));
     for (const o of ops) {
       lineas.push([
-        new Date(o.fechaCierre).toLocaleDateString("es-AR"),
+        fmtFechaUTC(o.fechaCierre),
         TIPO_LABELS[o.tipo],
         o.agente.nombre,
         o.precioOperacion, o.moneda,
@@ -501,7 +511,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
     lineas.push(["Fecha", "Concepto", "Categoría", "Monto", "Moneda"].map(esc).join(","));
     for (const e of egresos) {
       lineas.push([
-        new Date(e.fecha).toLocaleDateString("es-AR"),
+        fmtFechaUTC(e.fecha),
         e.concepto, e.categoria ?? "", e.monto, e.moneda,
       ].map(esc).join(","));
     }
@@ -1076,7 +1086,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
                         onMouseLeave={e => (e.currentTarget.style.background = "")}
                       >
                         <td className="mono" style={{ padding: "12px 20px", color: "var(--antracita-500)", fontSize: 12.5 }}>
-                          {new Date(op.fechaCierre).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}
+                          {fmtFechaUTC(op.fechaCierre, { day: "2-digit", month: "2-digit" })}
                         </td>
                         <td style={{ padding: "12px 20px" }}>
                           <Pill
@@ -1153,7 +1163,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
                       onMouseLeave={e => (e.currentTarget.style.background = "")}
                     >
                       <td className="mono" style={{ padding: "12px 20px", color: "var(--antracita-400)", fontSize: 12.5 }}>
-                        {new Date(op.fechaCierre).toLocaleDateString("es-AR")}
+                        {fmtFechaUTC(op.fechaCierre)}
                       </td>
                       <td style={{ padding: "12px 20px" }}>
                         <Pill
@@ -1239,7 +1249,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
                       onMouseLeave={ev => (ev.currentTarget.style.background = "")}
                     >
                       <td className="mono" style={{ padding: "12px 20px", color: "var(--antracita-400)", fontSize: 12.5 }}>
-                        {new Date(e.fecha).toLocaleDateString("es-AR")}
+                        {fmtFechaUTC(e.fecha)}
                       </td>
                       <td style={{ padding: "12px 20px", color: "var(--antracita-900)" }}>{e.concepto}</td>
                       <td style={{ padding: "12px 20px" }}>
@@ -1418,7 +1428,7 @@ function OperacionDetailSheet({ op, onClose, isAdmin, onEdit, onDelete, deleting
           <div>
             <p style={{ fontWeight: 600, color: "var(--antracita-900)", margin: 0 }}>{TIPO_LABELS[op.tipo]}</p>
             <p style={{ fontSize: 12, color: "var(--antracita-400)", margin: "2px 0 0" }}>
-              {new Date(op.fechaCierre).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })} · {op.agente.nombre}
+              {fmtFechaUTC(op.fechaCierre, { day: "numeric", month: "long", year: "numeric" })} · {op.agente.nombre}
             </p>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 24, color: "var(--antracita-400)", cursor: "pointer", lineHeight: 1 }}>×</button>

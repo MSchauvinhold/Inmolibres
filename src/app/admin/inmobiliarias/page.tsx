@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Plus, Loader2, Trash2, Save, CalendarDays } from "lucide-react";
+import { Plus, Loader2, Trash2, Save, CalendarDays, AlertTriangle, X } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import { ESTADO_INMOBILIARIA_LABELS, ESTADO_INMOBILIARIA_COLORS } from "@/lib/utils";
+import { ESTADO_INMOBILIARIA_LABELS } from "@/lib/utils";
 
 interface Inmobiliaria {
   id: string;
@@ -30,6 +30,17 @@ const ESTADOS = [
   { value: "INACTIVA",   label: "Inactiva" },
 ];
 
+// Este select no tenía color de texto explícito (a diferencia del de Plan, unas
+// líneas más abajo, que sí lo tiene) y en algunos contextos de renderizado del
+// control nativo quedaba invisible hasta hacer foco. Mismo patrón que Plan: forzar
+// el color por inline style en vez de depender del valor heredado/por defecto.
+const ESTADO_COLOR_HEX: Record<string, string> = {
+  ACTIVA: "#2E7D32",
+  PRUEBA: "#1D4ED8",
+  SUSPENDIDA: "#C0392B",
+  INACTIVA: "#555",
+};
+
 export default function AdminInmobiliariasPage() {
   const [inmobiliarias, setInmobiliarias] = useState<Inmobiliaria[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +50,12 @@ export default function AdminInmobiliariasPage() {
 
   // Edit state per row: { [id]: { fechaVencimiento, plan } }
   const [edits, setEdits] = useState<Record<string, { fecha: string; plan: string }>>({});
+
+  // Eliminación de inmobiliaria (acción más destructiva del sistema: arrastra
+  // usuarios, propiedades, clientes, contratos y finanzas del tenant)
+  const [deleteTarget, setDeleteTarget] = useState<Inmobiliaria | null>(null);
+  const [confirmNombre, setConfirmNombre] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState({
     nombre: "", whatsapp: "", email: "", plan: "AVANZADO",
@@ -111,11 +128,23 @@ export default function AdminInmobiliariasPage() {
     finally { setSubmitting(false); }
   }
 
-  async function eliminar(id: string, nombre: string) {
-    if (!confirm(`¿Eliminar "${nombre}" permanentemente? Esta acción no se puede deshacer.`)) return;
-    const res = await fetch(`/api/inmobiliarias/${id}`, { method: "DELETE" });
-    if (res.ok) { toast.success("Inmobiliaria eliminada"); load(); }
-    else toast.error((await res.json()).error ?? "Error al eliminar");
+  async function confirmarEliminar() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/inmobiliarias/${deleteTarget.id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success(`"${deleteTarget.nombre}" eliminada`);
+        setDeleteTarget(null);
+        load();
+      } else {
+        toast.error((await res.json()).error ?? "Error al eliminar");
+      }
+    } catch {
+      toast.error("Error inesperado");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function guardarCambios(id: string) {
@@ -284,7 +313,8 @@ export default function AdminInmobiliariasPage() {
                         <select
                           value={i.estado}
                           onChange={(e) => cambiarEstado(i.id, e.target.value)}
-                          className="text-xs border border-border rounded-lg px-2 py-1 bg-surface"
+                          className="text-xs border border-border rounded-lg px-2 py-1 bg-surface font-semibold"
+                          style={{ color: ESTADO_COLOR_HEX[i.estado] ?? "#555" }}
                         >
                           {ESTADOS.map((e) => <option key={e.value} value={e.value}>{e.label}</option>)}
                         </select>
@@ -338,16 +368,26 @@ export default function AdminInmobiliariasPage() {
                             </button>
                           )}
 
-                          {/* Eliminar (solo INACTIVA) */}
-                          {i.estado === "INACTIVA" && (
-                            <button
-                              onClick={() => eliminar(i.id, i.nombre)}
-                              className="p-1.5 rounded-lg text-danger hover:bg-danger/10 transition-colors"
-                              title="Eliminar inmobiliaria"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          {/* Eliminar — solo habilitado si está INACTIVA. Se muestra siempre
+                              (aunque deshabilitado) para que se entienda que la opción existe
+                              y qué hace falta para usarla; antes la columna quedaba vacía. */}
+                          <button
+                            onClick={() => { setDeleteTarget(i); setConfirmNombre(""); }}
+                            disabled={i.estado !== "INACTIVA"}
+                            className="p-1.5 rounded-lg transition-colors disabled:cursor-not-allowed"
+                            style={
+                              i.estado === "INACTIVA"
+                                ? { color: "var(--danger-600, #C0392B)" }
+                                : { color: "var(--text-muted, #9a9a9a)", opacity: 0.45 }
+                            }
+                            title={
+                              i.estado === "INACTIVA"
+                                ? "Eliminar inmobiliaria definitivamente"
+                                : "Para eliminarla, primero cambiá su Estado a «Inactiva» y guardá"
+                            }
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -355,6 +395,71 @@ export default function AdminInmobiliariasPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de eliminación de inmobiliaria */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !deleting && setDeleteTarget(null)}
+        >
+          <div className="card w-full max-w-md p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-text-primary flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-danger" />
+                Eliminar inmobiliaria
+              </h2>
+              <button onClick={() => !deleting && setDeleteTarget(null)} className="text-text-muted hover:text-text-primary">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-sm text-text-secondary">
+              Vas a eliminar <strong>{deleteTarget.nombre}</strong> de forma permanente.
+            </p>
+
+            <div className="rounded-lg border border-border p-3 text-xs space-y-1">
+              <p className="font-medium text-text-primary mb-1">Se borra todo su contenido:</p>
+              <p className="text-text-secondary">
+                · <strong>{deleteTarget._count.usuarios}</strong> usuario(s) —
+                perderán el acceso inmediatamente.
+              </p>
+              <p className="text-text-secondary">
+                · <strong>{deleteTarget._count.propiedades}</strong> propiedad(es), y todos sus
+                clientes, visitas, contratos y registros de Finanzas.
+              </p>
+              <p className="text-danger font-medium mt-1.5">Esta acción no se puede deshacer.</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-text-primary mb-1">
+                Para confirmar, escribí <span className="font-mono">{deleteTarget.nombre}</span>
+              </label>
+              <input
+                value={confirmNombre}
+                onChange={(e) => setConfirmNombre(e.target.value)}
+                className="input-base w-full text-sm"
+                placeholder={deleteTarget.nombre}
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setDeleteTarget(null)} className="btn-outline" disabled={deleting}>
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarEliminar}
+                disabled={deleting || confirmNombre.trim() !== deleteTarget.nombre}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: "var(--danger-600, #C0392B)" }}
+              >
+                {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                Eliminar definitivamente
+              </button>
+            </div>
           </div>
         </div>
       )}
