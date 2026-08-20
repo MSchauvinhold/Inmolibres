@@ -63,3 +63,21 @@ design_handoff_inmolibres_v2/
 scripts/inspect-*.mjs
 scripts/*.local.mjs
 scripts/*.local.ts
+
+# presentación / capturas de demo (no producción)
+presentacion-inmolibres.html
+capturas-presentacion/
+casaejemplo/
+scripts/capturas-presentacion.ts
+scripts/capturas-detalle.ts
+scripts/capturas-v2.ts
+scripts/captura-contrato.ts
+scripts/setup-presentacion.ts
+scripts/generar-presentacion.ts
+
+# scripts de debug / fix puntuales (no producción)
+scripts/check-contrato.ts
+scripts/check-urls.ts
+scripts/debug-auth.ts
+scripts/fix-contratos.ts
+scripts/fix-datos.ts

@@ -81,6 +81,14 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     ordenar: ordenar !== "recientes" ? ordenar : undefined,
   };
 
+  // /buscar navega client-side entre sí misma (misma ruta, distintos searchParams),
+  // así que React reutiliza el mismo <select>/<input> del DOM en vez de remontarlo.
+  // defaultValue/defaultChecked solo se aplican en el montaje inicial: sin esta key,
+  // "Limpiar todo" borra la URL pero los <select> no controlados quedan con el
+  // último valor que el usuario tocó, y ese valor viejo vuelve a viajar en el
+  // próximo submit aunque ya no aparezca en ningún chip ni en la URL.
+  const filtrosKey = JSON.stringify(currentParams);
+
   const orderBy: Prisma.PropiedadOrderByWithRelationInput =
     ordenar === "precio_asc"  ? { precio: "asc" }  :
     ordenar === "precio_desc" ? { precio: "desc" } :
@@ -240,7 +248,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
             </div>
 
             {/* Sort rápido — desktop */}
-            <form method="GET" action="/buscar" className="hidden lg:flex items-center gap-2">
+            <form key={filtrosKey} method="GET" action="/buscar" className="hidden lg:flex items-center gap-2">
               {operacion  && <input type="hidden" name="operacion"  value={operacion} />}
               {tipo       && <input type="hidden" name="tipo"       value={tipo} />}
               {search     && <input type="hidden" name="search"     value={search} />}
@@ -283,7 +291,10 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
         )}
 
         {/* ── Layout: sidebar + grid ── */}
-        <div className="flex gap-8 items-start">
+        {/* flex-col por defecto: en mobile el filtro compacto (w-full) y la grilla
+            (flex-1) compartían la misma fila sin wrap, dejando la grilla en 0px de
+            ancho. A partir de lg pasa a fila para el layout de sidebar + grilla. */}
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
 
           {/* Sidebar — desktop */}
           <aside className="hidden lg:block shrink-0 w-[260px] sticky top-24">
@@ -300,7 +311,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                 )}
               </div>
 
-              <form method="GET" action="/buscar" style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+              <form key={filtrosKey} method="GET" action="/buscar" style={{ display: "flex", flexDirection: "column", gap: 22 }}>
                 {/* Buscar */}
                 <div>
                   <label style={labelStyle}>Buscar</label>
@@ -393,7 +404,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
 
           {/* Filtros mobile compact */}
           <div className="lg:hidden w-full mb-4" style={{ gridColumn: "1 / -1" }}>
-            <form method="GET" action="/buscar" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <form key={filtrosKey} method="GET" action="/buscar" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <select name="operacion" defaultValue={operacion ?? ""} style={{ ...inputStyle, flex: "1 1 120px", width: "auto" }}>
                 <option value="">Todas</option>
                 <option value="VENTA">Venta</option>

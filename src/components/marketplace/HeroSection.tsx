@@ -14,12 +14,15 @@ const TIPOS: TipoPropiedad[] = [
   "OFICINA",
 ];
 
+// "Comercial" no es una operación (Venta/Alquiler/Temporario) sino un tipo de
+// propiedad — mandarlo como ?operacion=LOCAL rompe la query (LOCAL no existe en el
+// enum TipoOperacion). Cada chip declara qué parámetro de /buscar arma.
 const CHIPS = [
-  { label: "Venta", value: "VENTA" },
-  { label: "Alquiler", value: "ALQUILER" },
-  { label: "Temporario", value: "ALQUILER_TEMPORARIO" },
-  { label: "Comercial", value: "LOCAL" },
-];
+  { label: "Venta", param: "operacion", value: "VENTA" },
+  { label: "Alquiler", param: "operacion", value: "ALQUILER" },
+  { label: "Temporario", param: "operacion", value: "ALQUILER_TEMPORARIO" },
+  { label: "Comercial", param: "tipo", value: "LOCAL" },
+] as const;
 
 interface HeroProps {
   totalPropiedades?: number;
@@ -303,7 +306,7 @@ export function HeroSection({ totalPropiedades, inmobiliarias = [] }: HeroProps)
             {CHIPS.map((c, i) => (
               <a
                 key={c.label}
-                href={`/?operacion=${c.value}`}
+                href={`/?${c.param}=${c.value}`}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
