@@ -33,6 +33,9 @@ interface SP {
   precioMax?: string;
   m2Min?: string;
   m2Max?: string;
+  precioDiaMin?: string;
+  precioDiaMax?: string;
+  diasMin?: string;
   inmobiliaria?: string;
   ordenar?: string;
   pagina?: string;
@@ -65,6 +68,10 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
   const precioMax = sp.precioMax ? parseFloat(sp.precioMax) : undefined;
   const m2Min     = sp.m2Min    ? parseFloat(sp.m2Min)    : undefined;
   const m2Max     = sp.m2Max    ? parseFloat(sp.m2Max)    : undefined;
+  // Filtros exclusivos de alquiler temporario: tarifa por día y estadía mínima
+  const precioDiaMin = operacion === "ALQUILER_TEMPORARIO" && sp.precioDiaMin ? parseFloat(sp.precioDiaMin) : undefined;
+  const precioDiaMax = operacion === "ALQUILER_TEMPORARIO" && sp.precioDiaMax ? parseFloat(sp.precioDiaMax) : undefined;
+  const diasMin       = operacion === "ALQUILER_TEMPORARIO" && sp.diasMin ? parseInt(sp.diasMin) : undefined;
   const inmobiliariaId = sp.inmobiliaria?.trim() || undefined;
   const ordenar   = sp.ordenar ?? "recientes";
   const pagina    = Math.max(1, parseInt(sp.pagina ?? "1"));
@@ -77,6 +84,9 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     precioMax:  precioMax  != null ? String(precioMax)  : undefined,
     m2Min:      m2Min      != null ? String(m2Min)      : undefined,
     m2Max:      m2Max      != null ? String(m2Max)      : undefined,
+    precioDiaMin: precioDiaMin != null ? String(precioDiaMin) : undefined,
+    precioDiaMax: precioDiaMax != null ? String(precioDiaMax) : undefined,
+    diasMin:      diasMin      != null ? String(diasMin)      : undefined,
     inmobiliaria: inmobiliariaId,
     ordenar: ordenar !== "recientes" ? ordenar : undefined,
   };
@@ -151,6 +161,30 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     });
   }
 
+  if (precioDiaMin != null || precioDiaMax != null) {
+    condiciones.push({
+      atributos: {
+        precioPorDia: {
+          ...(precioDiaMin != null ? { gte: new Prisma.Decimal(precioDiaMin) } : {}),
+          ...(precioDiaMax != null ? { lte: new Prisma.Decimal(precioDiaMax) } : {}),
+          not: null,
+        },
+      },
+    });
+  }
+  if (diasMin != null) {
+    // Propiedades cuya estadía mínima es <= lo que el visitante quiere quedarse
+    // (o sin mínimo configurado: se asume que aceptan cualquier estadía)
+    condiciones.push({
+      atributos: {
+        OR: [
+          { diasMinimos: null },
+          { diasMinimos: { lte: diasMin } },
+        ],
+      },
+    });
+  }
+
   const where: Prisma.PropiedadWhereInput = { AND: condiciones };
 
   const [propiedades, total, inmobiliarias] = await Promise.all([
@@ -165,6 +199,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
             superficieCubierta: true, superficieTotal: true,
             anchoMetros: true, largoMetros: true,
             garage: true, caracteristicasCustom: true,
+            precioPorDia: true, diasMinimos: true,
           },
         },
         fotos: { where: { esPortada: true }, take: 1 },
@@ -186,7 +221,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     : undefined;
 
   const totalPages = Math.ceil(total / PER_PAGE);
-  const hasFilters = !!(operacion || tipo || search || precioMin != null || precioMax != null || m2Min != null || m2Max != null || inmobiliariaId);
+  const hasFilters = !!(operacion || tipo || search || precioMin != null || precioMax != null || m2Min != null || m2Max != null || precioDiaMin != null || precioDiaMax != null || diasMin != null || inmobiliariaId);
 
   type Chip = { key: string; label: string };
   const chips: Chip[] = [
@@ -198,6 +233,9 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
     precioMax != null && { key: "precioMax", label: `Hasta ${precioMax.toLocaleString("es-AR")}` },
     m2Min != null && { key: "m2Min", label: `${m2Min} m² mín.` },
     m2Max != null && { key: "m2Max", label: `${m2Max} m² máx.` },
+    precioDiaMin != null && { key: "precioDiaMin", label: `Desde $${precioDiaMin}/día` },
+    precioDiaMax != null && { key: "precioDiaMax", label: `Hasta $${precioDiaMax}/día` },
+    diasMin != null && { key: "diasMin", label: `${diasMin}+ noches` },
   ].filter(Boolean) as Chip[];
 
   const inputStyle: React.CSSProperties = {
@@ -256,6 +294,9 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
               {precioMax != null && <input type="hidden" name="precioMax" value={precioMax} />}
               {m2Min != null && <input type="hidden" name="m2Min" value={m2Min} />}
               {m2Max != null && <input type="hidden" name="m2Max" value={m2Max} />}
+              {precioDiaMin != null && <input type="hidden" name="precioDiaMin" value={precioDiaMin} />}
+              {precioDiaMax != null && <input type="hidden" name="precioDiaMax" value={precioDiaMax} />}
+              {diasMin != null && <input type="hidden" name="diasMin" value={diasMin} />}
               {inmobiliariaId && <input type="hidden" name="inmobiliaria" value={inmobiliariaId} />}
               <span style={{ fontSize: 12.5, color: "var(--antracita-500)" }}>Ordenar:</span>
               <select name="ordenar" defaultValue={ordenar}
@@ -378,6 +419,23 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                   </div>
                 </div>
 
+                {/* Filtros exclusivos de alquiler temporario */}
+                {operacion === "ALQUILER_TEMPORARIO" && (
+                  <>
+                    <div>
+                      <span style={labelStyle}>Tarifa por día</span>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <input type="number" name="precioDiaMin" defaultValue={precioDiaMin ?? ""} placeholder="Mínimo" min={0} style={inputStyle} />
+                        <input type="number" name="precioDiaMax" defaultValue={precioDiaMax ?? ""} placeholder="Máximo" min={0} style={inputStyle} />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Estadía (noches)</label>
+                      <input type="number" name="diasMin" defaultValue={diasMin ?? ""} placeholder="Ej: 3 noches" min={1} style={inputStyle} />
+                    </div>
+                  </>
+                )}
+
                 {/* Ordenar */}
                 <div>
                   <label style={labelStyle}>Ordenar por</label>
@@ -405,6 +463,13 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
           {/* Filtros mobile compact */}
           <div className="lg:hidden w-full mb-4" style={{ gridColumn: "1 / -1" }}>
             <form key={filtrosKey} method="GET" action="/buscar" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {precioMin != null && <input type="hidden" name="precioMin" value={precioMin} />}
+              {precioMax != null && <input type="hidden" name="precioMax" value={precioMax} />}
+              {m2Min != null && <input type="hidden" name="m2Min" value={m2Min} />}
+              {m2Max != null && <input type="hidden" name="m2Max" value={m2Max} />}
+              {precioDiaMin != null && <input type="hidden" name="precioDiaMin" value={precioDiaMin} />}
+              {precioDiaMax != null && <input type="hidden" name="precioDiaMax" value={precioDiaMax} />}
+              {diasMin != null && <input type="hidden" name="diasMin" value={diasMin} />}
               <select name="operacion" defaultValue={operacion ?? ""} style={{ ...inputStyle, flex: "1 1 120px", width: "auto" }}>
                 <option value="">Todas</option>
                 <option value="VENTA">Venta</option>
@@ -472,6 +537,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                         largoMetros:        p.atributos.largoMetros        != null ? Number(p.atributos.largoMetros)        : null,
                         garage:             p.atributos.garage,
                         caracteristicasCustom: p.atributos.caracteristicasCustom,
+                        precioPorDia:       p.atributos.precioPorDia != null ? Number(p.atributos.precioPorDia) : null,
                       } : null}
                       inmobiliaria={p.inmobiliaria}
                       createdAt={p.createdAt.toISOString()}

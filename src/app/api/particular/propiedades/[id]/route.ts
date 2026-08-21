@@ -1,9 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { Prisma } from "@prisma/client";
+import { Prisma, type Moneda } from "@prisma/client";
 
 type Params = { params: Promise<{ id: string }> };
+
+const MONEDAS_VALIDAS: Moneda[] = ["ARS", "USD"];
+
+/** Devuelve los datos editables de la propiedad para precargar el formulario. */
+export async function GET(_request: NextRequest, { params }: Params) {
+  const session = await auth();
+  if (!session?.user?.id || session.user.rol !== "PARTICULAR") {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const propiedad = await db.propiedad.findUnique({
+    where: { id },
+    select: {
+      id: true, agenteId: true, titulo: true, precio: true, moneda: true,
+      descripcion: true, publicada: true, direccion: true, slug: true,
+    },
+  });
+  if (!propiedad || propiedad.agenteId !== session.user.id) {
+    return NextResponse.json({ error: "No encontrada" }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    data: { ...propiedad, precio: Number(propiedad.precio) },
+  });
+}
 
 /**
  * Autogestión rápida para el Dueño Particular: editar precio/descripción y
@@ -26,7 +53,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "No encontrada" }, { status: 404 });
   }
 
-  let body: { precio?: number; descripcion?: string | null; publicada?: boolean };
+  let body: { titulo?: string; precio?: number; moneda?: string; descripcion?: string | null; publicada?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -35,11 +62,28 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   const data: Prisma.PropiedadUpdateInput = {};
 
+  if (body.titulo !== undefined) {
+    if (typeof body.titulo !== "string" || !body.titulo.trim()) {
+      return NextResponse.json({ error: "Título inválido" }, { status: 400 });
+    }
+    if (body.titulo.trim().length > 200) {
+      return NextResponse.json({ error: "El título no puede superar los 200 caracteres" }, { status: 400 });
+    }
+    data.titulo = body.titulo.trim();
+  }
+
   if (body.precio !== undefined) {
     if (typeof body.precio !== "number" || !Number.isFinite(body.precio) || body.precio <= 0) {
       return NextResponse.json({ error: "Precio inválido" }, { status: 400 });
     }
     data.precio = body.precio;
+  }
+
+  if (body.moneda !== undefined) {
+    if (!MONEDAS_VALIDAS.includes(body.moneda as Moneda)) {
+      return NextResponse.json({ error: "Moneda inválida" }, { status: 400 });
+    }
+    data.moneda = body.moneda as Moneda;
   }
 
   if (body.descripcion !== undefined) {
@@ -63,6 +107,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const propiedad = await db.propiedad.update({ where: { id }, data });
 
   return NextResponse.json({
-    data: { id: propiedad.id, precio: Number(propiedad.precio), descripcion: propiedad.descripcion, publicada: propiedad.publicada },
+    data: {
+      id: propiedad.id,
+      titulo: propiedad.titulo,
+      precio: Number(propiedad.precio),
+      moneda: propiedad.moneda,
+      descripcion: propiedad.descripcion,
+      publicada: propiedad.publicada,
+    },
   });
 }

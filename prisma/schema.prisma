@@ -697,6 +697,22 @@ model EgresoInmobiliaria {
   @@map("egresos_inmobiliaria")
 }
 
+// ─── Índices de ajuste (ICL/IPC) ───────────────────────────────────────────────
+// Carga manual del SuperAdmin: fallback/override para cuando la API del BCRA o
+// de datos.gob.ar falla o publica con demora. Fuente única de lectura en
+// src/lib/indices.ts (usada por /api/indices y el cron de ajustes).
+
+model IndiceManual {
+  id        String   @id @default(cuid())
+  tipo      String   // "ICL" | "IPC"
+  valor     Float
+  fecha     DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([tipo, fecha])
+  @@map("indices_manuales")
+}
+
 // ─── Contactos ────────────────────────────────────────────────────────────────
 
 model Contacto {

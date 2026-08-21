@@ -170,6 +170,7 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
           largoMetros: p.atributos.largoMetros != null ? Number(p.atributos.largoMetros) : null,
           garage: p.atributos.garage,
           caracteristicasCustom: p.atributos.caracteristicasCustom,
+          precioPorDia: p.atributos.precioPorDia != null ? Number(p.atributos.precioPorDia) : null,
         }
       : null,
     inmobiliaria: p.inmobiliaria
@@ -259,7 +260,11 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
                   className="mono"
                   style={{ fontSize: 36, fontWeight: 600, color: "var(--antracita-900)", letterSpacing: "-0.02em", lineHeight: 1 }}
                 >
-                  {formatPrice(Number(propiedad.precio), propiedad.moneda)}
+                  {propiedad.operacion === "ALQUILER_TEMPORARIO" && a?.precioPorDia != null ? (
+                    <>{formatPrice(Number(a.precioPorDia), propiedad.moneda)}<span style={{ fontSize: 16, fontWeight: 400, color: "var(--antracita-500)" }}> /día</span></>
+                  ) : (
+                    formatPrice(Number(propiedad.precio), propiedad.moneda)
+                  )}
                 </div>
                 {arsEquivalente && (
                   <div style={{ fontSize: 13, color: "var(--antracita-500)", marginTop: 4 }}>
@@ -321,6 +326,48 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
                     <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginTop: 3 }}>baños</div>
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Tarifas de alquiler temporario */}
+          {propiedad.operacion === "ALQUILER_TEMPORARIO" && a && (a.precioPorDia != null || a.precioSemana != null || a.precioQuincena != null) && (
+            <div>
+              <h2 className="display" style={{ fontSize: 22, margin: "0 0 16px", color: "var(--antracita-900)" }}>
+                Tarifas
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {a.precioPorDia != null && (
+                  <div style={{ padding: "16px 18px", background: "var(--crema-100, #F0E9DC)", borderRadius: 14, border: "1px solid var(--border)" }}>
+                    <div className="mono" style={{ fontSize: 20, fontWeight: 600, color: "var(--antracita-900)" }}>
+                      {formatPrice(Number(a.precioPorDia), propiedad.moneda)}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginTop: 3 }}>por día</div>
+                  </div>
+                )}
+                {a.precioSemana != null && (
+                  <div style={{ padding: "16px 18px", background: "var(--crema-100, #F0E9DC)", borderRadius: 14, border: "1px solid var(--border)" }}>
+                    <div className="mono" style={{ fontSize: 20, fontWeight: 600, color: "var(--antracita-900)" }}>
+                      {formatPrice(Number(a.precioSemana), propiedad.moneda)}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginTop: 3 }}>por semana</div>
+                  </div>
+                )}
+                {a.precioQuincena != null && (
+                  <div style={{ padding: "16px 18px", background: "var(--crema-100, #F0E9DC)", borderRadius: 14, border: "1px solid var(--border)" }}>
+                    <div className="mono" style={{ fontSize: 20, fontWeight: 600, color: "var(--antracita-900)" }}>
+                      {formatPrice(Number(a.precioQuincena), propiedad.moneda)}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginTop: 3 }}>por quincena</div>
+                  </div>
+                )}
+              </div>
+              {(a.diasMinimos != null || a.diasMaximos != null) && (
+                <p style={{ fontSize: 12.5, color: "var(--antracita-500)", marginTop: 10 }}>
+                  Estadía {a.diasMinimos != null ? `mínima de ${a.diasMinimos} noches` : ""}
+                  {a.diasMinimos != null && a.diasMaximos != null ? " · " : ""}
+                  {a.diasMaximos != null ? `máxima de ${a.diasMaximos} noches` : ""}
+                </p>
               )}
             </div>
           )}

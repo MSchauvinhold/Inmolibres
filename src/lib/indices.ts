@@ -4,6 +4,13 @@
 //   - IPC → series de datos.gob.ar (INDEC)
 //
 // Fuente única: /api/indices y el cron de ajustes consumen estas funciones.
+//
+// Fallback manual: si la API externa falla o publica con demora, se usa el
+// último valor cargado a mano por el SuperAdmin en /admin/indices (tabla
+// IndiceManual). Nunca se usa el valor manual si la API respondió bien:
+// la fuente oficial siempre tiene prioridad cuando está disponible.
+
+import { db } from "@/lib/db";
 
 const INDEC_URL =
   "https://apis.datos.gob.ar/series/api/series/?ids=103.1_I2N_2016_M_19&limit=3&sort=desc";
@@ -59,12 +66,31 @@ async function fetchIPC(revalidate: number): Promise<IndiceActual | null> {
   }
 }
 
-/** Devuelve el valor actual del índice solicitado (ICL o IPC) o null si falla la API. */
+/** Último valor cargado a mano para ese índice, si existe. */
+async function fetchManual(tipo: "ICL" | "IPC"): Promise<IndiceActual | null> {
+  try {
+    const ultimo = await db.indiceManual.findFirst({
+      where: { tipo },
+      orderBy: { fecha: "desc" },
+    });
+    if (!ultimo) return null;
+    return { valor: ultimo.valor, fecha: ultimo.fecha.toISOString().slice(0, 10) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Devuelve el valor actual del índice solicitado (ICL o IPC). Prioriza la API
+ * oficial; si falla, cae al último valor cargado manualmente por el SuperAdmin.
+ */
 export async function obtenerIndiceActual(
   tipo: "ICL" | "IPC",
   revalidate = 3600
 ): Promise<IndiceActual | null> {
-  return tipo === "ICL" ? fetchICL(revalidate) : fetchIPC(revalidate);
+  const deApi = tipo === "ICL" ? await fetchICL(revalidate) : await fetchIPC(revalidate);
+  if (deApi) return deApi;
+  return fetchManual(tipo);
 }
 
 // ─── Índice histórico ─────────────────────────────────────────────────────────
@@ -120,6 +146,20 @@ async function fetchIPCEnFecha(fecha: Date): Promise<IndiceActual | null> {
   }
 }
 
+/** Último valor manual cargado con fecha <= la buscada, si existe. */
+async function fetchManualEnFecha(tipo: "ICL" | "IPC", fecha: Date): Promise<IndiceActual | null> {
+  try {
+    const row = await db.indiceManual.findFirst({
+      where: { tipo, fecha: { lte: fecha } },
+      orderBy: { fecha: "desc" },
+    });
+    if (!row) return null;
+    return { valor: row.valor, fecha: row.fecha.toISOString().slice(0, 10) };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Valor del índice en una fecha pasada. Se usa para fijar el índice BASE de un
  * contrato al momento en que empezó (o de su último ajuste). Si la fecha es hoy
@@ -132,6 +172,9 @@ export async function obtenerIndiceEnFecha(
   const hoy = new Date();
   if (fecha >= hoy) return obtenerIndiceActual(tipo);
   const historico = tipo === "ICL" ? await fetchICLEnFecha(fecha) : await fetchIPCEnFecha(fecha);
-  // Si la fuente no tiene ese período, mejor el valor actual que nada.
-  return historico ?? obtenerIndiceActual(tipo);
+  if (historico) return historico;
+  // Si la fuente no tiene ese período, probamos con un valor manual cargado
+  // para esa fecha o anterior, y solo como último recurso el valor actual.
+  const manual = await fetchManualEnFecha(tipo, fecha);
+  return manual ?? obtenerIndiceActual(tipo);
 }

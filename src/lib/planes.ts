@@ -40,6 +40,7 @@ export const LIMITES_PLAN = {
       'contactos',
       'notificaciones',
       'configuracion',
+      'reportes',
     ] as const,
   },
 } as const

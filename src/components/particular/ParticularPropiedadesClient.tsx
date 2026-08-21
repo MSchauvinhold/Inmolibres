@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Building2, MapPin, Eye, EyeOff, Pencil, Loader2, X, Check } from "lucide-react";
+import { Building2, MapPin, Eye, EyeOff, Pencil, Loader2 } from "lucide-react";
 
 export interface ParticularPropiedad {
   id: string;
@@ -21,46 +21,7 @@ export interface ParticularPropiedad {
 
 export function ParticularPropiedadesClient({ propiedades }: { propiedades: ParticularPropiedad[] }) {
   const [items, setItems] = useState(propiedades);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [precioForm, setPrecioForm] = useState("");
-  const [descForm, setDescForm] = useState("");
-  const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-
-  function abrirEdicion(p: ParticularPropiedad) {
-    setEditingId(p.id);
-    setPrecioForm(String(p.precio));
-    setDescForm(p.descripcion ?? "");
-  }
-
-  async function guardarEdicion(id: string) {
-    const precio = Number(precioForm);
-    if (!precio || precio <= 0) {
-      toast.error("Ingresá un precio válido");
-      return;
-    }
-    if (descForm.length > 2000) {
-      toast.error("La descripción no puede superar los 2000 caracteres");
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/particular/propiedades/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ precio, descripcion: descForm || null }),
-      });
-      const json = (await res.json()) as { error?: string; data?: { precio: number; descripcion: string | null } };
-      if (!res.ok) throw new Error(json.error ?? "Error al guardar");
-      setItems((prev) => prev.map((p) => (p.id === id ? { ...p, precio: json.data!.precio, descripcion: json.data!.descripcion } : p)));
-      setEditingId(null);
-      toast.success("Cambios guardados");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al guardar");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function togglePublicada(p: ParticularPropiedad) {
     setTogglingId(p.id);
@@ -101,7 +62,6 @@ export function ParticularPropiedadesClient({ propiedades }: { propiedades: Part
   return (
     <div className="space-y-3">
       {items.map((p) => {
-        const editing = editingId === p.id;
         return (
           <div key={p.id} className="il-card overflow-hidden" style={{ padding: 0 }}>
             <div className="flex">
@@ -149,86 +109,43 @@ export function ParticularPropiedadesClient({ propiedades }: { propiedades: Part
                   )}
                 </div>
 
-                {editing ? (
-                  <div className="mt-3 space-y-2">
-                    <div>
-                      <label className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "var(--antracita-300)" }}>Precio</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={precioForm}
-                        onChange={(e) => setPrecioForm(e.target.value)}
-                        className="input-base w-full text-sm mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "var(--antracita-300)" }}>Descripción</label>
-                      <textarea
-                        value={descForm}
-                        onChange={(e) => setDescForm(e.target.value)}
-                        maxLength={2000}
-                        rows={3}
-                        className="input-base w-full text-sm mt-1"
-                      />
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => setEditingId(null)}
-                        disabled={saving}
-                        className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border"
-                        style={{ borderColor: "var(--border)", color: "var(--antracita-500)" }}
-                      >
-                        <X className="w-3 h-3" /> Cancelar
-                      </button>
-                      <button
-                        onClick={() => guardarEdicion(p.id)}
-                        disabled={saving}
-                        className="btn-primary flex items-center gap-1 text-xs px-3 py-1.5"
-                      >
-                        {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                        Guardar
-                      </button>
-                    </div>
+                <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
+                  <span className="text-sm font-semibold mono" style={{ color: "var(--terracota-600)" }}>
+                    {p.moneda === "USD" ? "US$ " : "$ "}
+                    {p.precio.toLocaleString("es-AR")}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={`/particular/propiedades/${p.id}/editar`}
+                      className="flex items-center gap-1 text-xs font-medium hover:underline"
+                      style={{ color: "var(--terracota-500)" }}
+                    >
+                      <Pencil className="w-3 h-3" /> Editar
+                    </Link>
+                    <button
+                      onClick={() => togglePublicada(p)}
+                      disabled={togglingId === p.id}
+                      className="flex items-center gap-1 text-xs font-medium hover:underline"
+                      style={{ color: "var(--antracita-500)" }}
+                    >
+                      {togglingId === p.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : p.publicada ? (
+                        <EyeOff className="w-3 h-3" />
+                      ) : (
+                        <Eye className="w-3 h-3" />
+                      )}
+                      {p.publicada ? "Pausar" : "Reactivar"}
+                    </button>
+                    <Link
+                      href={`/propiedades/${p.id}/${p.slug}`}
+                      className="text-xs font-medium hover:underline"
+                      style={{ color: "var(--antracita-400)" }}
+                    >
+                      Ver →
+                    </Link>
                   </div>
-                ) : (
-                  <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
-                    <span className="text-sm font-semibold mono" style={{ color: "var(--terracota-600)" }}>
-                      {p.moneda === "USD" ? "US$ " : "$ "}
-                      {p.precio.toLocaleString("es-AR")}
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => abrirEdicion(p)}
-                        className="flex items-center gap-1 text-xs font-medium hover:underline"
-                        style={{ color: "var(--terracota-500)" }}
-                      >
-                        <Pencil className="w-3 h-3" /> Editar
-                      </button>
-                      <button
-                        onClick={() => togglePublicada(p)}
-                        disabled={togglingId === p.id}
-                        className="flex items-center gap-1 text-xs font-medium hover:underline"
-                        style={{ color: "var(--antracita-500)" }}
-                      >
-                        {togglingId === p.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : p.publicada ? (
-                          <EyeOff className="w-3 h-3" />
-                        ) : (
-                          <Eye className="w-3 h-3" />
-                        )}
-                        {p.publicada ? "Pausar" : "Reactivar"}
-                      </button>
-                      <Link
-                        href={`/propiedades/${p.id}/${p.slug}`}
-                        className="text-xs font-medium hover:underline"
-                        style={{ color: "var(--antracita-400)" }}
-                      >
-                        Ver →
-                      </Link>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           </div>

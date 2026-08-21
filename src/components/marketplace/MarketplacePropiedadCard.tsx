@@ -22,6 +22,7 @@ interface AtributosInfo {
   largoMetros: number | null;
   garage: boolean | null;
   caracteristicasCustom?: string[] | null;
+  precioPorDia?: number | null;
 }
 
 interface InmobiliariaInfo {
@@ -249,7 +250,9 @@ export function MarketplacePropiedadCard({
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {formatPrice(precio, moneda)}
+            {operacion === "ALQUILER_TEMPORARIO" && atributos?.precioPorDia != null
+              ? <>{formatPrice(atributos.precioPorDia, moneda)}<span className="text-xs font-normal" style={{ color: "var(--antracite-light)" }}> /día</span></>
+              : formatPrice(precio, moneda)}
           </p>
 
           {/* Title */}

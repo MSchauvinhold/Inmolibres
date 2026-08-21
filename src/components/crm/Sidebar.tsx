@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, Users, CalendarCheck,
   ScrollText, MessageSquare, Settings, LogOut,
-  Calculator, TrendingUp, BookUser, Lock,
+  Calculator, TrendingUp, BookUser, Lock, BarChart2,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ interface PermisosAgente {
   verConsultas: boolean;
   verCalculadoras: boolean;
   verFinanzas: boolean;
+  verReportes: boolean;
 }
 
 interface SidebarProps {
@@ -77,6 +78,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/finanzas",    label: "Finanzas",    icon: TrendingUp,      permKey: "verFinanzas",     modulo: "finanzas" },
       { href: "/calculadoras",label: "Calculadoras",icon: Calculator,      permKey: "verCalculadoras", modulo: "calculadoras" },
+      { href: "/reportes",    label: "Reportes",    icon: BarChart2,       permKey: "verReportes",     modulo: "reportes" },
     ],
   },
   {
