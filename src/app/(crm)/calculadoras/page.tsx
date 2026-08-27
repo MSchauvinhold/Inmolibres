@@ -1,12 +1,14 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { CalculadorasPanel } from "./_panel";
+import { requirePermisoAgente } from "@/lib/permisos";
 
 export const metadata = { title: "Calculadoras" };
 
 export default async function CalculadorasPage() {
   const session = await auth();
   if (!session?.user?.inmobiliariaId) redirect("/login");
+  await requirePermisoAgente(session.user.id, session.user.rol, "verCalculadoras", "Calculadoras");
 
   return (
     <div className="w-full max-w-[1060px] mx-auto" style={{ display: "flex", flexDirection: "column", gap: 20 }}>

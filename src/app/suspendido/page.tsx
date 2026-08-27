@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { SignOutLink } from "@/components/auth/SignOutLink";
@@ -9,6 +10,32 @@ export default async function SuspendidoPage() {
 
   const whatsapp = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "5437222000000";
   const waLink = `https://wa.me/${whatsapp}?text=${encodeURIComponent("Hola, quiero renovar mi suscripción en InmoLibres.")}`;
+
+  // El estado SUSPENDIDA lo puede disparar el cron por vencimiento O el
+  // SuperAdmin a mano — "por falta de pago" solo es correcto en el primer
+  // caso. Sin este chequeo, una suspensión manual (por otro motivo) mostraba
+  // el mismo mensaje igual.
+  const inmo = session.user.inmobiliariaId
+    ? await db.inmobiliaria.findUnique({
+        where: { id: session.user.inmobiliariaId },
+        select: { fechaVencimiento: true, estado: true },
+      })
+    : null;
+
+  const esInactiva = inmo?.estado === "INACTIVA";
+  const porVencimiento = !esInactiva && !!inmo?.fechaVencimiento && inmo.fechaVencimiento < new Date();
+
+  const titulo = esInactiva
+    ? "Cuenta desactivada"
+    : porVencimiento
+    ? "Cuenta suspendida por falta de pago"
+    : "Cuenta suspendida";
+
+  const bajada = esInactiva
+    ? "está dado de baja."
+    : porVencimiento
+    ? "está suspendido. Tus publicaciones están pausadas por el momento."
+    : "fue suspendido por el equipo de InmoLibres. Tus publicaciones están pausadas por el momento.";
 
   return (
     <div
@@ -73,7 +100,7 @@ export default async function SuspendidoPage() {
             lineHeight: 1.15,
           }}
         >
-          Cuenta suspendida por falta de pago
+          {titulo}
         </h1>
 
         <p
@@ -87,7 +114,7 @@ export default async function SuspendidoPage() {
           <strong style={{ color: "var(--antracite)" }}>
             {session.user.inmobiliariaNombre ?? "tu inmobiliaria"}
           </strong>{" "}
-          está suspendido. Tus publicaciones están pausadas por el momento.
+          {bajada}
         </p>
 
         <p

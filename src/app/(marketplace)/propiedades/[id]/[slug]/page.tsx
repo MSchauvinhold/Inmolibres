@@ -577,46 +577,6 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
               />
             </div>
           </div>
-
-          {/* Kai card — fuera del il-card */}
-          <div
-            style={{
-              marginTop: 14,
-              background: "var(--crema-100, #F0E9DC)",
-              border: "1px solid var(--border)",
-              borderRadius: 14,
-              padding: "14px 16px",
-              display: "flex",
-              gap: 12,
-              alignItems: "center",
-              cursor: "default",
-            }}
-          >
-            <div
-              style={{
-                width: 36, height: 36, borderRadius: 999,
-                background: "var(--terracota-500, #C1694F)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "white",
-                fontFamily: "var(--font-fraunces-display), Georgia, serif",
-                fontWeight: 600,
-                fontStyle: "italic",
-                fontSize: 16,
-                flexShrink: 0,
-              }}
-            >
-              K
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12.5, color: "var(--antracita-900)", fontWeight: 600 }}>
-                ¿Querés comparar con otras?
-              </div>
-              <div style={{ fontSize: 11.5, color: "var(--antracita-500)" }}>
-                Kai te muestra similares en la zona
-              </div>
-            </div>
-            <ChevronRight size={14} style={{ color: "var(--antracita-500)", flexShrink: 0 }} />
-          </div>
         </div>
       </div>
 

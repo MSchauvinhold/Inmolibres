@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PipelineKanban } from "@/components/clientes/PipelineKanban";
+import { requirePermisoAgente } from "@/lib/permisos";
 import type { EstadoPipeline } from "@prisma/client";
 
 export const metadata = { title: "Prospectos" };
@@ -24,6 +25,7 @@ export default async function ClientesPage({
   const isParticular = session.user.rol === "PARTICULAR";
   const inmobiliariaId = session.user.inmobiliariaId;
   if (!isParticular && !inmobiliariaId) redirect("/login");
+  await requirePermisoAgente(session.user.id, session.user.rol, "verClientes", "Prospectos");
 
   const isAgente = session.user.rol === "AGENTE";
   const userId = session.user.id;

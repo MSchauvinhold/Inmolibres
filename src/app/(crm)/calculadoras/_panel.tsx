@@ -115,7 +115,11 @@ export function CalculadorasPanel() {
 
         {/* Right: active calculator */}
         <div className="il-card" style={{ padding: 28, overflow: "hidden" }}>
-          <AnimatePresence mode="wait">
+          {/* Sin mode="wait": con esa opción la tarjeta vieja termina de desaparecer
+            (180ms) antes de que la nueva empiece a aparecer, dejando un instante
+            sin contenido que se leía como "el primer click no hizo nada". Con el
+            modo por defecto (cross-fade) el cambio se ve inmediato. */}
+        <AnimatePresence>
             <motion.div
               key={activa}
               initial={{ opacity: 0, x: 14 }}
@@ -183,7 +187,11 @@ export function CalculadorasPanel() {
           })}
         </div>
 
-        <AnimatePresence mode="wait">
+        {/* Sin mode="wait": con esa opción la tarjeta vieja termina de desaparecer
+            (180ms) antes de que la nueva empiece a aparecer, dejando un instante
+            sin contenido que se leía como "el primer click no hizo nada". Con el
+            modo por defecto (cross-fade) el cambio se ve inmediato. */}
+        <AnimatePresence>
           <motion.div
             key={activa}
             initial={{ opacity: 0, y: 8 }}

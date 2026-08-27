@@ -105,7 +105,10 @@ export default function RootLayout({
       <body className="min-h-screen antialiased">
         <ThemeProvider defaultTheme="light">
           {children}
-          <Toaster richColors position="top-right" />
+          {/* duration/closeButton explícitos: sin esto, algunos toasts (sobre todo
+              en paneles con varias acciones seguidas, como Admin > Inmobiliarias)
+              podían apilarse y tapar botones sin cerrarse solos. */}
+          <Toaster richColors position="top-right" duration={4000} closeButton visibleToasts={4} />
         </ThemeProvider>
       </body>
     </html>

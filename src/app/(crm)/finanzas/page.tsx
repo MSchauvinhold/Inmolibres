@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { toPlanKey } from "@/lib/planes";
+import { requirePermisoAgente } from "@/lib/permisos";
 import { FinanzasDashboard } from "@/components/finanzas/FinanzasDashboard";
 
 export const metadata = { title: "Finanzas" };
@@ -12,6 +13,9 @@ export default async function FinanzasPage() {
   // Módulo exclusivo del plan Pro. No alcanza con ocultarlo en el menú ni con el
   // middleware: sin este chequeo, entrar por URL directa renderiza la página igual.
   if (toPlanKey(session.user.plan) !== "PRO") redirect("/upgrade");
+  // Mismo criterio para el permiso "verFinanzas" del agente — antes solo se
+  // ocultaba el link del Sidebar, sin chequeo del lado del servidor.
+  await requirePermisoAgente(session.user.id, session.user.rol, "verFinanzas", "Finanzas");
 
   const inmobiliariaId = session.user.inmobiliariaId;
   const isAdmin = session.user.rol === "ADMIN";

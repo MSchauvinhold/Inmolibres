@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, Loader2, Trash2, Save, CalendarDays, AlertTriangle, X } from "lucide-react";
+import { Plus, Loader2, Trash2, Save, CalendarDays, AlertTriangle, X, ChevronRight } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { ESTADO_INMOBILIARIA_LABELS } from "@/lib/utils";
 
@@ -288,9 +289,16 @@ export default function AdminInmobiliariasPage() {
 
                   return (
                     <tr key={i.id} className="border-b border-border last:border-0 hover:bg-surface-raised/50">
-                      {/* Nombre */}
+                      {/* Nombre — link directo a la ficha de detalle (antes solo se
+                          llegaba desde Panel Global > Estado de suscripciones) */}
                       <td className="px-4 py-3">
-                        <p className="font-medium text-text-primary">{i.nombre}</p>
+                        <Link
+                          href={`/admin/inmobiliarias/${i.id}`}
+                          className="group inline-flex items-center gap-1 font-medium text-text-primary hover:text-brand-primary transition-colors"
+                        >
+                          {i.nombre}
+                          <ChevronRight className="w-3.5 h-3.5 opacity-0 -translate-x-1 group-hover:opacity-60 group-hover:translate-x-0 transition-all" />
+                        </Link>
                         <p className="text-xs text-text-muted">{i.email}</p>
                       </td>
 

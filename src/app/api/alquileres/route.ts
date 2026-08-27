@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Extraer campos que NO van directo al modelo (son solo meta-datos del request)
-    const { inquilinoContactoId, garanteContactoId, ...contratoData } = parsed.data;
+    const { inquilinoContactoId, garanteContactoId, registrarEnFinanzas, ...contratoData } = parsed.data;
 
     const contrato = await db.$transaction(async (tx) => {
       const created = await tx.contratoAlquiler.create({
@@ -140,15 +140,18 @@ export async function POST(request: NextRequest) {
       return created;
     });
 
-    // Generar la operación financiera automáticamente (no bloquea si falla)
-    await generarOperacionAlquiler({
-      inmobiliariaId,
-      agenteId: userId,
-      precioMensual: Number(contratoData.precioMensual),
-      moneda: contratoData.moneda,
-      propiedadId: contratoData.propiedadId,
-      contratoId: contrato.id,
-    });
+    // Generar la operación financiera automáticamente (no bloquea si falla) —
+    // salvo que el usuario haya destildado "Registrar en Finanzas" en el wizard.
+    if (registrarEnFinanzas) {
+      await generarOperacionAlquiler({
+        inmobiliariaId,
+        agenteId: userId,
+        precioMensual: Number(contratoData.precioMensual),
+        moneda: contratoData.moneda,
+        propiedadId: contratoData.propiedadId,
+        contratoId: contrato.id,
+      });
+    }
 
     return NextResponse.json({ data: contrato }, { status: 201 });
   } catch {

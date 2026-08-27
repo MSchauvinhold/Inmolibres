@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import { ConsultasClient } from "@/components/consultas/ConsultasClient";
+import { requirePermisoAgente } from "@/lib/permisos";
 import type { Prisma } from "@prisma/client";
 
 export const metadata = { title: "Consultas" };
@@ -14,6 +15,7 @@ export default async function ConsultasPage() {
   const isParticular = session.user.rol === "PARTICULAR";
   const inmobiliariaId = session.user.inmobiliariaId;
   if (!isParticular && !inmobiliariaId) redirect("/login");
+  await requirePermisoAgente(session.user.id, session.user.rol, "verConsultas", "Mensajes");
 
   const userId = session.user.id;
 

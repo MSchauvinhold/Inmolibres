@@ -33,6 +33,8 @@ export const contratoSchema = z.object({
   ajusteIndice: z.enum(["ICL", "IPC"]).optional().default("ICL"),
   ajusteMeses:  z.number().int().min(1).optional().default(6),
   ajusteDia:    z.number().int().min(1).max(28).optional().default(14),
+  // Si es false, no se genera la operación de comisión en Finanzas al crear el contrato
+  registrarEnFinanzas: z.boolean().optional().default(true),
 }).refine(
   (data) => new Date(data.fechaFin) > new Date(data.fechaInicio),
   {

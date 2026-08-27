@@ -25,6 +25,7 @@ export interface WizardConfig {
   comisionVendedorPct: number;
   comisionCompradorPct: number;
   comisionAdministracionPct: number;
+  comisionAlquilerMeses: number;
   ciudad: string;
   provincia: string;
 }
@@ -123,6 +124,8 @@ interface AlquilerData {
   ajusteDia: number;
   // Firma
   tipoFirma: "DIGITAL" | "MANUAL";
+  // Si está en false, no se genera la operación de comisión en Finanzas al crear el contrato
+  registrarEnFinanzas: boolean;
 }
 
 export interface CompraventaData {
@@ -155,6 +158,8 @@ export interface CompraventaData {
   escribanoRegistro: string;
   fechaEscritura: string;
   clausulas: string;
+  // Si está en false, no se genera la operación de comisión en Finanzas al crear el contrato
+  registrarEnFinanzas: boolean;
 }
 
 interface WizardState {
@@ -246,6 +251,7 @@ function mkAlqInit(cfg: WizardConfig | null): AlquilerData {
     ajusteMeses: 6,
     ajusteDia: 14,
     tipoFirma: "MANUAL" as const,
+    registrarEnFinanzas: true,
   };
 }
 
@@ -278,6 +284,7 @@ function mkCvInit(cfg: WizardConfig | null): CompraventaData {
     escribanoRegistro: "",
     fechaEscritura: "",
     clausulas: clausulasCvConLugar(cfg),
+    registrarEnFinanzas: true,
   };
 }
 
@@ -1303,6 +1310,8 @@ function CvPreview({
   color: string;
   onChange: (p: Partial<CompraventaData>) => void;
 }) {
+  const comisionEstimada = (Number(data.precioVenta) || 0)
+    * ((Number(data.comisionVendedorPct) || 0) + (Number(data.comisionCompradorPct) || 0)) / 100;
   // El HTML se recalcula cuando cambian los datos (incluidas las cláusulas editadas)
   const html = useMemo(() => buildContratoVentaHtml(
     {
@@ -1383,6 +1392,30 @@ function CvPreview({
           Restaurar cláusulas estándar
         </button>
       </div>
+
+      {/* ── Finanzas ── */}
+      <div className="space-y-3">
+        <SectionHeader color={color}>Registro en Finanzas</SectionHeader>
+        <Toggle
+          checked={data.registrarEnFinanzas}
+          onChange={(v) => onChange({ registrarEnFinanzas: v })}
+          label="Registrar la comisión de esta venta en Finanzas al crearla"
+        />
+        {data.registrarEnFinanzas && comisionEstimada > 0 && (
+          <div className="rounded-xl p-3" style={{ background: "#F3F1EE" }}>
+            <p className="text-xs text-[#6a6a6a]">
+              Se va a crear una operación por{" "}
+              <strong style={{ color: "#1a1a1a" }}>{formatPrice(comisionEstimada, data.moneda)}</strong>
+              {" "}en el módulo Finanzas apenas confirmes el boleto.
+            </p>
+          </div>
+        )}
+        {!data.registrarEnFinanzas && (
+          <p className="text-xs text-[#9a9a9a]">
+            No se va a crear ninguna operación en Finanzas — podés cargarla vos manualmente después si hace falta.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -1399,6 +1432,8 @@ function AlqPreview({
   onChange: (p: Partial<AlquilerData>) => void;
 }) {
   const prop = propiedades.find((p) => p.id === data.propiedadId);
+  const alquilerMeses = cfg?.comisionAlquilerMeses ?? 1;
+  const comisionEstimada = (Number(data.precioMensual) || 0) * alquilerMeses;
   const html = useMemo(
     () => buildContratoAlquilerHtml(
       {
@@ -1469,6 +1504,30 @@ function AlqPreview({
           Restaurar cláusulas estándar
         </button>
       </div>
+
+      {/* ── Finanzas ── */}
+      <div className="space-y-3">
+        <SectionHeader color={color}>Registro en Finanzas</SectionHeader>
+        <Toggle
+          checked={data.registrarEnFinanzas}
+          onChange={(v) => onChange({ registrarEnFinanzas: v })}
+          label="Registrar la comisión de este contrato en Finanzas al crearlo"
+        />
+        {data.registrarEnFinanzas && comisionEstimada > 0 && (
+          <div className="rounded-xl p-3" style={{ background: "#F3F1EE" }}>
+            <p className="text-xs text-[#6a6a6a]">
+              Se va a crear una operación por{" "}
+              <strong style={{ color: "#1a1a1a" }}>{formatPrice(comisionEstimada, data.moneda)}</strong>
+              {" "}({alquilerMeses} {alquilerMeses === 1 ? "mes" : "meses"} de canon) en el módulo Finanzas apenas confirmes el contrato.
+            </p>
+          </div>
+        )}
+        {!data.registrarEnFinanzas && (
+          <p className="text-xs text-[#9a9a9a]">
+            No se va a crear ninguna operación en Finanzas — podés cargarla vos manualmente después si hace falta.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -1538,6 +1597,7 @@ export function NuevoContratoWizard({
           tipoFirma: alquiler.tipoFirma,
           inquilinoContactoId: alquiler.inquilinoContactoId ?? null,
           garanteContactoId:   alquiler.garanteContactoId ?? null,
+          registrarEnFinanzas: alquiler.registrarEnFinanzas,
         }),
       });
       const json = await res.json() as { data?: Record<string, unknown>; error?: string };
@@ -1601,6 +1661,7 @@ export function NuevoContratoWizard({
           escribanoRegistro:    compraventa.escribanoRegistro || undefined,
           fechaEscritura:       compraventa.fechaEscritura || undefined,
           clausulas:            compraventa.clausulas || undefined,
+          registrarEnFinanzas:  compraventa.registrarEnFinanzas,
         }),
       });
       const json = await res.json() as { data?: ContratoVentaCreado; error?: string };

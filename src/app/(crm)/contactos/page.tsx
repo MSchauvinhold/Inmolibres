@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { toPlanKey } from "@/lib/planes";
+import { requirePermisoAgente } from "@/lib/permisos";
 import { ContactosClient } from "@/components/contactos/ContactosClient";
 import type { RolContacto } from "@prisma/client";
 
@@ -13,6 +14,9 @@ export default async function ContactosPage() {
   if (!session?.user?.inmobiliariaId) redirect("/login");
   // Módulo exclusivo del plan Pro — ver nota en /finanzas.
   if (toPlanKey(session.user.plan) !== "PRO") redirect("/upgrade");
+  // Un Agente sin el permiso "verClientes" no debe poder entrar aunque escriba
+  // la URL a mano — antes solo se ocultaba el link del Sidebar, sin chequeo acá.
+  await requirePermisoAgente(session.user.id, session.user.rol, "verClientes", "Contactos");
   const inmobiliariaId = session.user.inmobiliariaId;
 
   const contactos = await db.contacto.findMany({

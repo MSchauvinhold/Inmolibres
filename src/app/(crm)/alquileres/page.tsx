@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { toPlanKey } from "@/lib/planes";
+import { requirePermisoAgente } from "@/lib/permisos";
 import { AlquileresClient } from "@/components/alquileres/AlquileresClient";
 import { AjustesPendientes } from "@/components/alquileres/AjustesPendientes";
 
@@ -12,6 +13,9 @@ export default async function AlquileresPage() {
   if (!session?.user?.inmobiliariaId) redirect("/login");
   // Módulo exclusivo del plan Pro — ver nota en /finanzas.
   if (toPlanKey(session.user.plan) !== "PRO") redirect("/upgrade");
+  // Mismo criterio para el permiso "verAlquileres" del agente — antes solo se
+  // ocultaba el link del Sidebar, sin chequeo del lado del servidor.
+  await requirePermisoAgente(session.user.id, session.user.rol, "verAlquileres", "Contratos");
 
   const inmobiliariaId = session.user.inmobiliariaId;
   const isAdmin = session.user.rol === "ADMIN";
@@ -91,6 +95,7 @@ export default async function AlquileresPage() {
         comisionVendedorPct: config.comisionVendedorPct,
         comisionCompradorPct: config.comisionCompradorPct,
         comisionAdministracionPct: config.comisionAdministracionPct,
+        comisionAlquilerMeses: config.comisionAlquilerMeses,
         ciudad: config.ciudad,
         provincia: config.provincia,
       }

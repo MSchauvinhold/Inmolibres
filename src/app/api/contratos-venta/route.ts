@@ -29,6 +29,8 @@ const createSchema = z.object({
   fechaEscritura:       z.string().optional(),
   clausulas:            z.string().optional(),
   tipoFirma:            z.enum(["DIGITAL", "MANUAL"]).optional().default("MANUAL"),
+  // Si es false, no se genera la operación de comisión en Finanzas al crear la venta
+  registrarEnFinanzas:  z.boolean().optional().default(true),
 });
 
 export async function GET() {
@@ -70,7 +72,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { fechaEscritura, sena, ...rest } = parsed.data;
+  const { fechaEscritura, sena, registrarEnFinanzas, ...rest } = parsed.data;
 
   try {
     const venta = await db.contratoVenta.create({
@@ -82,16 +84,19 @@ export async function POST(req: Request) {
       },
     });
 
-    // Generar la operación financiera automáticamente (no bloquea si falla)
-    await generarOperacionVenta({
-      inmobiliariaId,
-      agenteId: userId,
-      precioVenta: Number(venta.precioVenta),
-      moneda: venta.moneda,
-      comisionVendedorPct: venta.comisionVendedorPct,
-      comisionCompradorPct: venta.comisionCompradorPct,
-      contratoId: venta.id,
-    });
+    // Generar la operación financiera automáticamente (no bloquea si falla) —
+    // salvo que el usuario haya destildado "Registrar en Finanzas" en el wizard.
+    if (registrarEnFinanzas) {
+      await generarOperacionVenta({
+        inmobiliariaId,
+        agenteId: userId,
+        precioVenta: Number(venta.precioVenta),
+        moneda: venta.moneda,
+        comisionVendedorPct: venta.comisionVendedorPct,
+        comisionCompradorPct: venta.comisionCompradorPct,
+        contratoId: venta.id,
+      });
+    }
 
     return NextResponse.json({
       data: {

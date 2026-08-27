@@ -7,6 +7,7 @@ import { VisitasCalendar } from "@/components/visitas/VisitasCalendar";
 import { VisitasSemana } from "@/components/visitas/VisitasSemana";
 import { VisitasToggle } from "@/components/visitas/VisitasToggle";
 import { VisitaListClient } from "@/components/visitas/VisitaListClient";
+import { requirePermisoAgente } from "@/lib/permisos";
 
 export const metadata = { title: "Visitas" };
 
@@ -17,6 +18,7 @@ export default async function VisitasPage({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  await requirePermisoAgente(session.user.id, session.user.rol, "verVisitas", "Visitas");
 
   const isParticular = session.user.rol === "PARTICULAR";
   const inmobiliariaId = session.user.inmobiliariaId;

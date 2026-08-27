@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { PropiedadCard } from "@/components/propiedades/PropiedadCard";
 import { PropiedadesFilters } from "@/components/propiedades/PropiedadesFilters";
 import { ImportButton } from "@/components/propiedades/ImportButton";
+import { requirePermisoAgente } from "@/lib/permisos";
 import { TIPO_PROPIEDAD_LABELS, TIPO_OPERACION_LABELS } from "@/lib/utils";
 import { LIMITES_PLAN } from "@/lib/planes";
 import type { TipoPropiedad, TipoOperacion, EstadoPropiedad } from "@prisma/client";
@@ -34,6 +35,7 @@ export default async function PropiedadesPage({
   const isParticular = session.user.rol === "PARTICULAR";
   const inmobiliariaId = session.user.inmobiliariaId;
   if (!isParticular && !inmobiliariaId) redirect("/login");
+  await requirePermisoAgente(session.user.id, session.user.rol, "verPropiedades", "Propiedades");
 
   const userId = session.user.id;
   const sp = await searchParams;
