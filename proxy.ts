@@ -15,12 +15,21 @@ interface JWTPayload {
 }
 
 async function getJWT(request: NextRequest): Promise<JWTPayload | null> {
-  const raw = request.cookies.get(COOKIE_NAME)?.value
-    ?? request.cookies.get(`__Secure-${COOKIE_NAME}`)?.value;
+  // Auth.js usa el nombre de la cookie como "salt" para derivar la clave con la
+  // que firma/descifra el JWT. Con AUTH_URL en https, useSecureCookies pasa a
+  // true y la cookie real es "__Secure-authjs.session-token" — hay que descifrar
+  // con ESE nombre como salt, no con el nombre sin prefijo a secas, o el decode
+  // falla siempre (aunque el secret sea correcto) y esta ruta trata a cualquier
+  // usuario logueado como si no lo estuviera.
+  const secureCookieName = `__Secure-${COOKIE_NAME}`;
+  const secureRaw = request.cookies.get(secureCookieName)?.value;
+  const plainRaw = request.cookies.get(COOKIE_NAME)?.value;
+  const raw = secureRaw ?? plainRaw;
   if (!raw) return null;
+  const salt = secureRaw ? secureCookieName : COOKIE_NAME;
   try {
     const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "";
-    const payload = await decode({ token: raw, secret, salt: COOKIE_NAME });
+    const payload = await decode({ token: raw, secret, salt });
     return payload as JWTPayload | null;
   } catch {
     return null;

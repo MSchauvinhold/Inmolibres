@@ -71,10 +71,6 @@ export function CalculadoraICL() {
 
   const indicesOk = indiceInicio > 0 && indiceFin > 0;
 
-  const iclVariacion = icl?.valor && ipc?.valor
-    ? ((icl.valor / (ipc.valor || 1)) - 1) * 100
-    : null;
-
   return (
     <div className="grid lg:grid-cols-5 gap-6">
       {/* ── Inputs ── */}
@@ -170,10 +166,9 @@ export function CalculadoraICL() {
                   <p>ICL actual: <strong>{fmtNum(icl.valor)}</strong> ({icl.fecha})</p>
                 )}
                 {ipc?.valor && (
-                  <p>IPC mensual: <strong>{fmtNum(ipc.valor)}%</strong> ({ipc.fecha})</p>
-                )}
-                {iclVariacion !== null && (
-                  <p className="text-text-muted">Diferencia ICL vs IPC este período: {fmtNum(iclVariacion)}%</p>
+                  // ipc.valor es el número índice acumulado del INDEC (base 2016=100),
+                  // no un porcentaje: nunca se le agrega "%" ni se lo llama "mensual".
+                  <p>IPC actual: <strong>{fmtNum(ipc.valor)}</strong> ({ipc.fecha})</p>
                 )}
               </>
             )}

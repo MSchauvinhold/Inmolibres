@@ -81,3 +81,5 @@ scripts/check-urls.ts
 scripts/debug-auth.ts
 scripts/fix-contratos.ts
 scripts/fix-datos.ts
+.vercel
+.env*
