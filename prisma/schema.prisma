@@ -188,6 +188,7 @@ model Inmobiliaria {
   egresos          EgresoInmobiliaria[]
   documentosCliente DocumentoCliente[]
   contactos         Contacto[]
+  tasaciones        Tasacion[]
 
   @@map("inmobiliarias")
 }
@@ -211,6 +212,7 @@ model Usuario {
   permisos            PermisosAgente?
   operaciones         OperacionCerrada[]
   passwordResetTokens PasswordResetToken[]
+  tasaciones          Tasacion[]
 
   @@index([inmobiliariaId], map: "idx_usuarios_inmobiliaria")
   @@map("usuarios")
@@ -332,6 +334,7 @@ model Cliente {
   propiedades  PropiedadCliente[]
   visitas      Visita[]
   documentos   DocumentoCliente[]
+  tasaciones   Tasacion[]
 
   @@index([inmobiliariaId], map: "idx_clientes_inmobiliaria")
   @@index([estadoPipeline], map: "idx_clientes_pipeline")
@@ -619,6 +622,7 @@ model PermisosAgente {
   verFinanzas       Boolean @default(false) @map("ver_finanzas")
   verDocumentos     Boolean @default(true)  @map("ver_documentos")
   verReportes       Boolean @default(false) @map("ver_reportes")
+  verTasaciones     Boolean @default(true)  @map("ver_tasaciones")
 
   usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
@@ -792,6 +796,50 @@ model ContratoPersona {
 
   @@unique([contratoId, contactoId, rol])
   @@map("contratos_personas")
+}
+
+// ─── Tasaciones ─────────────────────────────────────────────────────────────
+// Registro de tasaciones: la visita a una propiedad de un posible vendedor
+// para estimarle un precio, antes (o en lugar) de que se convierta en una
+// captación real. Vive antes que Propiedad en el embudo: no siempre termina
+// en una publicación.
+
+enum EstadoTasacion {
+  PENDIENTE  // agendada, todavía no se hizo
+  REALIZADA  // se visitó e informó un valor
+  CONVERTIDA // el propietario avanzó y se cargó como propiedad
+  DESCARTADA // no prosperó
+
+  @@map("estado_tasacion")
+}
+
+model Tasacion {
+  id              String         @id @default(cuid())
+  inmobiliariaId  String         @map("inmobiliaria_id")
+  agenteId        String?        @map("agente_id")
+  clienteId       String?        @map("cliente_id") // opcional: vincula a un prospecto ya cargado
+
+  clienteNombre   String         @map("cliente_nombre")
+  clienteTelefono String?        @map("cliente_telefono")
+  direccion       String
+  tipo            TipoPropiedad
+  superficie      Float?
+  valorEstimado   Decimal?       @map("valor_estimado") @db.Decimal(15, 2)
+  moneda          Moneda         @default(USD)
+  estado          EstadoTasacion @default(PENDIENTE)
+  fechaTasacion   DateTime?      @map("fecha_tasacion") @db.Date
+  notas           String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade)
+  agente       Usuario?     @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
+  cliente      Cliente?     @relation(fields: [clienteId], references: [id], onUpdate: NoAction)
+
+  @@index([inmobiliariaId], map: "idx_tasaciones_inmobiliaria")
+  @@index([estado], map: "idx_tasaciones_estado")
+  @@map("tasaciones")
 }
 
 // Panel de Monitoreo (SuperAdmin): registro de errores y corridas de cron,

@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import {
   MapPin, Bed, Bath, Square, MessageCircle,
-  Phone, CheckCircle, ChevronRight,
+  CheckCircle, ChevronRight,
 } from "lucide-react";
 import {
   formatPrice,
@@ -575,16 +575,6 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
                 >
                   <MessageCircle size={18} />
                   Consultar por WhatsApp
-                </a>
-              )}
-              {propiedad.inmobiliaria?.email && (
-                <a
-                  href={`mailto:${propiedad.inmobiliaria.email}?subject=${encodeURIComponent(`Consulta: ${propiedad.titulo}`)}`}
-                  className="il-btn il-btn--ghost"
-                  style={{ width: "100%", height: 44, fontSize: 14, justifyContent: "center", textDecoration: "none", color: "var(--antracita-700)" }}
-                >
-                  <Phone size={15} />
-                  Consultar por email
                 </a>
               )}
             </div>

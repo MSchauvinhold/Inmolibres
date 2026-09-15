@@ -18,6 +18,7 @@ interface Permisos {
   verFinanzas: boolean;
   verDocumentos: boolean;
   verReportes: boolean;
+  verTasaciones: boolean;
 }
 
 const DEFAULT_PERMISOS: Permisos = {
@@ -34,6 +35,7 @@ const DEFAULT_PERMISOS: Permisos = {
   verFinanzas: false,
   verDocumentos: true,
   verReportes: false,
+  verTasaciones: true,
 };
 
 const MODULOS = [
@@ -46,6 +48,7 @@ const MODULOS = [
   { key: "Documentos", ver: "verDocumentos", editar: null },
   { key: "Finanzas", ver: "verFinanzas", editar: null },
   { key: "Reportes", ver: "verReportes", editar: null },
+  { key: "Tasaciones", ver: "verTasaciones", editar: null },
 ] as const;
 
 interface Props {

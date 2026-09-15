@@ -84,7 +84,7 @@ export async function proxy(request: NextRequest) {
   const crmPrefixes = [
     "/dashboard", "/clientes", "/visitas",
     "/alquileres", "/consultas", "/configuracion", "/finanzas",
-    "/contactos", "/calculadoras",
+    "/contactos", "/calculadoras", "/tasaciones",
   ];
   // Propiedades CRM: sólo la raíz, /nueva y /**/editar (no las rutas públicas del marketplace)
   const isCrmPropiedad =

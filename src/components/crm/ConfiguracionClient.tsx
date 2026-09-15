@@ -27,6 +27,7 @@ interface PermisosAgente {
   verFinanzas: boolean;
   verDocumentos: boolean;
   verReportes: boolean;
+  verTasaciones: boolean;
 }
 
 interface Usuario {

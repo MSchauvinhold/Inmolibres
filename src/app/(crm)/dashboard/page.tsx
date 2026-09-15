@@ -10,6 +10,7 @@ import { formatDate } from "@/lib/utils";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { Pill } from "@/components/ui/pill";
 import { DashboardActivityChart } from "@/components/crm/DashboardActivityChart";
+import { DashboardExportButton } from "@/components/crm/DashboardExportButton";
 
 export const metadata = { title: "Dashboard" };
 
@@ -262,11 +263,43 @@ export default async function DashboardPage() {
             )}
           </p>
         </div>
-        {pendientes > 0 && (
-          <Pill tone="terra">
-            {pendientes} acción{pendientes !== 1 ? "es" : ""} pendiente{pendientes !== 1 ? "s" : ""}
-          </Pill>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {pendientes > 0 && (
+            <Pill tone="terra">
+              {pendientes} acción{pendientes !== 1 ? "es" : ""} pendiente{pendientes !== 1 ? "s" : ""}
+            </Pill>
+          )}
+          <DashboardExportButton
+            kpis={[
+              { label: "Propiedades activas", valor: totalPropiedades },
+              { label: "Propiedades disponibles", valor: propiedadesDisponibles },
+              { label: "Pipeline · clientes", valor: totalClientes },
+              { label: "Visitas esta semana", valor: visitasSemana },
+              { label: "Alquileres activos", valor: contratosActivos },
+              { label: "Contratos atrasados", valor: contratosAtrasados },
+              { label: "Operaciones del mes", valor: operacionesMes },
+              { label: "Consultas sin leer", valor: consultasNoLeidas },
+            ]}
+            visitas={[...visitasHoy, ...visitasProximas].map((v) => ({
+              fecha: v.fechaHora.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Argentina/Buenos_Aires" }),
+              propiedad: v.propiedad.titulo,
+              cliente: v.cliente.nombre,
+              agente: v.agente.nombre,
+            }))}
+            consultas={consultasRecientes.map((c) => ({
+              fecha: formatDate(c.createdAt, { day: "numeric", month: "short", year: "numeric" }),
+              nombre: c.nombreVisitante,
+              propiedad: c.propiedad?.titulo ?? "Consulta general",
+              leida: c.leida,
+            }))}
+            contratosPorVencer={contratosPorVencer.map((c) => ({
+              propiedad: c.propiedad.titulo,
+              inquilino: c.inquilinoNombre,
+              fechaFin: formatDate(c.fechaFin, { day: "numeric", month: "short", year: "numeric" }),
+              diasRestantes: Math.ceil((c.fechaFin.getTime() - hoy.getTime()) / 86400_000),
+            }))}
+          />
+        </div>
       </div>
 
       {/* ── Alert Banner ── */}

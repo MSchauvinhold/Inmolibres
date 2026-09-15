@@ -2,8 +2,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Phone, Mail, Calendar } from "lucide-react";
-import { ESTADO_PIPELINE_LABELS, PIPELINE_COLORS, ORIGEN_LEAD_LABELS, formatDate, buildWhatsAppLink } from "@/lib/utils";
+import { ArrowLeft, Phone, Mail, Calendar, MessageSquare, FileText } from "lucide-react";
+import { ESTADO_PIPELINE_LABELS, PIPELINE_COLORS, ORIGEN_LEAD_LABELS, formatDate, formatMonto, buildWhatsAppLink, telefonosCoinciden } from "@/lib/utils";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { DocumentosExpediente } from "@/components/clientes/DocumentosExpediente";
 import type { ClienteInput } from "@/lib/validations/client";
@@ -38,6 +38,36 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
   ]);
 
   if (!cliente || cliente.inmobiliariaId !== session.user.inmobiliariaId) notFound();
+
+  // ── Operaciones cerradas del cliente (relación real vía OperacionCerrada.clienteId) ──
+  // Nota: OperacionCerrada.propiedadId no tiene relación formal en el schema (se
+  // conserva el histórico financiero aunque la propiedad se borre), así que el
+  // título se busca aparte.
+  const operacionesRaw = await db.operacionCerrada.findMany({
+    where: { clienteId: cliente.id },
+    orderBy: { fechaCierre: "desc" },
+  });
+  const propiedadesDeOperaciones = await db.propiedad.findMany({
+    where: { id: { in: operacionesRaw.map((o) => o.propiedadId).filter((id): id is string => !!id) } },
+    select: { id: true, titulo: true },
+  });
+  const tituloPorPropiedadId = new Map(propiedadesDeOperaciones.map((p) => [p.id, p.titulo]));
+  const operaciones = operacionesRaw.map((o) => ({
+    ...o,
+    propiedadTitulo: o.propiedadId ? (tituloPorPropiedadId.get(o.propiedadId) ?? "—") : "—",
+  }));
+
+  // ── Consultas del marketplace: no hay relación formal con Cliente (las consultas
+  // llegan sin login), así que cruzamos por teléfono como mejor esfuerzo. ──
+  const consultasInmobiliaria = await db.consulta.findMany({
+    where: { inmobiliariaId: session.user.inmobiliariaId },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    include: { propiedad: { select: { titulo: true } } },
+  });
+  const consultasRelacionadas = consultasInmobiliaria.filter((c) =>
+    telefonosCoinciden(c.telefono, cliente.telefono)
+  );
 
   const defaultValues: Partial<ClienteInput> = {
     nombre: cliente.nombre,
@@ -94,6 +124,49 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
               <div key={v.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
                 <span className="text-text-primary">{v.propiedad.titulo}</span>
                 <span className="text-text-muted">{formatDate(v.fechaHora)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Operaciones / contratos */}
+      {operaciones.length > 0 && (
+        <div className="card p-4">
+          <h2 className="font-semibold text-text-primary mb-3 flex items-center gap-2">
+            <FileText className="w-4 h-4 text-text-muted" />
+            Operaciones y contratos
+          </h2>
+          <div className="space-y-2">
+            {operaciones.map((o) => (
+              <div key={o.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
+                <div className="min-w-0">
+                  <span className="text-text-primary">{o.tipo === "VENTA" ? "Venta" : "Alquiler"} · {o.propiedadTitulo}</span>
+                  <span className="block text-xs text-text-muted">{formatDate(o.fechaCierre)}</span>
+                </div>
+                <span className="text-text-primary font-medium shrink-0 ml-3">
+                  {formatMonto(Number(o.precioOperacion), o.moneda)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Consultas relacionadas (por teléfono — el cliente no queda vinculado
+          formalmente a la consulta porque ésta llega sin login) */}
+      {consultasRelacionadas.length > 0 && (
+        <div className="card p-4">
+          <h2 className="font-semibold text-text-primary mb-1 flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-text-muted" />
+            Consultas relacionadas
+          </h2>
+          <p className="text-xs text-text-muted mb-3">Cruzadas por número de teléfono.</p>
+          <div className="space-y-2">
+            {consultasRelacionadas.map((c) => (
+              <div key={c.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
+                <span className="text-text-primary">{c.propiedad?.titulo ?? "Consulta general"}</span>
+                <span className="text-text-muted">{formatDate(c.createdAt)}</span>
               </div>
             ))}
           </div>

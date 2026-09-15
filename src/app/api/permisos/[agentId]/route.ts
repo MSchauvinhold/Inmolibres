@@ -44,6 +44,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ agentId:
     "verPropiedades", "editarPropiedades", "verClientes", "editarClientes",
     "verVisitas", "editarVisitas", "verAlquileres", "editarAlquileres",
     "verConsultas", "verCalculadoras", "verFinanzas", "verDocumentos", "verReportes",
+    "verTasaciones",
   ];
   const data: Record<string, boolean> = {};
   for (const key of allowed) {

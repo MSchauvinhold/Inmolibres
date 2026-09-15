@@ -197,6 +197,20 @@ export function buildWhatsAppLink(phone: string, message?: string): string {
   return `https://wa.me/${number}${encoded}`;
 }
 
+/**
+ * Compara dos teléfonos ignorando formato (espacios, guiones, +54, 0 inicial, etc.)
+ * comparando los últimos 8 dígitos — suficiente para identificar el mismo número
+ * local sin depender de que el prefijo de país/área se haya cargado igual en
+ * ambos lugares. Se usa para cruzar Consultas (sin login) con Clientes/Contactos
+ * por teléfono, ya que no hay una relación formal entre esas tablas.
+ */
+export function telefonosCoinciden(a: string, b: string): boolean {
+  const da = a.replace(/\D/g, "");
+  const db_ = b.replace(/\D/g, "");
+  if (da.length < 6 || db_.length < 6) return da === db_;
+  return da.slice(-8) === db_.slice(-8);
+}
+
 // ─── Color Helpers for Status Badges ─────────────────────────────────────────
 
 export const PIPELINE_COLORS: Record<EstadoPipeline, string> = {

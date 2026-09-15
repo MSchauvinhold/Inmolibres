@@ -32,6 +32,7 @@ export default function robots(): MetadataRoute.Robots {
           "/finanzas", "/finanzas/*",
           "/contactos", "/contactos/*",
           "/calculadoras", "/calculadoras/*",
+          "/tasaciones", "/tasaciones/*",
           "/reportes",
           "/propiedades$",
           "/propiedades/nueva",

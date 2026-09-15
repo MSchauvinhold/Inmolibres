@@ -67,6 +67,8 @@ scripts/*.local.ts
 # presentación / capturas de demo (no producción)
 presentacion-inmolibres.html
 capturas-presentacion/
+capturas-presentacion.zip
+*.zip
 casaejemplo/
 scripts/capturas-presentacion.ts
 scripts/capturas-detalle.ts

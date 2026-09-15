@@ -5,7 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
-import { TrendingUp, Home, Users, CalendarCheck, Trophy } from "lucide-react";
+import { TrendingUp, Home, Users, CalendarCheck, Trophy, Download } from "lucide-react";
 import {
   formatMonto,
   TIPO_PROPIEDAD_LABELS,
@@ -14,6 +14,7 @@ import {
   ORIGEN_LEAD_LABELS,
   ESTADO_VISITA_LABELS,
 } from "@/lib/utils";
+import { downloadCsv } from "@/lib/csv-export";
 import type {
   TipoPropiedad, EstadoPropiedad, EstadoPipeline, OrigenLead,
   TipoOperacionFinanciera, Moneda,
@@ -167,6 +168,51 @@ export function ReportesDashboard({
   const totalClientes = clientesPorPipeline.reduce((s, c) => s + c.count, 0);
   const totalVisitas = visitasPorEstado.reduce((s, v) => s + v.count, 0);
 
+  function exportarCSV() {
+    downloadCsv(`reportes_${new Date().toISOString().slice(0, 10)}.csv`, [
+      {
+        titulo: "OPERACIONES CERRADAS",
+        columnas: ["Fecha", "Tipo", "Agente", "Precio op.", "Moneda", "Comisión inmob.", "Comisión agente"],
+        filas: operacionesFiltradas.map((o) => [
+          new Date(o.fechaCierre).toLocaleDateString("es-AR"),
+          o.tipo === "VENTA" ? "Venta" : "Alquiler",
+          o.agenteNombre,
+          o.precioOperacion, o.moneda, o.comisionInmob, o.comisionAgente,
+        ]),
+      },
+      {
+        titulo: "RANKING DE AGENTES",
+        columnas: ["Agente", "Operaciones", "Comisión ARS", "Comisión USD"],
+        filas: rankingAgentes.map((a) => [a.nombre, a.operaciones, a.comisionARS, a.comisionUSD]),
+      },
+      {
+        titulo: "PROPIEDADES POR TIPO",
+        columnas: ["Tipo", "Cantidad"],
+        filas: propiedadesPorTipo.map((p) => [TIPO_PROPIEDAD_LABELS[p.tipo], p.count]),
+      },
+      {
+        titulo: "PROPIEDADES POR ESTADO",
+        columnas: ["Estado", "Cantidad"],
+        filas: propiedadesPorEstado.map((p) => [ESTADO_PROPIEDAD_LABELS[p.estado], p.count]),
+      },
+      {
+        titulo: "PROSPECTOS POR ETAPA",
+        columnas: ["Etapa", "Cantidad"],
+        filas: clientesPorPipeline.map((c) => [ESTADO_PIPELINE_LABELS[c.estado], c.count]),
+      },
+      {
+        titulo: "PROSPECTOS POR ORIGEN",
+        columnas: ["Origen", "Cantidad"],
+        filas: clientesPorOrigen.map((c) => [ORIGEN_LEAD_LABELS[c.origen], c.count]),
+      },
+      {
+        titulo: "VISITAS POR ESTADO",
+        columnas: ["Estado", "Cantidad"],
+        filas: visitasPorEstado.map((v) => [ESTADO_VISITA_LABELS[v.estado], v.count]),
+      },
+    ]);
+  }
+
   return (
     <div className="w-full max-w-[1200px] mx-auto space-y-6">
       {/* Header */}
@@ -183,16 +229,22 @@ export function ReportesDashboard({
           </p>
         </div>
 
-        {agentes.length > 0 && (
-          <select
-            value={agenteFiltro}
-            onChange={(e) => setAgenteFiltro(e.target.value)}
-            className="input-base text-sm"
-          >
-            <option value="TODOS">Todos los agentes</option>
-            {agentes.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-          </select>
-        )}
+        <div className="flex items-center gap-2">
+          {agentes.length > 0 && (
+            <select
+              value={agenteFiltro}
+              onChange={(e) => setAgenteFiltro(e.target.value)}
+              className="input-base text-sm"
+            >
+              <option value="TODOS">Todos los agentes</option>
+              {agentes.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+            </select>
+          )}
+          <button onClick={exportarCSV} className="il-btn il-btn--ghost" style={{ height: 36, fontSize: 13, gap: 6 }}>
+            <Download size={14} />
+            Exportar
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}

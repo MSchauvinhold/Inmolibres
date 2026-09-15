@@ -8,7 +8,7 @@ export type PermisoFlag =
   | "verVisitas" | "editarVisitas"
   | "verAlquileres" | "editarAlquileres"
   | "verConsultas" | "verCalculadoras"
-  | "verFinanzas" | "verDocumentos" | "verReportes";
+  | "verFinanzas" | "verDocumentos" | "verReportes" | "verTasaciones";
 
 /**
  * Corta el acceso a un módulo del CRM cuando el usuario es AGENTE y el Admin
