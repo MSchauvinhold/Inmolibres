@@ -46,6 +46,15 @@ export default function CookiesPage() {
           que si bloqueás las cookies esenciales, no vas a poder iniciar sesión en el sistema.
         </p>
       </SeccionLegal>
+
+      <SeccionLegal titulo="5. Contacto">
+        <p>
+          Dudas sobre esta política:{" "}
+          <a href="mailto:inmolibres@gmail.com" style={{ color: "var(--terracota-600, #A85737)", fontWeight: 600 }}>
+            inmolibres@gmail.com
+          </a>.
+        </p>
+      </SeccionLegal>
     </PaginaEstatica>
   );
 }

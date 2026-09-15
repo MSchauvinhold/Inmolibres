@@ -54,12 +54,12 @@ export function CalculadoraDivisas() {
     setError(false);
     try {
       const res = await fetch("/api/divisas");
-      if (!res.ok) throw new Error();
-      const data: TipoCambio[] = await res.json();
+      const data = await res.json() as TipoCambio[] & { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "No se pudo obtener la cotización");
       setCotizaciones(data.sort((a, b) => TIPOS_ORDEN.indexOf(a.casa) - TIPOS_ORDEN.indexOf(b.casa)));
-    } catch {
+    } catch (err) {
       setError(true);
-      toast.error("No se pudo obtener la cotización");
+      toast.error(err instanceof Error ? err.message : "No se pudo obtener la cotización");
     } finally {
       setCargando(false);
     }

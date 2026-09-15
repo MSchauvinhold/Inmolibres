@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const existing = await db.contacto.findFirst({ where: { id, inmobiliariaId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const body = await req.json() as {
+  let body: {
     roles?: RolContacto[];
     nombre?: string;
     dni?: string;
@@ -51,26 +51,43 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     ocupacion?: string;
     notas?: string;
   };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
 
-  const updated = await db.contacto.update({
-    where: { id },
-    data: {
-      ...(body.roles !== undefined && { roles: body.roles }),
-      ...(body.nombre !== undefined && { nombre: body.nombre.trim() }),
-      ...(body.dni !== undefined && { dni: body.dni?.trim() || null }),
-      ...(body.fechaNacimiento !== undefined && {
-        fechaNacimiento: body.fechaNacimiento ? new Date(body.fechaNacimiento) : null,
-      }),
-      ...(body.domicilio !== undefined && { domicilio: body.domicilio?.trim() || null }),
-      ...(body.telefono !== undefined && { telefono: body.telefono?.trim() || null }),
-      ...(body.email !== undefined && { email: body.email?.trim() || null }),
-      ...(body.estadoCivil !== undefined && { estadoCivil: body.estadoCivil?.trim() || null }),
-      ...(body.ocupacion !== undefined && { ocupacion: body.ocupacion?.trim() || null }),
-      ...(body.notas !== undefined && { notas: body.notas?.trim() || null }),
-    },
-  });
+  if (body.nombre !== undefined && !body.nombre.trim()) {
+    return NextResponse.json({ error: "El nombre no puede quedar vacío" }, { status: 400 });
+  }
+  if (body.fechaNacimiento && isNaN(new Date(body.fechaNacimiento).getTime())) {
+    return NextResponse.json({ error: "Fecha de nacimiento inválida" }, { status: 400 });
+  }
 
-  return NextResponse.json({ data: updated });
+  try {
+    const updated = await db.contacto.update({
+      where: { id },
+      data: {
+        ...(body.roles !== undefined && { roles: body.roles }),
+        ...(body.nombre !== undefined && { nombre: body.nombre.trim() }),
+        ...(body.dni !== undefined && { dni: body.dni?.trim() || null }),
+        ...(body.fechaNacimiento !== undefined && {
+          fechaNacimiento: body.fechaNacimiento ? new Date(body.fechaNacimiento) : null,
+        }),
+        ...(body.domicilio !== undefined && { domicilio: body.domicilio?.trim() || null }),
+        ...(body.telefono !== undefined && { telefono: body.telefono?.trim() || null }),
+        ...(body.email !== undefined && { email: body.email?.trim() || null }),
+        ...(body.estadoCivil !== undefined && { estadoCivil: body.estadoCivil?.trim() || null }),
+        ...(body.ocupacion !== undefined && { ocupacion: body.ocupacion?.trim() || null }),
+        ...(body.notas !== undefined && { notas: body.notas?.trim() || null }),
+      },
+    });
+
+    return NextResponse.json({ data: updated });
+  } catch (e) {
+    console.error("[PATCH /api/contactos/[id]]", e);
+    return NextResponse.json({ error: "Error al actualizar el contacto" }, { status: 500 });
+  }
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
@@ -82,6 +99,11 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const existing = await db.contacto.findFirst({ where: { id, inmobiliariaId } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  await db.contacto.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    await db.contacto.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[DELETE /api/contactos/[id]]", e);
+    return NextResponse.json({ error: "Error al eliminar el contacto" }, { status: 500 });
+  }
 }

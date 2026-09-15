@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
   const inmobiliariaId = session.user.inmobiliariaId;
 
-  const body = await req.json() as {
+  let body: {
     agenteId: string;
     tipo: TipoOperacionFinanciera;
     precioOperacion: number;
@@ -62,29 +62,49 @@ export async function POST(req: Request) {
     clienteId?: string;
     fechaCierre?: string;
   };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
 
-  const op = await db.operacionCerrada.create({
-    data: {
-      inmobiliariaId,
-      agenteId: body.agenteId,
-      tipo: body.tipo,
-      precioOperacion: body.precioOperacion,
-      moneda: body.moneda,
-      comisionVendedorPct: body.comisionVendedorPct,
-      comisionCompradorPct: body.comisionCompradorPct,
-      comisionTotal: body.comisionTotal,
-      comisionInmob: body.comisionInmob,
-      comisionAgente: body.comisionAgente,
-      ivaComision: body.ivaComision ?? 0,
-      gastos: body.gastos ?? 0,
-      descripcionGastos: body.descripcionGastos,
-      notas: body.notas,
-      propiedadId: body.propiedadId,
-      clienteId: body.clienteId,
-      fechaCierre: body.fechaCierre ? new Date(body.fechaCierre) : undefined,
-    },
-    include: { agente: { select: { id: true, nombre: true } } },
-  });
+  if (!body.agenteId) {
+    return NextResponse.json({ error: "Seleccioná el agente de la operación" }, { status: 400 });
+  }
+  if (typeof body.precioOperacion !== "number" || !Number.isFinite(body.precioOperacion) || body.precioOperacion <= 0) {
+    return NextResponse.json({ error: "Ingresá un precio de operación válido" }, { status: 400 });
+  }
+  if (body.fechaCierre && isNaN(new Date(body.fechaCierre).getTime())) {
+    return NextResponse.json({ error: "Fecha de cierre inválida" }, { status: 400 });
+  }
 
-  return NextResponse.json({ data: serializeOperacion(op) }, { status: 201 });
+  try {
+    const op = await db.operacionCerrada.create({
+      data: {
+        inmobiliariaId,
+        agenteId: body.agenteId,
+        tipo: body.tipo,
+        precioOperacion: body.precioOperacion,
+        moneda: body.moneda,
+        comisionVendedorPct: body.comisionVendedorPct,
+        comisionCompradorPct: body.comisionCompradorPct,
+        comisionTotal: body.comisionTotal,
+        comisionInmob: body.comisionInmob,
+        comisionAgente: body.comisionAgente,
+        ivaComision: body.ivaComision ?? 0,
+        gastos: body.gastos ?? 0,
+        descripcionGastos: body.descripcionGastos,
+        notas: body.notas,
+        propiedadId: body.propiedadId,
+        clienteId: body.clienteId,
+        fechaCierre: body.fechaCierre ? new Date(body.fechaCierre) : undefined,
+      },
+      include: { agente: { select: { id: true, nombre: true } } },
+    });
+
+    return NextResponse.json({ data: serializeOperacion(op) }, { status: 201 });
+  } catch (e) {
+    console.error("[POST /api/finanzas/operaciones]", e);
+    return NextResponse.json({ error: "Error al guardar la operación" }, { status: 500 });
+  }
 }

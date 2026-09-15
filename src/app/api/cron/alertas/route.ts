@@ -5,6 +5,7 @@ import {
   notifyAgente,
   NotifMessages,
 } from "@/lib/notifications";
+import { logSystemEvent } from "@/lib/system-log";
 
 // Vercel sends GET to cron paths with Authorization: Bearer <CRON_SECRET>
 export async function GET(request: NextRequest) {
@@ -47,9 +48,15 @@ export async function GET(request: NextRequest) {
   });
 
   for (const inmo of inmo7d) {
-    const notif = NotifMessages.suscripcionDias(inmo.nombre, 7);
-    await notifyInmobiliaria(inmo.id, "SUSCRIPCION_7_DIAS", notif.titulo, notif.mensaje, notif.url);
-    results.suscripcion7d++;
+    try {
+      const notif = NotifMessages.suscripcionDias(inmo.nombre, 7);
+      await notifyInmobiliaria(inmo.id, "SUSCRIPCION_7_DIAS", notif.titulo, notif.mensaje, notif.url);
+      results.suscripcion7d++;
+    } catch (e) {
+      console.error("[cron/alertas] suscripcion7d", inmo.id, e);
+
+      await logSystemEvent("ERROR", "cron/alertas", `Falló suscripcion7d para ${inmo.id}`, e);
+    }
   }
 
   // ─── 2. Suscripción — 5 días ──────────────────────────────────────────────────
@@ -62,9 +69,15 @@ export async function GET(request: NextRequest) {
   });
 
   for (const inmo of inmo5d) {
-    const notif = NotifMessages.suscripcionDias(inmo.nombre, 5);
-    await notifyInmobiliaria(inmo.id, "SUSCRIPCION_5_DIAS", notif.titulo, notif.mensaje, notif.url);
-    results.suscripcion5d++;
+    try {
+      const notif = NotifMessages.suscripcionDias(inmo.nombre, 5);
+      await notifyInmobiliaria(inmo.id, "SUSCRIPCION_5_DIAS", notif.titulo, notif.mensaje, notif.url);
+      results.suscripcion5d++;
+    } catch (e) {
+      console.error("[cron/alertas] suscripcion5d", inmo.id, e);
+
+      await logSystemEvent("ERROR", "cron/alertas", `Falló suscripcion5d para ${inmo.id}`, e);
+    }
   }
 
   // ─── 3. Suscripción — 2 días ──────────────────────────────────────────────────
@@ -77,9 +90,15 @@ export async function GET(request: NextRequest) {
   });
 
   for (const inmo of inmo2d) {
-    const notif = NotifMessages.suscripcionDias(inmo.nombre, 2);
-    await notifyInmobiliaria(inmo.id, "SUSCRIPCION_2_DIAS", notif.titulo, notif.mensaje, notif.url);
-    results.suscripcion2d++;
+    try {
+      const notif = NotifMessages.suscripcionDias(inmo.nombre, 2);
+      await notifyInmobiliaria(inmo.id, "SUSCRIPCION_2_DIAS", notif.titulo, notif.mensaje, notif.url);
+      results.suscripcion2d++;
+    } catch (e) {
+      console.error("[cron/alertas] suscripcion2d", inmo.id, e);
+
+      await logSystemEvent("ERROR", "cron/alertas", `Falló suscripcion2d para ${inmo.id}`, e);
+    }
   }
 
   // ─── 4. Suscripción — 24 horas ────────────────────────────────────────────────
@@ -92,9 +111,15 @@ export async function GET(request: NextRequest) {
   });
 
   for (const inmo of inmo24h) {
-    const notif = NotifMessages.suscripcionDias(inmo.nombre, 1);
-    await notifyInmobiliaria(inmo.id, "SUSCRIPCION_24_HORAS", notif.titulo, notif.mensaje, notif.url);
-    results.suscripcion24h++;
+    try {
+      const notif = NotifMessages.suscripcionDias(inmo.nombre, 1);
+      await notifyInmobiliaria(inmo.id, "SUSCRIPCION_24_HORAS", notif.titulo, notif.mensaje, notif.url);
+      results.suscripcion24h++;
+    } catch (e) {
+      console.error("[cron/alertas] suscripcion24h", inmo.id, e);
+
+      await logSystemEvent("ERROR", "cron/alertas", `Falló suscripcion24h para ${inmo.id}`, e);
+    }
   }
 
   // ─── 5. Suscripción vencida — suspender ───────────────────────────────────────
@@ -107,20 +132,26 @@ export async function GET(request: NextRequest) {
   });
 
   for (const inmo of inmoVencidas) {
-    await db.$transaction([
-      db.inmobiliaria.update({
-        where: { id: inmo.id },
-        data: { estado: "SUSPENDIDA" },
-      }),
-      db.propiedad.updateMany({
-        where: { inmobiliariaId: inmo.id },
-        data: { publicada: false },
-      }),
-    ]);
+    try {
+      await db.$transaction([
+        db.inmobiliaria.update({
+          where: { id: inmo.id },
+          data: { estado: "SUSPENDIDA" },
+        }),
+        db.propiedad.updateMany({
+          where: { inmobiliariaId: inmo.id },
+          data: { publicada: false },
+        }),
+      ]);
 
-    const notif = NotifMessages.suscripcionVencida(inmo.nombre);
-    await notifyInmobiliaria(inmo.id, "SUSCRIPCION_VENCIDA", notif.titulo, notif.mensaje, notif.url);
-    results.suscripcionVencida++;
+      const notif = NotifMessages.suscripcionVencida(inmo.nombre);
+      await notifyInmobiliaria(inmo.id, "SUSCRIPCION_VENCIDA", notif.titulo, notif.mensaje, notif.url);
+      results.suscripcionVencida++;
+    } catch (e) {
+      console.error("[cron/alertas] suscripcionVencida", inmo.id, e);
+
+      await logSystemEvent("ERROR", "cron/alertas", `Falló suscripcionVencida para ${inmo.id}`, e);
+    }
   }
 
   // ─── 6. Visitas próximas (next 2h, not yet alerted) ──────────────────────────
@@ -138,10 +169,16 @@ export async function GET(request: NextRequest) {
   });
 
   for (const visita of visitasProximas) {
-    const notif = NotifMessages.visitaProxima(visita.propiedad.titulo, visita.fechaHora);
-    await notifyAgente(visita.agenteId, "VISITA_PROXIMA", notif.titulo, notif.mensaje, notif.url);
-    await db.visita.update({ where: { id: visita.id }, data: { alertaEnviada: true } });
-    results.visitasProximas++;
+    try {
+      const notif = NotifMessages.visitaProxima(visita.propiedad.titulo, visita.fechaHora);
+      await notifyAgente(visita.agenteId, "VISITA_PROXIMA", notif.titulo, notif.mensaje, notif.url);
+      await db.visita.update({ where: { id: visita.id }, data: { alertaEnviada: true } });
+      results.visitasProximas++;
+    } catch (e) {
+      console.error("[cron/alertas] visitasProximas", visita.id, e);
+
+      await logSystemEvent("ERROR", "cron/alertas", `Falló visitasProximas para ${visita.id}`, e);
+    }
   }
 
   // ─── 7. Contratos por vencer (30 días) ────────────────────────────────────────
@@ -158,24 +195,30 @@ export async function GET(request: NextRequest) {
   });
 
   for (const contrato of contratosPorVencer) {
-    const diasRestantes = Math.ceil(
-      (contrato.fechaFin.getTime() - hoy.getTime()) / 86_400_000
-    );
-    // Notificar a los 90, 60, 30, 15, 7, 3 y 1 días
-    if ([90, 60, 30, 15, 7, 3, 1].includes(diasRestantes)) {
-      const notif = NotifMessages.contratoPorVencer(
-        contrato.propiedad.titulo,
-        contrato.fechaFin,
-        diasRestantes
+    try {
+      const diasRestantes = Math.ceil(
+        (contrato.fechaFin.getTime() - hoy.getTime()) / 86_400_000
       );
-      await notifyInmobiliaria(
-        contrato.inmobiliaria.id,
-        "CONTRATO_POR_VENCER",
-        notif.titulo,
-        notif.mensaje,
-        notif.url
-      );
-      results.contratosPorVencer++;
+      // Notificar a los 90, 60, 30, 15, 7, 3 y 1 días
+      if ([90, 60, 30, 15, 7, 3, 1].includes(diasRestantes)) {
+        const notif = NotifMessages.contratoPorVencer(
+          contrato.propiedad.titulo,
+          contrato.fechaFin,
+          diasRestantes
+        );
+        await notifyInmobiliaria(
+          contrato.inmobiliaria.id,
+          "CONTRATO_POR_VENCER",
+          notif.titulo,
+          notif.mensaje,
+          notif.url
+        );
+        results.contratosPorVencer++;
+      }
+    } catch (e) {
+      console.error("[cron/alertas] contratosPorVencer", contrato.id, e);
+
+      await logSystemEvent("ERROR", "cron/alertas", `Falló contratosPorVencer para ${contrato.id}`, e);
     }
   }
 
@@ -198,20 +241,26 @@ export async function GET(request: NextRequest) {
   });
 
   for (const contrato of contratosAtrasados) {
-    await db.contratoAlquiler.update({
-      where: { id: contrato.id },
-      data: { estadoPago: "ATRASADO" },
-    });
+    try {
+      await db.contratoAlquiler.update({
+        where: { id: contrato.id },
+        data: { estadoPago: "ATRASADO" },
+      });
 
-    const notif = NotifMessages.pagoAtrasado(contrato.propiedad.titulo);
-    await notifyInmobiliaria(
-      contrato.inmobiliaria.id,
-      "PAGO_ATRASADO",
-      notif.titulo,
-      notif.mensaje,
-      notif.url
-    );
-    results.pagosAtrasados++;
+      const notif = NotifMessages.pagoAtrasado(contrato.propiedad.titulo);
+      await notifyInmobiliaria(
+        contrato.inmobiliaria.id,
+        "PAGO_ATRASADO",
+        notif.titulo,
+        notif.mensaje,
+        notif.url
+      );
+      results.pagosAtrasados++;
+    } catch (e) {
+      console.error("[cron/alertas] pagosAtrasados", contrato.id, e);
+
+      await logSystemEvent("ERROR", "cron/alertas", `Falló pagosAtrasados para ${contrato.id}`, e);
+    }
   }
 
   // ─── 9. Leads fríos (sin actividad +48h) ─────────────────────────────────────
@@ -232,10 +281,26 @@ export async function GET(request: NextRequest) {
 
   for (const lead of leadsFrios) {
     if (!lead.agenteId) continue;
-    const notif = NotifMessages.leadFrio(lead.nombre);
-    await notifyAgente(lead.agenteId, "LEAD_FRIO", notif.titulo, notif.mensaje, notif.url);
-    results.leadsFrios++;
+    try {
+      const notif = NotifMessages.leadFrio(lead.nombre);
+      await notifyAgente(lead.agenteId, "LEAD_FRIO", notif.titulo, notif.mensaje, notif.url);
+      results.leadsFrios++;
+    } catch (e) {
+      console.error("[cron/alertas] leadsFrios", lead.agenteId, e);
+
+      await logSystemEvent("ERROR", "cron/alertas", `Falló leadsFrios para ${lead.agenteId}`, e);
+    }
   }
+
+  // Log de "corrida OK" siempre, para que el panel de Monitoreo distinga
+  // "no había nada que alertar" de "el cron dejó de correr".
+  const totalAlertas = Object.values(results).reduce((a, b) => a + b, 0);
+  await logSystemEvent(
+    "INFO",
+    "cron/alertas",
+    `Corrida OK: ${totalAlertas} alerta(s) generada(s).`,
+    results
+  );
 
   return NextResponse.json({ ok: true, executedAt: now.toISOString(), results });
 }

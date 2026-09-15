@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Building2, User, ShieldCheck, ChevronRight, LogOut, MessageSquare, Users, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Building2, User, ShieldCheck, ChevronRight, LogOut, MessageSquare, Users, TrendingUp, ActivitySquare } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/crm/Logo";
@@ -15,6 +15,7 @@ const navItems = [
   { href: "/admin/particulares",     label: "Particulares",    icon: User },
   { href: "/admin/consultas-kai",    label: "Consultas Kai",   icon: MessageSquare },
   { href: "/admin/indices",          label: "Índices ICL/IPC", icon: TrendingUp },
+  { href: "/admin/monitoreo",        label: "Monitoreo",       icon: ActivitySquare },
 ];
 
 interface AdminSidebarProps {

@@ -103,12 +103,13 @@ export function DocumentosExpediente({ clienteId, initialDocumentos }: Props) {
     setDeletingId(id);
     try {
       const res = await fetch(`/api/clientes/${clienteId}/documentos/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al eliminar");
       setDocumentos((p) => p.filter((d) => d.id !== id));
       if (preview?.id === id) setPreview(null);
       toast.success("Documento eliminado");
-    } catch {
-      toast.error("Error al eliminar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
     } finally {
       setDeletingId(null);
     }
@@ -123,12 +124,13 @@ export function DocumentosExpediente({ clienteId, initialDocumentos }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notas: notaText }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al guardar nota");
       setDocumentos((p) => p.map((d) => d.id === notaDocId ? { ...d, notas: notaText } : d));
       setNotaDocId(null);
       toast.success("Nota guardada");
-    } catch {
-      toast.error("Error al guardar nota");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar nota");
     } finally {
       setSavingNota(false);
     }

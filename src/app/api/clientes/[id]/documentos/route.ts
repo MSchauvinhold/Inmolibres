@@ -33,25 +33,39 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   });
   if (!cliente) return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
 
-  const body = await req.json() as {
+  let body: {
     tipo: TipoDocumento;
     nombre: string;
     urlCloudinary: string;
     esImagen: boolean;
     notas?: string;
   };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
 
-  const doc = await db.documentoCliente.create({
-    data: {
-      clienteId: id,
-      inmobiliariaId: session.user.inmobiliariaId,
-      tipo: body.tipo,
-      nombre: body.nombre,
-      urlCloudinary: body.urlCloudinary,
-      esImagen: body.esImagen ?? false,
-      notas: body.notas,
-    },
-  });
+  if (!body.tipo || !body.nombre?.trim() || !body.urlCloudinary) {
+    return NextResponse.json({ error: "Faltan datos del documento" }, { status: 400 });
+  }
 
-  return NextResponse.json({ data: doc }, { status: 201 });
+  try {
+    const doc = await db.documentoCliente.create({
+      data: {
+        clienteId: id,
+        inmobiliariaId: session.user.inmobiliariaId,
+        tipo: body.tipo,
+        nombre: body.nombre,
+        urlCloudinary: body.urlCloudinary,
+        esImagen: body.esImagen ?? false,
+        notas: body.notas,
+      },
+    });
+
+    return NextResponse.json({ data: doc }, { status: 201 });
+  } catch (e) {
+    console.error("[POST /api/clientes/[id]/documentos]", e);
+    return NextResponse.json({ error: "Error al guardar el documento" }, { status: 500 });
+  }
 }

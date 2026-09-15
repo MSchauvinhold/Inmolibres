@@ -24,22 +24,27 @@ export async function PUT(_request: NextRequest, { params }: Params) {
   }
 
   // Aplicar: nuevo precio al contrato + actualizar base del índice, marcar ajuste aplicado
-  await db.$transaction([
-    db.contratoAlquiler.update({
-      where: { id: ajuste.contratoId },
-      data: {
-        precioMensual: ajuste.precioNuevo,
-        fechaUltimoAjuste: ajuste.fechaAjuste,
-        indiceUltimoAjuste: ajuste.indiceFin,
-      },
-    }),
-    db.ajusteAlquiler.update({
-      where: { id },
-      data: { aplicado: true },
-    }),
-  ]);
+  try {
+    await db.$transaction([
+      db.contratoAlquiler.update({
+        where: { id: ajuste.contratoId },
+        data: {
+          precioMensual: ajuste.precioNuevo,
+          fechaUltimoAjuste: ajuste.fechaAjuste,
+          indiceUltimoAjuste: ajuste.indiceFin,
+        },
+      }),
+      db.ajusteAlquiler.update({
+        where: { id },
+        data: { aplicado: true },
+      }),
+    ]);
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[PUT /api/alquileres/ajustes/[id]]", e);
+    return NextResponse.json({ error: "Error al confirmar el ajuste" }, { status: 500 });
+  }
 }
 
 // DELETE — RECHAZAR el ajuste: lo descarta sin aplicarlo.
@@ -61,6 +66,11 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "No se puede rechazar un ajuste ya aplicado" }, { status: 400 });
   }
 
-  await db.ajusteAlquiler.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  try {
+    await db.ajusteAlquiler.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[DELETE /api/alquileres/ajustes/[id]]", e);
+    return NextResponse.json({ error: "Error al rechazar el ajuste" }, { status: 500 });
+  }
 }

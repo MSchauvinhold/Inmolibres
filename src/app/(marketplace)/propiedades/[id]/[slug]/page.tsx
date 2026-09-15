@@ -178,7 +178,39 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
       : null,
   }));
 
+  /* ── Datos estructurados (SEO) ── */
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://www.inmolibres.com.ar";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "RealEstateListing",
+    name: propiedad.titulo,
+    description: propiedad.descripcion ?? undefined,
+    url: `${baseUrl}/propiedades/${propiedad.id}/${propiedad.slug}`,
+    image: fotos.map((f) => f.urlCloudinary),
+    datePosted: propiedad.createdAt.toISOString(),
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: propiedad.direccion,
+      addressRegion: "Corrientes",
+      addressCountry: "AR",
+    },
+    ...(propiedad.latitud != null && propiedad.longitud != null
+      ? { geo: { "@type": "GeoCoordinates", latitude: propiedad.latitud, longitude: propiedad.longitud } }
+      : {}),
+    offers: {
+      "@type": "Offer",
+      price: Number(propiedad.precio),
+      priceCurrency: propiedad.moneda,
+      availability: "https://schema.org/InStock",
+    },
+  };
+
   return (
+    <>
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
     <div
       className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 pb-24 lg:pb-16"
       style={{ color: "var(--antracita-700)" }}
@@ -611,5 +643,6 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
         </section>
       )}
     </div>
+    </>
   );
 }

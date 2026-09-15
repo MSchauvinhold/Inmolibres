@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   if (isNextResponse(session)) return session;
   const inmobiliariaId = session.inmobiliariaId;
 
-  const body = await req.json() as {
+  let body: {
     roles: RolContacto[];
     nombre: string;
     dni?: string;
@@ -52,26 +52,40 @@ export async function POST(req: NextRequest) {
     ocupacion?: string;
     notas?: string;
   };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
 
   if (!body.nombre?.trim()) {
     return NextResponse.json({ error: "Nombre requerido" }, { status: 400 });
   }
 
-  const contacto = await db.contacto.create({
-    data: {
-      inmobiliariaId,
-      roles: body.roles ?? [],
-      nombre: body.nombre.trim(),
-      dni: body.dni?.trim() || null,
-      fechaNacimiento: body.fechaNacimiento ? new Date(body.fechaNacimiento) : null,
-      domicilio: body.domicilio?.trim() || null,
-      telefono: body.telefono?.trim() || null,
-      email: body.email?.trim() || null,
-      estadoCivil: body.estadoCivil?.trim() || null,
-      ocupacion: body.ocupacion?.trim() || null,
-      notas: body.notas?.trim() || null,
-    },
-  });
+  if (body.fechaNacimiento && isNaN(new Date(body.fechaNacimiento).getTime())) {
+    return NextResponse.json({ error: "Fecha de nacimiento inválida" }, { status: 400 });
+  }
 
-  return NextResponse.json({ data: contacto }, { status: 201 });
+  try {
+    const contacto = await db.contacto.create({
+      data: {
+        inmobiliariaId,
+        roles: body.roles ?? [],
+        nombre: body.nombre.trim(),
+        dni: body.dni?.trim() || null,
+        fechaNacimiento: body.fechaNacimiento ? new Date(body.fechaNacimiento) : null,
+        domicilio: body.domicilio?.trim() || null,
+        telefono: body.telefono?.trim() || null,
+        email: body.email?.trim() || null,
+        estadoCivil: body.estadoCivil?.trim() || null,
+        ocupacion: body.ocupacion?.trim() || null,
+        notas: body.notas?.trim() || null,
+      },
+    });
+
+    return NextResponse.json({ data: contacto }, { status: 201 });
+  } catch (e) {
+    console.error("[POST /api/contactos]", e);
+    return NextResponse.json({ error: "Error al crear el contacto" }, { status: 500 });
+  }
 }

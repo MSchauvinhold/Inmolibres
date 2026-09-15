@@ -22,6 +22,11 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   });
   if (!doc) return NextResponse.json({ error: "Document not found" }, { status: 404 });
 
-  await db.documentoContacto.delete({ where: { id: docId } });
-  return NextResponse.json({ ok: true });
+  try {
+    await db.documentoContacto.delete({ where: { id: docId } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[DELETE /api/contactos/[id]/documentos/[docId]]", e);
+    return NextResponse.json({ error: "Error al eliminar el documento" }, { status: 500 });
+  }
 }

@@ -16,7 +16,11 @@ export async function DELETE(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   }
 
-  await db.indiceManual.delete({ where: { id } });
-
-  return NextResponse.json({ data: { ok: true } });
+  try {
+    await db.indiceManual.delete({ where: { id } });
+    return NextResponse.json({ data: { ok: true } });
+  } catch (e) {
+    console.error("[DELETE /api/admin/indices/[id]]", e);
+    return NextResponse.json({ error: "Error al eliminar el valor" }, { status: 500 });
+  }
 }

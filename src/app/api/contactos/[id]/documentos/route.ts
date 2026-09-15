@@ -14,13 +14,18 @@ export async function POST(req: NextRequest, { params }: Params) {
   const contacto = await db.contacto.findFirst({ where: { id: contactoId, inmobiliariaId } });
   if (!contacto) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const body = await req.json() as {
+  let body: {
     garanteId?: string;
     tipo: TipoDocumento;
     label?: string;
     url: string;
     esImagen?: boolean;
   };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
 
   if (!body.url || !body.tipo) {
     return NextResponse.json({ error: "url y tipo son requeridos" }, { status: 400 });
@@ -44,16 +49,21 @@ export async function POST(req: NextRequest, { params }: Params) {
     );
   }
 
-  const doc = await db.documentoContacto.create({
-    data: {
-      contactoId: finalContactoId,
-      garanteId: finalGaranteId,
-      tipo: body.tipo,
-      label: body.label?.trim() || null,
-      url: body.url,
-      esImagen: body.esImagen ?? false,
-    },
-  });
+  try {
+    const doc = await db.documentoContacto.create({
+      data: {
+        contactoId: finalContactoId,
+        garanteId: finalGaranteId,
+        tipo: body.tipo,
+        label: body.label?.trim() || null,
+        url: body.url,
+        esImagen: body.esImagen ?? false,
+      },
+    });
 
-  return NextResponse.json({ data: doc }, { status: 201 });
+    return NextResponse.json({ data: doc }, { status: 201 });
+  } catch (e) {
+    console.error("[POST /api/contactos/[id]/documentos]", e);
+    return NextResponse.json({ error: "Error al guardar el documento" }, { status: 500 });
+  }
 }

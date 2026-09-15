@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { z } from "zod/v4";
+import { isRateLimited, getClientIp } from "@/lib/rate-limit";
 
 const schema = z.object({
   nombre: z.string().min(2, "Nombre requerido"),
@@ -10,6 +11,13 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (isRateLimited(`consultas-kai:${getClientIp(request)}`, { limit: 5, windowMs: 10 * 60 * 1000 })) {
+    return NextResponse.json(
+      { error: "Demasiados mensajes enviados. Probá de nuevo en unos minutos." },
+      { status: 429 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

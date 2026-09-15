@@ -48,11 +48,16 @@ export async function PUT(request: NextRequest, { params }: Params) {
   if (body.activo !== undefined) updateData.activo = body.activo;
   if ("comisionPersonalPct" in body) updateData.comisionPersonalPct = body.comisionPersonalPct;
 
-  const updated = await db.usuario.update({
-    where: { id: agentId },
-    data: updateData,
-    select: { id: true, nombre: true, activo: true, comisionPersonalPct: true },
-  });
+  try {
+    const updated = await db.usuario.update({
+      where: { id: agentId },
+      data: updateData,
+      select: { id: true, nombre: true, activo: true, comisionPersonalPct: true },
+    });
 
-  return NextResponse.json({ data: updated });
+    return NextResponse.json({ data: updated });
+  } catch (e) {
+    console.error("[PUT /api/inmobiliarias/[id]/agentes/[agentId]]", e);
+    return NextResponse.json({ error: "Error al actualizar el agente" }, { status: 500 });
+  }
 }

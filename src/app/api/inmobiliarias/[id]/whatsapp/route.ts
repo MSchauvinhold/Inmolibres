@@ -24,11 +24,16 @@ export async function PUT(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "WhatsApp requerido" }, { status: 400 });
   }
 
-  const updated = await db.inmobiliaria.update({
-    where: { id },
-    data: { whatsapp: body.whatsapp.trim() },
-    select: { id: true, whatsapp: true },
-  });
+  try {
+    const updated = await db.inmobiliaria.update({
+      where: { id },
+      data: { whatsapp: body.whatsapp.trim() },
+      select: { id: true, whatsapp: true },
+    });
 
-  return NextResponse.json({ data: updated });
+    return NextResponse.json({ data: updated });
+  } catch (e) {
+    console.error("[PUT /api/inmobiliarias/[id]/whatsapp]", e);
+    return NextResponse.json({ error: "Error al actualizar el WhatsApp" }, { status: 500 });
+  }
 }

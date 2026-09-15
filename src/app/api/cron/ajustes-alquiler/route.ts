@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { obtenerIndiceActual, obtenerIndiceEnFecha } from "@/lib/indices";
 import { formatPrice } from "@/lib/utils";
+import { logSystemEvent } from "@/lib/system-log";
 
 function diferenciaEnMeses(desde: Date, hasta: Date): number {
   return (hasta.getFullYear() - desde.getFullYear()) * 12 + (hasta.getMonth() - desde.getMonth());
@@ -50,74 +51,88 @@ export async function GET(request: NextRequest) {
   });
 
   for (const c of contratos) {
-    // Evitar duplicados: si ya hay un ajuste pendiente, saltar
-    if (c.historialAjustes.length > 0) continue;
+    try {
+      // Evitar duplicados: si ya hay un ajuste pendiente, saltar
+      if (c.historialAjustes.length > 0) continue;
 
-    // ¿Pasaron los meses configurados desde el inicio o el último ajuste?
-    const base = c.fechaUltimoAjuste ?? c.fechaInicio;
-    const meses = diferenciaEnMeses(new Date(base), hoy);
-    if (meses < c.ajusteMeses) continue;
+      // ¿Pasaron los meses configurados desde el inicio o el último ajuste?
+      const base = c.fechaUltimoAjuste ?? c.fechaInicio;
+      const meses = diferenciaEnMeses(new Date(base), hoy);
+      if (meses < c.ajusteMeses) continue;
 
-    const tipo = (c.ajusteIndice === "IPC" ? "IPC" : "ICL") as "ICL" | "IPC";
-    const indiceActual = await indiceDe(tipo);
-    if (indiceActual == null) continue;
+      const tipo = (c.ajusteIndice === "IPC" ? "IPC" : "ICL") as "ICL" | "IPC";
+      const indiceActual = await indiceDe(tipo);
+      if (indiceActual == null) continue;
 
-    // Sin índice base guardado, lo reconstruimos con el valor al INICIO del contrato
-    // (no el de hoy) y seguimos calculando en la misma pasada. Sembrarlo con el valor
-    // de hoy haría que el primer ajuste diera 0% y se perdiera toda la inflación
-    // acumulada desde que arrancó el alquiler.
-    let indiceBase = c.indiceUltimoAjuste;
-    if (indiceBase == null) {
-      const desde = c.fechaUltimoAjuste ?? c.fechaInicio;
-      const idxBase = await obtenerIndiceEnFecha(tipo, new Date(desde));
-      if (idxBase == null) continue;
-      indiceBase = idxBase.valor;
-      await db.contratoAlquiler.update({
-        where: { id: c.id },
-        data: { indiceUltimoAjuste: indiceBase },
+      // Sin índice base guardado, lo reconstruimos con el valor al INICIO del contrato
+      // (no el de hoy) y seguimos calculando en la misma pasada. Sembrarlo con el valor
+      // de hoy haría que el primer ajuste diera 0% y se perdiera toda la inflación
+      // acumulada desde que arrancó el alquiler.
+      let indiceBase = c.indiceUltimoAjuste;
+      if (indiceBase == null) {
+        const desde = c.fechaUltimoAjuste ?? c.fechaInicio;
+        const idxBase = await obtenerIndiceEnFecha(tipo, new Date(desde));
+        if (idxBase == null) continue;
+        indiceBase = idxBase.valor;
+        await db.contratoAlquiler.update({
+          where: { id: c.id },
+          data: { indiceUltimoAjuste: indiceBase },
+        });
+      }
+
+      const variacion = (indiceActual - indiceBase) / indiceBase;
+      if (variacion <= 0) continue; // sin aumento, no generar ajuste
+
+      const precioActual = Number(c.precioMensual);
+      const precioNuevo = Math.round(precioActual * (1 + variacion));
+      const porcentaje = variacion * 100;
+
+      // Crear ajuste pendiente (NO aplicado — requiere confirmación humana)
+      await db.ajusteAlquiler.create({
+        data: {
+          contratoId: c.id,
+          fechaAjuste: hoy,
+          precioAnterior: precioActual,
+          precioNuevo,
+          moneda: c.moneda,
+          indiceInicio: indiceBase,
+          indiceFin: indiceActual,
+          porcentajeAumento: porcentaje,
+          indiceUsado: tipo,
+          aplicado: false,
+          notificado: true,
+        },
       });
+
+      // Notificar a cada usuario de la inmobiliaria
+      if (c.inmobiliaria) {
+        const msg = `El alquiler de ${c.propiedad.titulo} debe actualizarse: de ${formatPrice(precioActual, c.moneda)} a ${formatPrice(precioNuevo, c.moneda)} (+${porcentaje.toFixed(1)}% por ${tipo}).`;
+        await db.notificacion.createMany({
+          data: c.inmobiliaria.usuarios.map((u) => ({
+            usuarioId: u.id,
+            tipo: "AJUSTE_ALQUILER_PENDIENTE" as const,
+            titulo: "Ajuste de alquiler pendiente",
+            mensaje: msg,
+            url: "/alquileres",
+          })),
+        });
+      }
+
+      resultados.push({ contratoId: c.id, precioAnterior: precioActual, precioNuevo, porcentaje });
+    } catch (e) {
+      console.error("[cron/ajustes-alquiler]", c.id, e);
+      await logSystemEvent("ERROR", "cron/ajustes-alquiler", `Falló el ajuste del contrato ${c.id}`, e);
     }
-
-    const variacion = (indiceActual - indiceBase) / indiceBase;
-    if (variacion <= 0) continue; // sin aumento, no generar ajuste
-
-    const precioActual = Number(c.precioMensual);
-    const precioNuevo = Math.round(precioActual * (1 + variacion));
-    const porcentaje = variacion * 100;
-
-    // Crear ajuste pendiente (NO aplicado — requiere confirmación humana)
-    await db.ajusteAlquiler.create({
-      data: {
-        contratoId: c.id,
-        fechaAjuste: hoy,
-        precioAnterior: precioActual,
-        precioNuevo,
-        moneda: c.moneda,
-        indiceInicio: indiceBase,
-        indiceFin: indiceActual,
-        porcentajeAumento: porcentaje,
-        indiceUsado: tipo,
-        aplicado: false,
-        notificado: true,
-      },
-    });
-
-    // Notificar a cada usuario de la inmobiliaria
-    if (c.inmobiliaria) {
-      const msg = `El alquiler de ${c.propiedad.titulo} debe actualizarse: de ${formatPrice(precioActual, c.moneda)} a ${formatPrice(precioNuevo, c.moneda)} (+${porcentaje.toFixed(1)}% por ${tipo}).`;
-      await db.notificacion.createMany({
-        data: c.inmobiliaria.usuarios.map((u) => ({
-          usuarioId: u.id,
-          tipo: "AJUSTE_ALQUILER_PENDIENTE" as const,
-          titulo: "Ajuste de alquiler pendiente",
-          mensaje: msg,
-          url: "/alquileres",
-        })),
-      });
-    }
-
-    resultados.push({ contratoId: c.id, precioAnterior: precioActual, precioNuevo, porcentaje });
   }
+
+  // Log de "corrida OK" siempre (aunque no haya generado ajustes) para que el
+  // panel de Monitoreo pueda mostrar cuándo corrió por última vez sin confundir
+  // "no había nada que ajustar" con "el cron dejó de correr".
+  await logSystemEvent(
+    "INFO",
+    "cron/ajustes-alquiler",
+    `Corrida OK: ${resultados.length} ajuste(s) generado(s) sobre ${contratos.length} contrato(s) evaluados.`
+  );
 
   return NextResponse.json({ ok: true, procesados: resultados.length, resultados });
 }

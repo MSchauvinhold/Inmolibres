@@ -73,11 +73,12 @@ export function PermisosSheet({ agentId, agentName, initialPermisos, onClose, on
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(permisos),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al guardar permisos");
       onSave(permisos);
       toast.success("Permisos actualizados");
-    } catch {
-      toast.error("Error al guardar permisos");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar permisos");
     } finally {
       setSaving(false);
     }

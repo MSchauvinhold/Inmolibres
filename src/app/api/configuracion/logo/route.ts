@@ -12,14 +12,26 @@ export async function PUT(req: Request) {
   if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   if (session.user.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
 
-  const body = schema.safeParse(await req.json());
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
+
+  const body = schema.safeParse(json);
   if (!body.success) return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
 
-  const inmobiliaria = await db.inmobiliaria.update({
-    where: { id: session.user.inmobiliariaId },
-    data: { logoUrl: body.data.logoUrl },
-    select: { logoUrl: true },
-  });
+  try {
+    const inmobiliaria = await db.inmobiliaria.update({
+      where: { id: session.user.inmobiliariaId },
+      data: { logoUrl: body.data.logoUrl },
+      select: { logoUrl: true },
+    });
 
-  return NextResponse.json({ data: inmobiliaria });
+    return NextResponse.json({ data: inmobiliaria });
+  } catch (e) {
+    console.error("[PUT /api/configuracion/logo]", e);
+    return NextResponse.json({ error: "Error al guardar el logo" }, { status: 500 });
+  }
 }

@@ -55,12 +55,13 @@ export function ConsultasClient({ consultas: initial }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ leida: true }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al marcar como leída");
       setConsultas((prev) => prev.map((c) => (c.id === id ? { ...c, leida: true } : c)));
       if (selected?.id === id) setSelected((prev) => (prev ? { ...prev, leida: true } : null));
       window.dispatchEvent(new CustomEvent("notif:refresh"));
-    } catch {
-      toast.error("Error al marcar como leída");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al marcar como leída");
     }
   }
 

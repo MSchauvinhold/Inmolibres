@@ -278,11 +278,12 @@ export function ContactosClient({ contactos: initial }: Props) {
     if (!confirm(`¿Eliminar el contacto "${nombre}"? Esta acción no se puede deshacer.`)) return;
     try {
       const res = await fetch(`/api/contactos/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al eliminar");
       setContactos((prev) => prev.filter((c) => c.id !== id));
       toast.success("Contacto eliminado");
-    } catch {
-      toast.error("Error al eliminar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
     }
   }, []);
 

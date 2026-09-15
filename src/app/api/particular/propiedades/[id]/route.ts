@@ -104,16 +104,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Nada para actualizar" }, { status: 400 });
   }
 
-  const propiedad = await db.propiedad.update({ where: { id }, data });
+  try {
+    const propiedad = await db.propiedad.update({ where: { id }, data });
 
-  return NextResponse.json({
-    data: {
-      id: propiedad.id,
-      titulo: propiedad.titulo,
-      precio: Number(propiedad.precio),
-      moneda: propiedad.moneda,
-      descripcion: propiedad.descripcion,
-      publicada: propiedad.publicada,
-    },
-  });
+    return NextResponse.json({
+      data: {
+        id: propiedad.id,
+        titulo: propiedad.titulo,
+        precio: Number(propiedad.precio),
+        moneda: propiedad.moneda,
+        descripcion: propiedad.descripcion,
+        publicada: propiedad.publicada,
+      },
+    });
+  } catch (e) {
+    console.error("[PATCH /api/particular/propiedades/[id]]", e);
+    return NextResponse.json({ error: "Error al actualizar la propiedad" }, { status: 500 });
+  }
 }

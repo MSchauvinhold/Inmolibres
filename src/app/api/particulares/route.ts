@@ -42,20 +42,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "La contraseña debe tener mínimo 8 caracteres" }, { status: 400 });
   }
 
-  const existing = await db.usuario.findUnique({ where: { email } });
-  if (existing) {
-    return NextResponse.json({ error: "El email ya está registrado" }, { status: 409 });
+  try {
+    const existing = await db.usuario.findUnique({ where: { email } });
+    if (existing) {
+      return NextResponse.json({ error: "El email ya está registrado" }, { status: 409 });
+    }
+
+    const usuario = await db.usuario.create({
+      data: {
+        nombre,
+        email,
+        passwordHash: await bcrypt.hash(password, 12),
+        rol: "PARTICULAR",
+      },
+      select: { id: true, nombre: true, email: true, activo: true, createdAt: true },
+    });
+
+    return NextResponse.json({ data: usuario }, { status: 201 });
+  } catch (e) {
+    console.error("[POST /api/particulares]", e);
+    return NextResponse.json({ error: "Error al crear el particular" }, { status: 500 });
   }
-
-  const usuario = await db.usuario.create({
-    data: {
-      nombre,
-      email,
-      passwordHash: await bcrypt.hash(password, 12),
-      rol: "PARTICULAR",
-    },
-    select: { id: true, nombre: true, email: true, activo: true, createdAt: true },
-  });
-
-  return NextResponse.json({ data: usuario }, { status: 201 });
 }

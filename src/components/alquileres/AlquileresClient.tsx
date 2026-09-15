@@ -676,13 +676,14 @@ function NotasEditor({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notas }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al guardar notas");
       setDirty(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
       toast.success("Notas guardadas");
-    } catch {
-      toast.error("Error al guardar notas");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar notas");
     } finally {
       setSaving(false);
     }
@@ -780,13 +781,14 @@ function AjustesTab({ contrato, onSaved }: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ajusteActivo, ajusteIndice, ajusteMeses, ajusteDia, administracionPct }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al guardar la configuración");
       setSaved(true);
       toast.success("Configuración guardada");
       // Notificar al padre para que actualice su estado local (status strip, etc.)
       onSaved?.({ ajusteActivo, ajusteIndice, ajusteMeses, ajusteDia, administracionPct });
-    } catch {
-      toast.error("Error al guardar la configuración");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar la configuración");
     } finally {
       setSaving(false);
     }
@@ -1075,11 +1077,12 @@ function ContratoFirmadoPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contratoFirmadoUrl: result.secure_url, fechaFirmado: fecha }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al subir el archivo");
       onUpdated(result.secure_url, fecha);
       toast.success("Contrato firmado subido correctamente");
-    } catch {
-      toast.error("Error al subir el archivo");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al subir el archivo");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -1362,11 +1365,12 @@ function PagosHistorial({
     if (!confirm("¿Eliminar este registro de pago?")) return;
     try {
       const res = await fetch(`/api/alquileres/${contratoId}/pagos/${pagoId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al eliminar");
       setPagos((prev) => prev.filter((p) => p.id !== pagoId));
       toast.success("Registro eliminado");
-    } catch {
-      toast.error("Error al eliminar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
     }
   };
 
@@ -1575,11 +1579,12 @@ function ContratoDetalleModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estadoPago: nuevo }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al actualizar estado");
       onEstadoChange(contrato.id, nuevo);
       toast.success(nuevo === "AL_DIA" ? "Marcado al día" : "Marcado como atrasado");
-    } catch {
-      toast.error("Error al actualizar estado");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al actualizar estado");
     } finally {
       setUpdatingPago(false);
     }
@@ -1590,10 +1595,11 @@ function ContratoDetalleModal({
     setDeleting(true);
     try {
       const res = await fetch(`/api/alquileres/${contrato.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al eliminar");
       onDelete(contrato.id);
-    } catch {
-      toast.error("Error al eliminar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
     } finally {
       setDeleting(false);
     }
@@ -2130,11 +2136,12 @@ function ContratoVentaDetalleModal({
     setDeleting(true);
     try {
       const res = await fetch(`/api/contratos-venta/${venta.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al eliminar");
       onDelete(venta.id);
       toast.success("Boleto eliminado");
-    } catch {
-      toast.error("Error al eliminar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
     } finally {
       setDeleting(false);
     }

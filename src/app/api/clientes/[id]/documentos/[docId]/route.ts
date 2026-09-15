@@ -16,9 +16,13 @@ export async function DELETE(
   });
   if (!doc) return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
 
-  await db.documentoCliente.delete({ where: { id: docId } });
-
-  return NextResponse.json({ ok: true });
+  try {
+    await db.documentoCliente.delete({ where: { id: docId } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[DELETE /api/clientes/[id]/documentos/[docId]]", e);
+    return NextResponse.json({ error: "Error al eliminar el documento" }, { status: 500 });
+  }
 }
 
 export async function PATCH(
@@ -35,12 +39,22 @@ export async function PATCH(
   });
   if (!doc) return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
 
-  const { notas } = await req.json() as { notas: string };
+  let notas: string;
+  try {
+    ({ notas } = await req.json() as { notas: string });
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
 
-  const updated = await db.documentoCliente.update({
-    where: { id: docId },
-    data: { notas },
-  });
+  try {
+    const updated = await db.documentoCliente.update({
+      where: { id: docId },
+      data: { notas },
+    });
 
-  return NextResponse.json({ data: updated });
+    return NextResponse.json({ data: updated });
+  } catch (e) {
+    console.error("[PATCH /api/clientes/[id]/documentos/[docId]]", e);
+    return NextResponse.json({ error: "Error al actualizar la nota" }, { status: 500 });
+  }
 }

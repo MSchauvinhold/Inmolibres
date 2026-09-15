@@ -3,6 +3,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { Resend } from "resend";
+import { isRateLimited, getClientIp } from "@/lib/rate-limit";
 
 // Inicialización lazy para que no falle en build time si la variable no está
 function getResend() {
@@ -11,31 +12,15 @@ function getResend() {
 const FROM = process.env.RESEND_FROM_EMAIL ?? "noreply@inmolibres.com";
 const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
-// Rate limiting en memoria: ip → [timestamps]
-const rateMap = new Map<string, number[]>();
-const RATE_LIMIT = 3;
-const RATE_WINDOW_MS = 15 * 60 * 1000; // 15 minutos
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const hits = (rateMap.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
-  if (hits.length >= RATE_LIMIT) return true;
-  rateMap.set(ip, [...hits, now]);
-  return false;
-}
-
 const RESPUESTA_GENERICA = NextResponse.json(
   { ok: true, message: "Si el email existe, recibirás las instrucciones en tu correo." },
   { status: 200 }
 );
 
 export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    request.headers.get("x-real-ip") ??
-    "unknown";
+  const ip = getClientIp(request);
 
-  if (isRateLimited(ip)) {
+  if (isRateLimited(`forgot-password:${ip}`, { limit: 3, windowMs: 15 * 60 * 1000 })) {
     return NextResponse.json(
       { error: "Demasiados intentos. Intentá de nuevo en 15 minutos." },
       { status: 429 }

@@ -77,11 +77,12 @@ function DocCard({
     setDeleting(true);
     try {
       const res = await fetch(`/api/contactos/${contactoId}/documentos/${doc.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al eliminar");
       onDelete(doc.id);
       toast.success("Documento eliminado");
-    } catch {
-      toast.error("Error al eliminar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
     } finally {
       setDeleting(false);
     }

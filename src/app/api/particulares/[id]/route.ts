@@ -17,16 +17,21 @@ export async function PUT(
     return NextResponse.json({ error: "Body inválido" }, { status: 400 });
   }
 
-  const usuario = await db.usuario.findUnique({ where: { id } });
-  if (!usuario || usuario.rol !== "PARTICULAR") {
-    return NextResponse.json({ error: "Particular no encontrado" }, { status: 404 });
+  try {
+    const usuario = await db.usuario.findUnique({ where: { id } });
+    if (!usuario || usuario.rol !== "PARTICULAR") {
+      return NextResponse.json({ error: "Particular no encontrado" }, { status: 404 });
+    }
+
+    const updated = await db.usuario.update({
+      where: { id },
+      data: { activo: body.activo },
+      select: { id: true, nombre: true, activo: true },
+    });
+
+    return NextResponse.json({ data: updated });
+  } catch (e) {
+    console.error("[PUT /api/particulares/[id]]", e);
+    return NextResponse.json({ error: "Error al actualizar el particular" }, { status: 500 });
   }
-
-  const updated = await db.usuario.update({
-    where: { id },
-    data: { activo: body.activo },
-    select: { id: true, nombre: true, activo: true },
-  });
-
-  return NextResponse.json({ data: updated });
 }

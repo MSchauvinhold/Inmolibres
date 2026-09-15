@@ -76,7 +76,8 @@ export function PipelineKanban({ clientes, onUpdate }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estadoPipeline: nuevoEstado }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al mover el prospecto");
       setItems((prev) =>
         prev.map((c) =>
           c.id === id
@@ -85,8 +86,8 @@ export function PipelineKanban({ clientes, onUpdate }: Props) {
         )
       );
       onUpdate?.();
-    } catch {
-      toast.error("Error al actualizar estado");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al actualizar estado");
     } finally {
       setMoving(null);
     }

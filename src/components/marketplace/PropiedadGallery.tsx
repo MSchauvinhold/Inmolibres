@@ -21,8 +21,6 @@ const slideVariants = {
 };
 
 export function PropiedadGallery({ fotos }: { fotos: FotoItem[] }) {
-  if (fotos.length === 0) return null;
-
   /* ── Estado compartido ────────────────────────────────────────── */
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
@@ -69,13 +67,13 @@ export function PropiedadGallery({ fotos }: { fotos: FotoItem[] }) {
   const onTouchEndMobile = (e: React.TouchEvent) => {
     if (touchStartX === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(dx) > 50) { dx < 0 ? mobileNext() : mobilePrev(); }
+    if (Math.abs(dx) > 50) { if (dx < 0) mobileNext(); else mobilePrev(); }
     setTouchStartX(null);
   };
   const onTouchEndLb = (e: React.TouchEvent) => {
     if (touchStartX === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(dx) > 50) { dx < 0 ? lbNext() : lbPrev(); }
+    if (Math.abs(dx) > 50) { if (dx < 0) lbNext(); else lbPrev(); }
     setTouchStartX(null);
   };
 
@@ -371,6 +369,8 @@ export function PropiedadGallery({ fotos }: { fotos: FotoItem[] }) {
       </Dialog.Portal>
     </Dialog.Root>
   );
+
+  if (fotos.length === 0) return null;
 
   return (
     <>

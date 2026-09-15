@@ -38,24 +38,44 @@ export async function POST(req: Request) {
 
   const inmobiliariaId = session.user.inmobiliariaId;
 
-  const body = await req.json() as {
+  let body: {
     concepto: string;
     monto: number;
     moneda: Moneda;
     fecha?: string;
     categoria?: string;
   };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
 
-  const egreso = await db.egresoInmobiliaria.create({
-    data: {
-      inmobiliariaId,
-      concepto: body.concepto,
-      monto: body.monto,
-      moneda: body.moneda ?? "ARS",
-      fecha: body.fecha ? new Date(body.fecha) : undefined,
-      categoria: body.categoria,
-    },
-  });
+  if (!body.concepto?.trim()) {
+    return NextResponse.json({ error: "El concepto es requerido" }, { status: 400 });
+  }
+  if (typeof body.monto !== "number" || !Number.isFinite(body.monto) || body.monto <= 0) {
+    return NextResponse.json({ error: "Ingresá un monto válido" }, { status: 400 });
+  }
+  if (body.fecha && isNaN(new Date(body.fecha).getTime())) {
+    return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
+  }
 
-  return NextResponse.json({ data: egreso }, { status: 201 });
+  try {
+    const egreso = await db.egresoInmobiliaria.create({
+      data: {
+        inmobiliariaId,
+        concepto: body.concepto,
+        monto: body.monto,
+        moneda: body.moneda ?? "ARS",
+        fecha: body.fecha ? new Date(body.fecha) : undefined,
+        categoria: body.categoria,
+      },
+    });
+
+    return NextResponse.json({ data: egreso }, { status: 201 });
+  } catch (e) {
+    console.error("[POST /api/finanzas/egresos]", e);
+    return NextResponse.json({ error: "Error al guardar el egreso" }, { status: 500 });
+  }
 }

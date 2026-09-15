@@ -16,20 +16,21 @@ const TIPOS: TipoPropiedad[] = [
 
 // "Comercial" no es una operación (Venta/Alquiler/Temporario) sino un tipo de
 // propiedad — mandarlo como ?operacion=LOCAL rompe la query (LOCAL no existe en el
-// enum TipoOperacion). Cada chip declara qué parámetro de /buscar arma.
+// enum TipoOperacion). Cada chip declara qué parámetro de /buscar arma y qué clave
+// de `counts` le corresponde.
 const CHIPS = [
-  { label: "Venta", param: "operacion", value: "VENTA" },
-  { label: "Alquiler", param: "operacion", value: "ALQUILER" },
-  { label: "Temporario", param: "operacion", value: "ALQUILER_TEMPORARIO" },
-  { label: "Comercial", param: "tipo", value: "LOCAL" },
+  { label: "Venta", param: "operacion", value: "VENTA", countKey: "VENTA" },
+  { label: "Alquiler", param: "operacion", value: "ALQUILER", countKey: "ALQUILER" },
+  { label: "Temporario", param: "operacion", value: "ALQUILER_TEMPORARIO", countKey: "ALQUILER_TEMPORARIO" },
+  { label: "Comercial", param: "tipo", value: "LOCAL", countKey: "LOCAL" },
 ] as const;
 
 interface HeroProps {
-  totalPropiedades?: number;
+  counts?: Record<"VENTA" | "ALQUILER" | "ALQUILER_TEMPORARIO" | "LOCAL", number>;
   inmobiliarias?: { id: string; nombre: string }[];
 }
 
-export function HeroSection({ totalPropiedades, inmobiliarias = [] }: HeroProps) {
+export function HeroSection({ counts, inmobiliarias = [] }: HeroProps) {
   return (
     <section
       className="relative overflow-hidden"
@@ -323,9 +324,9 @@ export function HeroSection({ totalPropiedades, inmobiliarias = [] }: HeroProps)
                 }}
               >
                 {c.label}
-                {totalPropiedades != null && i === 0 && (
+                {counts != null && (
                   <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "var(--font-jetbrains-mono), monospace" }}>
-                    {totalPropiedades}
+                    {counts[c.countKey]}
                   </span>
                 )}
               </a>

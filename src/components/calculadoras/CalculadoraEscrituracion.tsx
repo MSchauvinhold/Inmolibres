@@ -46,12 +46,12 @@ export function CalculadoraEscrituracion() {
     setCargandoTC(true);
     try {
       const res = await fetch("/api/divisas");
-      if (!res.ok) throw new Error();
-      const data: { casa: string; venta: number }[] = await res.json();
+      const data: { casa: string; venta: number }[] & { error?: string } = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo obtener el tipo de cambio");
       const blue = data.find((d) => d.casa === "blue");
       if (blue?.venta) setTasaCambio(Math.round(blue.venta));
-    } catch {
-      toast.error("No se pudo obtener el tipo de cambio. Ingresalo manualmente.");
+    } catch (err) {
+      toast.error(err instanceof Error ? `${err.message}. Ingresalo manualmente.` : "No se pudo obtener el tipo de cambio. Ingresalo manualmente.");
     } finally {
       setCargandoTC(false);
     }

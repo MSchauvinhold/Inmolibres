@@ -62,9 +62,20 @@ export default function TerminosPage() {
         </p>
       </SeccionLegal>
 
-      <SeccionLegal titulo="7. Ley aplicable">
+      <SeccionLegal titulo="7. Ley aplicable y jurisdicción">
         <p>
-          Estos términos se rigen por las leyes de la República Argentina.
+          Estos términos se rigen por las leyes de la República Argentina. Ante cualquier
+          controversia, las partes se someten a la competencia de los tribunales ordinarios de la
+          Provincia de Corrientes, con renuncia a cualquier otro fuero que pudiera corresponder.
+        </p>
+      </SeccionLegal>
+
+      <SeccionLegal titulo="8. Contacto">
+        <p>
+          Para consultas sobre estos términos podés escribirnos a{" "}
+          <a href="mailto:inmolibres@gmail.com" style={{ color: "var(--terracota-600, #A85737)", fontWeight: 600 }}>
+            inmolibres@gmail.com
+          </a>.
         </p>
       </SeccionLegal>
     </PaginaEstatica>

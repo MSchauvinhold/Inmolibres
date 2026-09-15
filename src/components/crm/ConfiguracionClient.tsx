@@ -130,12 +130,13 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ whatsapp: whatsappVal }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al actualizar");
       setInmo((p) => ({ ...p, whatsapp: whatsappVal }));
       setEditingWa(false);
       toast.success("WhatsApp actualizado");
-    } catch {
-      toast.error("Error al actualizar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al actualizar");
     } finally {
       setSavingWa(false);
     }
@@ -178,14 +179,15 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ activo: !activo }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al actualizar agente");
       setInmo((p) => ({
         ...p,
         usuarios: p.usuarios.map((u) => u.id === id ? { ...u, activo: !activo } : u),
       }));
       toast.success(activo ? "Agente desactivado" : "Agente activado");
-    } catch {
-      toast.error("Error al actualizar agente");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al actualizar agente");
     } finally {
       setTogglingId(null);
     }
@@ -200,11 +202,11 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
         body: JSON.stringify(patch),
       });
       const data = (await res.json()) as { data?: Config; error?: string };
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error ?? "Error al guardar");
       setConfig((p) => ({ ...p, ...data.data }));
       toast.success("Configuración guardada");
-    } catch {
-      toast.error("Error al guardar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar");
     } finally {
       setSavingConfig(false);
     }
@@ -217,7 +219,8 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ comisionPersonalPct: pct }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al guardar comisión");
       setInmo((p) => ({
         ...p,
         usuarios: p.usuarios.map((u) =>
@@ -225,8 +228,8 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
         ),
       }));
       toast.success("Comisión actualizada");
-    } catch {
-      toast.error("Error al guardar comisión");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar comisión");
     }
   }
 
@@ -242,11 +245,12 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ logoUrl: result.secure_url }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al subir el logo");
       setInmo((p) => ({ ...p, logoUrl: result.secure_url }));
       toast.success("Logo subido correctamente");
-    } catch {
-      toast.error("Error al subir el logo");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al subir el logo");
     } finally {
       setUploadingLogo(false);
       setLogoProgress(0);
@@ -261,12 +265,13 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ logoUrl: null }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al eliminar el logo");
       setInmo((p) => ({ ...p, logoUrl: null }));
       setConfig((p) => ({ ...p, logoEnContrato: false }));
       toast.success("Logo eliminado");
-    } catch {
-      toast.error("Error al eliminar el logo");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar el logo");
     }
   }
 

@@ -793,3 +793,25 @@ model ContratoPersona {
   @@unique([contratoId, contactoId, rol])
   @@map("contratos_personas")
 }
+
+// Panel de Monitoreo (SuperAdmin): registro de errores y corridas de cron,
+// pensado para enterarnos de fallos silenciosos (jobs nocturnos, integraciones
+// externas) sin depender de mirar los logs de Vercel a mano.
+model SystemLog {
+  id        String   @id @default(cuid())
+  nivel     NivelLog @default(ERROR)
+  origen    String // ej: "cron/alertas", "cron/ajustes-alquiler", "api/consultas"
+  mensaje   String
+  detalle   String? // stack o contexto adicional (JSON o texto libre)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([origen, createdAt])
+  @@index([nivel, createdAt])
+  @@map("system_logs")
+}
+
+enum NivelLog {
+  INFO
+  WARN
+  ERROR
+}

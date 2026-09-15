@@ -84,11 +84,41 @@ export default async function MarketplaceHome({
   const hasFilters = !!(sp.operacion || sp.tipo || sp.search || sp.inmobiliaria);
   const fromKai = sp.kai === "1";
 
+  // Conteos reales por categoría para los chips del hero (solo se piden si el hero
+  // se va a mostrar — `condiciones` en este punto son solo las de base, ya que
+  // hasFilters exige que operacion/tipo/search/inmobiliaria estén vacíos).
+  const chipCounts = hasFilters
+    ? null
+    : await (async () => {
+        const [venta, alquiler, temporario, comercial] = await Promise.all([
+          db.propiedad.count({ where: { AND: [...condiciones, { operacion: "VENTA" }] } }),
+          db.propiedad.count({ where: { AND: [...condiciones, { operacion: "ALQUILER" }] } }),
+          db.propiedad.count({ where: { AND: [...condiciones, { operacion: "ALQUILER_TEMPORARIO" }] } }),
+          db.propiedad.count({ where: { AND: [...condiciones, { tipo: "LOCAL" }] } }),
+        ]);
+        return { VENTA: venta, ALQUILER: alquiler, ALQUILER_TEMPORARIO: temporario, LOCAL: comercial };
+      })();
+
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://www.inmolibres.com.ar";
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "InmoLibres",
+    url: baseUrl,
+    description:
+      "Marketplace inmobiliario y CRM de gestión para inmobiliarias en Corrientes, Argentina.",
+    areaServed: { "@type": "City", name: "Paso de los Libres" },
+  };
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--background-mp)" }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
       <MarketplaceHeader />
 
-      {!hasFilters && <HeroSection totalPropiedades={propiedades.length} inmobiliarias={inmobiliarias} />}
+      {!hasFilters && <HeroSection counts={chipCounts ?? undefined} inmobiliarias={inmobiliarias} />}
 
       {/* Active filter bar */}
       {hasFilters && (

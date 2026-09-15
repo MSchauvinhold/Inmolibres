@@ -30,12 +30,19 @@ export async function POST() {
     include: { propiedad: { select: { titulo: true } } },
   });
 
+  // Cada visita se procesa de forma independiente: si una falla (por ejemplo, el
+  // agente fue borrado y notifyAgente no encuentra destinatario), no debe frenar
+  // el resto — es un chequeo silencioso en segundo plano, no una acción del usuario.
   let creadas = 0;
   for (const visita of visitas) {
-    const notif = NotifMessages.visitaProxima(visita.propiedad.titulo, visita.fechaHora);
-    await notifyAgente(visita.agenteId, "VISITA_PROXIMA", notif.titulo, notif.mensaje, notif.url);
-    await db.visita.update({ where: { id: visita.id }, data: { alertaEnviada: true } });
-    creadas++;
+    try {
+      const notif = NotifMessages.visitaProxima(visita.propiedad.titulo, visita.fechaHora);
+      await notifyAgente(visita.agenteId, "VISITA_PROXIMA", notif.titulo, notif.mensaje, notif.url);
+      await db.visita.update({ where: { id: visita.id }, data: { alertaEnviada: true } });
+      creadas++;
+    } catch (e) {
+      console.error(`[POST /api/visitas/check-proximas] visita ${visita.id}`, e);
+    }
   }
 
   return NextResponse.json({ ok: true, creadas });

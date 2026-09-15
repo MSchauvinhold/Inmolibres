@@ -125,8 +125,8 @@ function GaranteSection({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const json = await res.json() as { data?: { id: string } & typeof form };
-      if (!res.ok) throw new Error();
+      const json = await res.json() as { data?: { id: string } & typeof form; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al guardar garante");
       onGaranteChange({
         id: json.data!.id,
         nombre: form.nombre,
@@ -139,8 +139,8 @@ function GaranteSection({
       });
       setExpanded(false);
       toast.success(garante ? "Garante actualizado" : "Garante agregado");
-    } catch {
-      toast.error("Error al guardar garante");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar garante");
     } finally {
       setSaving(false);
     }
@@ -253,11 +253,12 @@ function EditForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al guardar");
       onSave(form);
       toast.success("Contacto actualizado");
-    } catch {
-      toast.error("Error al guardar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar");
     } finally {
       setSaving(false);
     }

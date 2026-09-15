@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Oculta el badge de Next.js en la esquina (para capturas de pantalla / demos).
+  devIndicators: false,
   images: {
     remotePatterns: [
       {

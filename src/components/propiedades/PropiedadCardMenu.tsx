@@ -32,13 +32,13 @@ export function PropiedadCardMenu({ propiedadId, publicada = true, canDelete = t
     setOpen(false);
     try {
       const res = await fetch(`/api/propiedades/${propiedadId}/duplicate`, { method: "POST" });
-      if (!res.ok) throw new Error();
-      const { data } = await res.json();
+      const json = await res.json() as { data?: { id: string }; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al duplicar la propiedad");
       toast.success("Propiedad duplicada — no publicada");
-      router.push(`/propiedades/${data.id}/editar`);
+      router.push(`/propiedades/${json.data!.id}/editar`);
       router.refresh();
-    } catch {
-      toast.error("Error al duplicar la propiedad");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al duplicar la propiedad");
     } finally {
       setBusy(false);
     }
@@ -55,11 +55,12 @@ export function PropiedadCardMenu({ propiedadId, publicada = true, canDelete = t
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ publicada: !publicada }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al cambiar la publicación");
       toast.success(publicada ? "Propiedad pausada — fuera del marketplace" : "Propiedad publicada en el marketplace");
       router.refresh();
-    } catch {
-      toast.error("Error al cambiar la publicación");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al cambiar la publicación");
     } finally {
       setBusy(false);
     }

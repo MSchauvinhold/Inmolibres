@@ -36,12 +36,13 @@ export default function LoginPage() {
           mensaje: `[Inmobiliaria interesada en InmoLibres] ${contacto.mensaje.trim() || "Quiere comenzar a usar el sistema."}`,
         }),
       });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "No se pudo enviar. Probá por WhatsApp.");
       toast.success("¡Mensaje enviado! Te vamos a contactar pronto.");
       setShowContacto(false);
       setContacto({ nombre: "", telefono: "", mensaje: "" });
-    } catch {
-      toast.error("No se pudo enviar. Probá por WhatsApp.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo enviar. Probá por WhatsApp.");
     } finally {
       setEnviandoContacto(false);
     }

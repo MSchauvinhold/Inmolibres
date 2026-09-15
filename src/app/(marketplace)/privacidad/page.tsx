@@ -11,11 +11,16 @@ export default function PrivacidadPage() {
       titulo="Política de privacidad"
       subtitulo={`Última actualización: ${new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" })}`}
     >
-      <SeccionLegal titulo="1. Quiénes somos">
+      <SeccionLegal titulo="1. Quiénes somos y responsable del tratamiento">
         <p>
           InmoLibres es una plataforma que conecta inmobiliarias y particulares con personas
           que buscan comprar o alquilar propiedades en Argentina. Esta política describe cómo
           recolectamos y tratamos los datos personales de quienes usan el sitio.
+        </p>
+        <p style={{ marginTop: 8 }}>
+          El responsable de la base de datos es{" "}
+          <strong>[Completar: razón social / nombre y apellido, CUIT, domicilio legal]</strong>,
+          con domicilio en Paso de los Libres, Corrientes, Argentina.
         </p>
       </SeccionLegal>
 
@@ -49,22 +54,39 @@ export default function PrivacidadPage() {
 
       <SeccionLegal titulo="5. Dónde se almacenan">
         <p>
-          Los datos se almacenan en servidores de proveedores de infraestructura reconocidos, con
-          conexiones cifradas. Las imágenes se alojan en servicios especializados de gestión de medios.
+          Los datos se almacenan con conexiones cifradas, usando proveedores de infraestructura
+          reconocidos internacionalmente: la base de datos corre sobre Neon (PostgreSQL) y la
+          aplicación sobre Vercel; las imágenes se alojan en Cloudinary. Estos proveedores pueden
+          procesar datos en servidores ubicados fuera de la Argentina, por lo que puede existir una
+          transferencia internacional de datos en los términos del art. 12 de la Ley 25.326. En todos
+          los casos actúan como encargados del tratamiento, bajo nuestras instrucciones y con las
+          garantías de seguridad y confidencialidad de cada proveedor.
         </p>
       </SeccionLegal>
 
-      <SeccionLegal titulo="6. Tus derechos">
+      <SeccionLegal titulo="6. Cuánto tiempo los conservamos">
         <p>
-          Conforme a la Ley 25.326 de Protección de Datos Personales, podés solicitar el acceso,
-          rectificación o eliminación de tus datos en cualquier momento escribiéndonos por los canales
-          de contacto del sitio. La Agencia de Acceso a la Información Pública, órgano de control de la
+          Conservamos tus datos mientras tengan una finalidad vinculada al servicio (por ejemplo,
+          mientras tu cuenta esté activa, o mientras una consulta pueda requerir seguimiento) y,
+          después, por el plazo que exijan las obligaciones legales aplicables. Podés pedirnos la
+          eliminación antes de ese plazo salvo que exista una obligación legal de conservarlos.
+        </p>
+      </SeccionLegal>
+
+      <SeccionLegal titulo="7. Tus derechos">
+        <p>
+          Conforme a la Ley 25.326 de Protección de Datos Personales, tenés derecho de acceso,
+          rectificación, actualización y supresión de tus datos personales (derechos ARCO). Para
+          ejercerlos, escribinos a{" "}
+          <a href="mailto:inmolibres@gmail.com" style={{ color: "var(--terracota-600, #A85737)", fontWeight: 600 }}>
+            inmolibres@gmail.com
+          </a>. La Agencia de Acceso a la Información Pública (AAIP), órgano de control de la
           Ley 25.326, tiene la atribución de atender denuncias y reclamos sobre incumplimiento de las
           normas de protección de datos personales.
         </p>
       </SeccionLegal>
 
-      <SeccionLegal titulo="7. Cambios a esta política">
+      <SeccionLegal titulo="8. Cambios a esta política">
         <p>
           Podemos actualizar esta política. Los cambios se publican en esta misma página con la fecha
           de última actualización.

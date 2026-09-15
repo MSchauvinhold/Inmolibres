@@ -33,7 +33,7 @@ export async function PUT(
   });
   if (!existente) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
-  const body = await req.json() as {
+  let body: {
     agenteId: string;
     tipo: TipoOperacionFinanciera;
     precioOperacion: number;
@@ -49,32 +49,46 @@ export async function PUT(
     notas?: string;
     fechaCierre?: string;
   };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
+
+  if (body.fechaCierre && isNaN(new Date(body.fechaCierre).getTime())) {
+    return NextResponse.json({ error: "Fecha de cierre inválida" }, { status: 400 });
+  }
 
   const notaEdicion = `[Editado manualmente el ${new Date().toLocaleDateString("es-AR")}]`;
   const notasBase = (body.notas ?? existente.notas ?? "").replace(/^\[Editado manualmente[^\]]*\]\s*/, "");
 
-  const op = await db.operacionCerrada.update({
-    where: { id },
-    data: {
-      agenteId: body.agenteId,
-      tipo: body.tipo,
-      precioOperacion: body.precioOperacion,
-      moneda: body.moneda,
-      comisionVendedorPct: body.comisionVendedorPct,
-      comisionCompradorPct: body.comisionCompradorPct,
-      comisionTotal: body.comisionTotal,
-      comisionInmob: body.comisionInmob,
-      comisionAgente: body.comisionAgente,
-      ivaComision: body.ivaComision ?? 0,
-      gastos: body.gastos ?? 0,
-      descripcionGastos: body.descripcionGastos,
-      notas: `${notaEdicion} ${notasBase}`.trim(),
-      fechaCierre: body.fechaCierre ? new Date(body.fechaCierre) : undefined,
-    },
-    include: { agente: { select: { id: true, nombre: true } } },
-  });
+  try {
+    const op = await db.operacionCerrada.update({
+      where: { id },
+      data: {
+        agenteId: body.agenteId,
+        tipo: body.tipo,
+        precioOperacion: body.precioOperacion,
+        moneda: body.moneda,
+        comisionVendedorPct: body.comisionVendedorPct,
+        comisionCompradorPct: body.comisionCompradorPct,
+        comisionTotal: body.comisionTotal,
+        comisionInmob: body.comisionInmob,
+        comisionAgente: body.comisionAgente,
+        ivaComision: body.ivaComision ?? 0,
+        gastos: body.gastos ?? 0,
+        descripcionGastos: body.descripcionGastos,
+        notas: `${notaEdicion} ${notasBase}`.trim(),
+        fechaCierre: body.fechaCierre ? new Date(body.fechaCierre) : undefined,
+      },
+      include: { agente: { select: { id: true, nombre: true } } },
+    });
 
-  return NextResponse.json({ data: serializeOperacion(op) });
+    return NextResponse.json({ data: serializeOperacion(op) });
+  } catch (e) {
+    console.error("[PUT /api/finanzas/operaciones/[id]]", e);
+    return NextResponse.json({ error: "Error al actualizar la operación" }, { status: 500 });
+  }
 }
 
 export async function DELETE(
@@ -92,7 +106,11 @@ export async function DELETE(
   });
   if (!existente) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
-  await db.operacionCerrada.delete({ where: { id } });
-
-  return NextResponse.json({ ok: true });
+  try {
+    await db.operacionCerrada.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[DELETE /api/finanzas/operaciones/[id]]", e);
+    return NextResponse.json({ error: "Error al eliminar la operación" }, { status: 500 });
+  }
 }

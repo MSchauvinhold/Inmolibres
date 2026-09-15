@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Logo } from "@/components/crm/Logo";
-import { WA_INMOBILIARIA, WA_PARTICULAR } from "@/lib/contacto";
 
 const FOOTER_COLS = [
   {
@@ -16,11 +15,11 @@ const FOOTER_COLS = [
     title: "Sumate",
     links: [
       {
-        href: WA_INMOBILIARIA,
-        label: "¿Querés trabajar con nosotros?",
+        href: "/inmobiliarias",
+        label: "¿Tenés una inmobiliaria?",
       },
       {
-        href: WA_PARTICULAR,
+        href: "/publicar",
         label: "¿Querés publicar tus propiedades?",
       },
       { href: "/preguntas-frecuentes", label: "Preguntas frecuentes" },

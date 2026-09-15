@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { consultaPublicaSchema } from "@/lib/validations/rental";
 import { notifyInmobiliaria, NotifMessages } from "@/lib/notifications";
 import { buildPaginationMeta } from "@/lib/utils";
+import { isRateLimited, getClientIp } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
   // /api/consultas is marked public in proxy.ts, so headers won't be injected.
@@ -60,6 +61,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   // Public endpoint — no auth required
+  if (isRateLimited(`consultas:${getClientIp(request)}`, { limit: 5, windowMs: 10 * 60 * 1000 })) {
+    return NextResponse.json(
+      { error: "Demasiadas consultas enviadas. Probá de nuevo en unos minutos." },
+      { status: 429 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

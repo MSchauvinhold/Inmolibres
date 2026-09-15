@@ -234,14 +234,14 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
     setLoadingCotiz(true);
     try {
       const res = await fetch("/api/divisas");
-      if (!res.ok) throw new Error();
-      const json = await res.json();
+      const json = await res.json() as unknown[] & { error?: string };
+      if (!res.ok) throw new Error((json as { error?: string }).error ?? "No se pudo obtener la cotización del dólar");
       if (Array.isArray(json)) {
         setCotizaciones(json as DivisaData[]);
         setCotizTs(new Date());
       }
-    } catch {
-      toast.error("No se pudo obtener la cotización del dólar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo obtener la cotización del dólar");
     } finally {
       setLoadingCotiz(false);
     }
@@ -1363,10 +1363,11 @@ function DeleteEgresoButton({ id, onDelete }: { id: string; onDelete: () => void
     setLoading(true);
     try {
       const res = await fetch(`/api/finanzas/egresos/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al eliminar");
       onDelete();
-    } catch {
-      toast.error("Error al eliminar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
     } finally {
       setLoading(false);
     }

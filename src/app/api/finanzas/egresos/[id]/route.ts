@@ -17,7 +17,11 @@ export async function DELETE(
   });
   if (!egreso) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
-  await db.egresoInmobiliaria.delete({ where: { id } });
-
-  return NextResponse.json({ ok: true });
+  try {
+    await db.egresoInmobiliaria.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[DELETE /api/finanzas/egresos/[id]]", e);
+    return NextResponse.json({ error: "Error al eliminar el egreso" }, { status: 500 });
+  }
 }

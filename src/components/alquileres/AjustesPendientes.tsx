@@ -44,12 +44,13 @@ export function AjustesPendientes({ inmobiliariaNombre }: { inmobiliariaNombre: 
     setBusyId(id);
     try {
       const res = await fetch(`/api/alquileres/ajustes/${id}`, { method: "PUT" });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al aplicar el ajuste");
       toast.success("Ajuste aplicado — nuevo precio actualizado en el contrato");
       setAjustes((prev) => prev.filter((a) => a.id !== id));
       router.refresh();
-    } catch {
-      toast.error("Error al aplicar el ajuste");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al aplicar el ajuste");
     } finally {
       setBusyId(null);
     }
@@ -60,11 +61,12 @@ export function AjustesPendientes({ inmobiliariaNombre }: { inmobiliariaNombre: 
     setBusyId(id);
     try {
       const res = await fetch(`/api/alquileres/ajustes/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al descartar");
       toast.success("Ajuste descartado");
       setAjustes((prev) => prev.filter((a) => a.id !== id));
-    } catch {
-      toast.error("Error al descartar");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al descartar");
     } finally {
       setBusyId(null);
     }

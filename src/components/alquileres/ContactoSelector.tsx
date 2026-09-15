@@ -163,13 +163,13 @@ export function ContactoSelector({ label, required, selected, color = "#1B4332",
           estadoCivil: form.estadoCivil || null,
         }),
       });
-      if (!res.ok) throw new Error();
-      const json = await res.json() as { data: ContactoMinimal };
+      const json = await res.json() as { data: ContactoMinimal; error?: string };
+      if (!res.ok) throw new Error(json.error ?? "Error al crear el contacto");
       toast.success(`Contacto "${form.nombre}" creado`);
       handleSelect(json.data);
       setForm({ nombre: "", dni: "", telefono: "", domicilio: "", estadoCivil: "soltero" });
-    } catch {
-      toast.error("Error al crear el contacto");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al crear el contacto");
     } finally {
       setSaving(false);
     }

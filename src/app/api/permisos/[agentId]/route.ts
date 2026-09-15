@@ -33,7 +33,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ agentId:
   });
   if (!agente) return NextResponse.json({ error: "Agente no encontrado" }, { status: 404 });
 
-  const body = await req.json() as Record<string, boolean>;
+  let body: Record<string, boolean>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
 
   const allowed = [
     "verPropiedades", "editarPropiedades", "verClientes", "editarClientes",
@@ -45,11 +50,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ agentId:
     if (key in body && typeof body[key] === "boolean") data[key] = body[key];
   }
 
-  const permisos = await db.permisosAgente.upsert({
-    where: { usuarioId: agentId },
-    create: { usuarioId: agentId, ...data },
-    update: data,
-  });
+  try {
+    const permisos = await db.permisosAgente.upsert({
+      where: { usuarioId: agentId },
+      create: { usuarioId: agentId, ...data },
+      update: data,
+    });
 
-  return NextResponse.json({ data: permisos });
+    return NextResponse.json({ data: permisos });
+  } catch (e) {
+    console.error("[PUT /api/permisos/[agentId]]", e);
+    return NextResponse.json({ error: "Error al guardar los permisos" }, { status: 500 });
+  }
 }

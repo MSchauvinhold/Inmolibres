@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { isRateLimited, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  if (isRateLimited(`reset-password:${getClientIp(request)}`, { limit: 10, windowMs: 15 * 60 * 1000 })) {
+    return NextResponse.json(
+      { error: "Demasiados intentos. Intentá de nuevo en 15 minutos." },
+      { status: 429 }
+    );
+  }
+
   let body: { token?: string; uid?: string; nueva?: string; confirmar?: string };
   try {
     body = await request.json();
@@ -58,17 +66,22 @@ export async function POST(request: NextRequest) {
 
   const nuevoHash = await bcrypt.hash(nueva, 12);
 
-  // Actualizar contraseña e invalidar token en una transacción
-  await db.$transaction([
-    db.usuario.update({
-      where: { id: uid },
-      data: { passwordHash: nuevoHash },
-    }),
-    db.passwordResetToken.update({
-      where: { id: tokenValido.id },
-      data: { used: true },
-    }),
-  ]);
+  try {
+    // Actualizar contraseña e invalidar token en una transacción
+    await db.$transaction([
+      db.usuario.update({
+        where: { id: uid },
+        data: { passwordHash: nuevoHash },
+      }),
+      db.passwordResetToken.update({
+        where: { id: tokenValido.id },
+        data: { used: true },
+      }),
+    ]);
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[POST /api/auth/reset-password]", e);
+    return NextResponse.json({ error: "Error al actualizar la contraseña" }, { status: 500 });
+  }
 }
