@@ -1821,8 +1821,10 @@ function ContratoDetalleModal({
                         { p: 0,   l: "Inicio", d: fmtFecha(contrato.fechaInicio), done: true },
                         { p: 100, l: "Fin",    d: fmtFecha(contrato.fechaFin),    done: dias < 0 },
                       ];
-                      // Mostrar "Hoy" solo si está suficientemente lejos de Inicio (>5%) y de Fin (<95%)
-                      if (pct > 5 && pct < 95) {
+                      // Mostrar "Hoy" solo si está suficientemente lejos de Inicio y de Fin como para
+                      // que su label (centrado, ~60px) no se superponga con el de Inicio/Fin — con
+                      // el ancho típico de esta tarjeta, por debajo de ~18% se pisaban los textos.
+                      if (pct > 18 && pct < 82) {
                         base.splice(1, 0, { p: pct, l: "Hoy", d: hoyLabel, current: true });
                       }
                       return base;
