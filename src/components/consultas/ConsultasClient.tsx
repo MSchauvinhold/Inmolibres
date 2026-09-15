@@ -181,8 +181,8 @@ export function ConsultasClient({ consultas: initial }: Props) {
         <DialogContent className="light-portal max-w-md w-full p-0 overflow-hidden">
           {selected && (
             <>
-              {/* Header con avatar */}
-              <div className="flex items-start gap-4 p-5 pb-4 border-b border-border">
+              {/* Header con avatar (pr-10 para no pisar la X de cerrar del Dialog, que es absolute) */}
+              <div className="flex items-start gap-4 p-5 pr-10 pb-4 border-b border-border">
                 <div className="w-12 h-12 rounded-full bg-[#8B4513]/10 flex items-center justify-center shrink-0 text-lg font-bold text-[#8B4513]">
                   {selected.nombreVisitante[0]?.toUpperCase()}
                 </div>
