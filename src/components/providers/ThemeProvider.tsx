@@ -1,6 +1,19 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect } from "react";
+
+// ─── Modo oscuro: desactivado a propósito (2026-09-17) ───────────────────────
+// El tema oscuro quedó a medias y hoy rompe la legibilidad: la clase `.dark`
+// oscurece las superficies basadas en tokens (`.card` → var(--surface)), pero
+// ~87 fondos siguen siendo blancos fijos en el código (incluido `.il-card`), y
+// la escala antracita es tinta oscura en ambos modos. Resultado: según la
+// pantalla, terminaba texto oscuro sobre fondo oscuro o claro sobre blanco.
+// Tampoco hay ningún interruptor en la UI (nadie llama a setTheme).
+//
+// Hasta rediseñarlo, la app fuerza el tema claro y limpia cualquier "dark" que
+// haya quedado guardado en el navegador. Para retomarlo: reponer la lectura de
+// localStorage acá y en ThemeScript, y recién ahí encarar los fondos fijos.
+// El bloque `.dark` de globals.css se deja como está, sin aplicarse.
 
 type Theme = "light" | "dark";
 
@@ -18,45 +31,26 @@ const ThemeContext = createContext<ThemeContextValue>({
 
 export function ThemeProvider({
   children,
-  defaultTheme = "light",
   storageKey = "theme",
 }: {
   children: React.ReactNode;
   defaultTheme?: Theme;
   storageKey?: string;
 }) {
-  const [theme, setThemeState] = useState<Theme>(defaultTheme);
-
   useEffect(() => {
-    let stored: Theme | null = null;
+    const root = document.documentElement;
+    root.classList.remove("dark");
+    if (!root.classList.contains("light")) root.classList.add("light");
     try {
-      stored = localStorage.getItem(storageKey) as Theme | null;
+      if (localStorage.getItem(storageKey) === "dark") localStorage.removeItem(storageKey);
     } catch {}
-    const resolved =
-      stored === "dark" || stored === "light" ? stored : defaultTheme;
-    applyTheme(resolved);
-    queueMicrotask(() => setThemeState(resolved));
-  }, [defaultTheme, storageKey]);
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-    try {
-      localStorage.setItem(storageKey, newTheme);
-    } catch {}
-    applyTheme(newTheme);
-  };
+  }, [storageKey]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme: theme }}>
+    <ThemeContext.Provider value={{ theme: "light", setTheme: () => {}, resolvedTheme: "light" }}>
       {children}
     </ThemeContext.Provider>
   );
-}
-
-function applyTheme(theme: Theme) {
-  const root = document.documentElement;
-  root.classList.remove("light", "dark");
-  root.classList.add(theme);
 }
 
 export const useTheme = () => useContext(ThemeContext);
