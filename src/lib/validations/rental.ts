@@ -35,6 +35,9 @@ export const contratoSchema = z.object({
   ajusteDia:    z.number().int().min(1).max(28).optional().default(14),
   // Si es false, no se genera la operación de comisión en Finanzas al crear el contrato
   registrarEnFinanzas: z.boolean().optional().default(true),
+  // Estado a dejar en la propiedad: el wizard sugiere ALQUILADA pero el agente decide;
+  // null = no tocar el estado. Sin el campo (clientes viejos) se mantiene ALQUILADA.
+  estadoPropiedad: z.enum(["RESERVADA", "ALQUILADA", "VENDIDA"]).nullable().optional().default("ALQUILADA"),
 }).refine(
   (data) => new Date(data.fechaFin) > new Date(data.fechaInicio),
   {

@@ -344,6 +344,7 @@ export default async function MarketplaceHome({
                   precio={Number(p.precio)}
                   moneda={p.moneda}
                   direccion={p.direccion}
+                  estado={p.estado}
                   fotos={p.fotos}
                   atributos={
                     p.atributos

@@ -45,7 +45,21 @@ interface Props {
 
 const COLORS = ["#C1694F", "#2D4A6B", "#C9A55C", "#4A7C59", "#8C3D27", "#6F665C"];
 
-function KPI({ icon: Icon, label, value, sub }: { icon: React.ElementType; label: string; value: string; sub?: string }) {
+type PorMoneda = Record<Moneda, number>;
+
+/**
+ * Montos de distintas monedas nunca se suman ni se elige uno: se muestran por separado
+ * (USD primero), igual que "Volumen operado". Antes la comisión mostraba solo USD si
+ * había alguno y descartaba lo cobrado en pesos.
+ */
+function partesPorMoneda(m: PorMoneda): string[] {
+  const partes: string[] = [];
+  if (m.USD > 0) partes.push(formatMonto(m.USD, "USD"));
+  if (m.ARS > 0) partes.push(formatMonto(m.ARS, "ARS"));
+  return partes.length > 0 ? partes : [formatMonto(0, "ARS")];
+}
+
+function KPI({ icon: Icon, label, value, sub }: { icon: React.ElementType; label: string; value: string | string[]; sub?: string }) {
   return (
     <div className="il-card p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between">
@@ -60,9 +74,12 @@ function KPI({ icon: Icon, label, value, sub }: { icon: React.ElementType; label
         </span>
       </div>
       <div>
-        <p style={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: 22, fontWeight: 600, color: "var(--antracita-900)", lineHeight: 1 }}>
-          {value}
-        </p>
+        {/* Varios valores (uno por moneda) van en líneas separadas: en una sola no entran en la card */}
+        {(Array.isArray(value) ? value : [value]).map((v, i) => (
+          <p key={i} style={{ fontFamily: "var(--font-jetbrains-mono), monospace", fontSize: 22, fontWeight: 600, color: "var(--antracita-900)", lineHeight: 1, marginTop: i > 0 ? 6 : 0 }}>
+            {v}
+          </p>
+        ))}
         <p style={{ fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--antracita-300)", marginTop: 6, fontFamily: "var(--font-jetbrains-mono), monospace" }}>
           {label}
         </p>
@@ -125,14 +142,14 @@ export function ReportesDashboard({
 
   // Comisión total por moneda
   const comisionPorMoneda = useMemo(() => {
-    const acc = { ARS: 0, USD: 0 };
+    const acc: PorMoneda = { ARS: 0, USD: 0 };
     for (const o of operacionesFiltradas) acc[o.moneda] += o.comisionInmob;
     return acc;
   }, [operacionesFiltradas]);
 
   // Volumen operado por moneda
   const volumenPorMoneda = useMemo(() => {
-    const acc = { ARS: 0, USD: 0 };
+    const acc: PorMoneda = { ARS: 0, USD: 0 };
     for (const o of operacionesFiltradas) acc[o.moneda] += o.precioOperacion;
     return acc;
   }, [operacionesFiltradas]);
@@ -153,13 +170,12 @@ export function ReportesDashboard({
 
   // Ranking de agentes por comisión generada
   const rankingAgentes = useMemo(() => {
-    const map = new Map<string, { nombre: string; operaciones: number; comisionARS: number; comisionUSD: number }>();
+    const map = new Map<string, { nombre: string; operaciones: number; comision: PorMoneda }>();
     for (const o of operaciones) {
-      if (!map.has(o.agenteId)) map.set(o.agenteId, { nombre: o.agenteNombre, operaciones: 0, comisionARS: 0, comisionUSD: 0 });
+      if (!map.has(o.agenteId)) map.set(o.agenteId, { nombre: o.agenteNombre, operaciones: 0, comision: { ARS: 0, USD: 0 } });
       const row = map.get(o.agenteId)!;
       row.operaciones++;
-      if (o.moneda === "USD") row.comisionUSD += o.comisionAgente;
-      else row.comisionARS += o.comisionAgente;
+      row.comision[o.moneda] += o.comisionAgente;
     }
     return Array.from(map.values()).sort((a, b) => b.operaciones - a.operaciones);
   }, [operaciones]);
@@ -183,7 +199,7 @@ export function ReportesDashboard({
       {
         titulo: "RANKING DE AGENTES",
         columnas: ["Agente", "Operaciones", "Comisión ARS", "Comisión USD"],
-        filas: rankingAgentes.map((a) => [a.nombre, a.operaciones, a.comisionARS, a.comisionUSD]),
+        filas: rankingAgentes.map((a) => [a.nombre, a.operaciones, a.comision.ARS, a.comision.USD]),
       },
       {
         titulo: "PROPIEDADES POR TIPO",
@@ -249,11 +265,7 @@ export function ReportesDashboard({
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KPI icon={TrendingUp} label="Comisión (6m)" value={
-          comisionPorMoneda.USD > 0
-            ? formatMonto(comisionPorMoneda.USD, "USD")
-            : formatMonto(comisionPorMoneda.ARS, "ARS")
-        } sub={`${operacionesFiltradas.length} operaciones cerradas`} />
+        <KPI icon={TrendingUp} label="Comisión (6m)" value={partesPorMoneda(comisionPorMoneda)} sub={`${operacionesFiltradas.length} operaciones cerradas`} />
         <KPI icon={Home} label="Propiedades" value={String(totalPropiedades)} sub="en inventario" />
         <KPI icon={Users} label="Prospectos" value={String(totalClientes)} sub="en el pipeline" />
         <KPI icon={CalendarCheck} label="Visitas" value={String(totalVisitas)} sub="registradas" />
@@ -281,9 +293,7 @@ export function ReportesDashboard({
           <div className="flex gap-4 mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
             <p style={{ fontSize: 12, color: "var(--antracita-500)" }}>
               Volumen operado:{" "}
-              {volumenPorMoneda.USD > 0 && <strong style={{ color: "var(--antracita-900)" }}>{formatMonto(volumenPorMoneda.USD, "USD")}</strong>}
-              {volumenPorMoneda.ARS > 0 && volumenPorMoneda.USD > 0 && " · "}
-              {volumenPorMoneda.ARS > 0 && <strong style={{ color: "var(--antracita-900)" }}>{formatMonto(volumenPorMoneda.ARS, "ARS")}</strong>}
+              <strong style={{ color: "var(--antracita-900)" }}>{partesPorMoneda(volumenPorMoneda).join(" · ")}</strong>
             </p>
           </div>
         )}
@@ -313,7 +323,7 @@ export function ReportesDashboard({
                 <div className="flex items-center gap-4 shrink-0">
                   <span style={{ fontSize: 12, color: "var(--antracita-400)" }}>{a.operaciones} op.</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: "var(--terracota-600)", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
-                    {a.comisionUSD > 0 ? formatMonto(a.comisionUSD, "USD") : formatMonto(a.comisionARS, "ARS")}
+                    {partesPorMoneda(a.comision).join(" · ")}
                   </span>
                 </div>
               </div>

@@ -527,6 +527,7 @@ export default async function BuscarPage({ searchParams }: { searchParams: Promi
                       precio={Number(p.precio)}
                       moneda={p.moneda}
                       direccion={p.direccion}
+                      estado={p.estado}
                       fotos={p.fotos}
                       atributos={p.atributos ? {
                         habitaciones:       p.atributos.habitaciones,

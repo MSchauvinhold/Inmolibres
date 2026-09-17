@@ -8,6 +8,7 @@ import type { PropiedadCard } from "@/types";
 import { PropiedadCardMenu } from "./PropiedadCardMenu";
 import { Pill } from "@/components/ui/pill";
 import { PropertyIllustration } from "@/components/ui/property-illustration";
+import { EstadoRibbon } from "@/components/ui/estado-ribbon";
 
 // Seed por tipo de propiedad → variante de ilustración
 const SEED_MAP: Record<string, number> = {
@@ -21,9 +22,11 @@ interface Props {
   propiedad: PropiedadCard;
   href?: string;
   showActions?: boolean;
+  /** Solo ADMIN o el PARTICULAR dueño pueden borrar (mismo criterio que DELETE /api/propiedades/[id]) */
+  canDelete?: boolean;
 }
 
-export function PropiedadCard({ propiedad, href, showActions }: Props) {
+export function PropiedadCard({ propiedad, href, showActions, canDelete }: Props) {
   const portada = propiedad.fotos?.find((f) => f.esPortada) ?? propiedad.fotos?.[0];
   const seed = SEED_MAP[propiedad.tipo] ?? 0;
   const code = `PR-${propiedad.id.slice(-4).toUpperCase()}`;
@@ -43,7 +46,12 @@ export function PropiedadCard({ propiedad, href, showActions }: Props) {
       {/* Menú ⋯ — fuera del contenedor con overflow:hidden para que el dropdown no se corte */}
       {showActions && (
         <div style={{ position: "absolute", top: 10, right: 10, zIndex: 20 }}>
-          <PropiedadCardMenu propiedadId={propiedad.id} publicada={propiedad.publicada} />
+          <PropiedadCardMenu
+            propiedadId={propiedad.id}
+            titulo={propiedad.titulo}
+            publicada={propiedad.publicada}
+            canDelete={canDelete}
+          />
         </div>
       )}
 
@@ -61,6 +69,8 @@ export function PropiedadCard({ propiedad, href, showActions }: Props) {
           <PropertyIllustration seed={seed} />
         )}
 
+        <EstadoRibbon estado={propiedad.estado} size="sm" />
+
         {/* Badges operación */}
         <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
           <Pill tone={operacionTone} style={{ fontSize: 10 }}>
@@ -76,7 +86,9 @@ export function PropiedadCard({ propiedad, href, showActions }: Props) {
               inset: 0,
               background: "rgba(20,17,14,0.45)",
               display: "flex",
-              alignItems: "center",
+              // Con sello de estado (centrado), el aviso va abajo para no pisarse
+              alignItems: propiedad.estado === "DISPONIBLE" ? "center" : "flex-end",
+              paddingBottom: propiedad.estado === "DISPONIBLE" ? 0 : 10,
               justifyContent: "center",
             }}
           >

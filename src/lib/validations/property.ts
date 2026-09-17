@@ -36,6 +36,10 @@ export const propiedadSchema = z.object({
     .optional()
     .or(z.literal("")),
   publicada: z.boolean().default(true),
+  // Estado comercial, independiente de `publicada`: una propiedad Reservada/Alquilada/
+  // Vendida sigue en el portal (con una etiqueta). Opcional para que quien no lo mande
+  // (ej: formularios sin el selector) no lo pise.
+  estado: z.enum(["DISPONIBLE", "RESERVADA", "ALQUILADA", "VENDIDA"]).optional(),
   // agenteId: null/"" = a nombre de la inmobiliaria. Solo lo usa ADMIN.
   agenteId: z.string().optional().nullable(),
   atributos: z

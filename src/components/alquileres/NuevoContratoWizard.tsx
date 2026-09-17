@@ -4,7 +4,7 @@ import { useReducer, useCallback, useState, useMemo } from "react";
 import { ContactoSelector, type ContactoMinimal } from "./ContactoSelector";
 import { toast } from "sonner";
 import { X, ChevronLeft, ChevronRight, Loader2, FileText, Home, Calendar, Gavel, Check, Printer } from "lucide-react";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, ESTADO_PROPIEDAD_LABELS } from "@/lib/utils";
 import {
   buildContratoAlquilerHtml,
   buildContratoVentaHtml,
@@ -126,7 +126,12 @@ interface AlquilerData {
   tipoFirma: "DIGITAL" | "MANUAL";
   // Si está en false, no se genera la operación de comisión en Finanzas al crear el contrato
   registrarEnFinanzas: boolean;
+  // Estado a dejar en la propiedad al guardar ("" = no cambiarlo). Sugerido: Alquilada
+  estadoPropiedad: EstadoPropiedadSugerido;
 }
+
+// "" = no tocar el estado de la propiedad
+type EstadoPropiedadSugerido = "RESERVADA" | "ALQUILADA" | "VENDIDA" | "";
 
 export interface CompraventaData {
   tipoFirma: "DIGITAL" | "MANUAL";
@@ -160,6 +165,8 @@ export interface CompraventaData {
   clausulas: string;
   // Si está en false, no se genera la operación de comisión en Finanzas al crear el contrato
   registrarEnFinanzas: boolean;
+  // Estado a dejar en la propiedad elegida ("" = no cambiarlo). Sugerido: Reservada
+  estadoPropiedad: EstadoPropiedadSugerido;
 }
 
 interface WizardState {
@@ -252,6 +259,7 @@ function mkAlqInit(cfg: WizardConfig | null): AlquilerData {
     ajusteDia: 14,
     tipoFirma: "MANUAL" as const,
     registrarEnFinanzas: true,
+    estadoPropiedad: "ALQUILADA",
   };
 }
 
@@ -285,6 +293,7 @@ function mkCvInit(cfg: WizardConfig | null): CompraventaData {
     fechaEscritura: "",
     clausulas: clausulasCvConLugar(cfg),
     registrarEnFinanzas: true,
+    estadoPropiedad: "RESERVADA",
   };
 }
 
@@ -467,6 +476,28 @@ function Step0({ onSelect }: { onSelect: (t: Tipo) => void }) {
   );
 }
 
+// ─── Estado de la propiedad (sugerido, no forzado) ───────────────────────────
+
+function EstadoPropiedadField({
+  value, opciones, onChange,
+}: {
+  value: EstadoPropiedadSugerido;
+  opciones: Exclude<EstadoPropiedadSugerido, "">[];
+  onChange: (v: EstadoPropiedadSugerido) => void;
+}) {
+  return (
+    <Field label="Estado de la propiedad al guardar">
+      <select className={inp} style={inpStyle} value={value} onChange={(e) => onChange(e.target.value as EstadoPropiedadSugerido)}>
+        {opciones.map((o) => <option key={o} value={o}>{ESTADO_PROPIEDAD_LABELS[o]}</option>)}
+        <option value="">No cambiar el estado</option>
+      </select>
+      <p style={{ fontSize: 11, color: "var(--antracita-400)", marginTop: 4 }}>
+        Solo agrega la etiqueta en el portal: la propiedad sigue publicada. Se puede cambiar después desde su ficha.
+      </p>
+    </Field>
+  );
+}
+
 // ─── Alquiler steps ──────────────────────────────────────────────────────────
 
 function AlqStep1({
@@ -489,6 +520,11 @@ function AlqStep1({
           ))}
         </select>
       </Field>
+      <EstadoPropiedadField
+        value={data.estadoPropiedad}
+        opciones={["ALQUILADA", "RESERVADA"]}
+        onChange={(estadoPropiedad) => onChange({ estadoPropiedad })}
+      />
     </div>
   );
 }
@@ -869,6 +905,14 @@ function CvStep1({
           ))}
         </select>
       </Field>
+
+      {data.propiedadId && (
+        <EstadoPropiedadField
+          value={data.estadoPropiedad}
+          opciones={["RESERVADA", "VENDIDA"]}
+          onChange={(estadoPropiedad) => onChange({ estadoPropiedad })}
+        />
+      )}
 
       <Field label="Dirección *" error={errs.propiedadDireccion}>
         <input className={inp} style={inpStyle} value={data.propiedadDireccion} onChange={(e) => onChange({ propiedadDireccion: e.target.value })} placeholder="Calle 123" />
@@ -1598,6 +1642,7 @@ export function NuevoContratoWizard({
           inquilinoContactoId: alquiler.inquilinoContactoId ?? null,
           garanteContactoId:   alquiler.garanteContactoId ?? null,
           registrarEnFinanzas: alquiler.registrarEnFinanzas,
+          estadoPropiedad:     alquiler.estadoPropiedad || null,
         }),
       });
       const json = await res.json() as { data?: Record<string, unknown>; error?: string };
@@ -1662,6 +1707,8 @@ export function NuevoContratoWizard({
           fechaEscritura:       compraventa.fechaEscritura || undefined,
           clausulas:            compraventa.clausulas || undefined,
           registrarEnFinanzas:  compraventa.registrarEnFinanzas,
+          propiedadId:          compraventa.propiedadId || null,
+          estadoPropiedad:      compraventa.estadoPropiedad || null,
         }),
       });
       const json = await res.json() as { data?: ContratoVentaCreado; error?: string };

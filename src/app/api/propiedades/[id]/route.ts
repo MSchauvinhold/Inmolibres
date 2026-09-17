@@ -164,7 +164,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const existing = await db.propiedad.findUnique({
       where: { id },
-      select: { inmobiliariaId: true, agenteId: true },
+      select: { inmobiliariaId: true, agenteId: true, _count: { select: { contratos: true } } },
     });
 
     if (!existing) {
@@ -179,10 +179,28 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       assertSameTenant(existing.inmobiliariaId ?? "", inmobiliariaId, rol);
     }
 
+    // Antes se borraban los contratos de alquiler junto con la propiedad (y con ellos,
+    // en cascada, su historial de pagos y ajustes). Un contrato es un registro legal y
+    // financiero: no se elimina como efecto colateral. Tiene que quitarse a propósito
+    // desde Contratos (que además limpia la operación de Finanzas asociada).
+    const nContratos = existing._count.contratos;
+    if (nContratos > 0) {
+      return NextResponse.json(
+        {
+          error: `No se puede eliminar: la propiedad tiene ${nContratos} contrato${nContratos > 1 ? "s" : ""} de alquiler. Eliminalo${nContratos > 1 ? "s" : ""} primero desde Contratos.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    // Fotos, atributos e interesados se borran por cascada (FK). Tasaciones, egresos y
+    // consultas quedan con propiedad_id en null (FK ON DELETE SET NULL): las consultas son
+    // historial real de clientes y siguen visibles en Mensajes como "(sin propiedad)".
+    // Excepción PARTICULAR: sus consultas se listan por propiedad (no tienen inmobiliaria),
+    // así que sin propiedad quedarían inaccesibles → se borran.
     await db.$transaction([
       db.visita.deleteMany({ where: { propiedadId: id } }),
-      db.contratoAlquiler.deleteMany({ where: { propiedadId: id } }),
-      db.consulta.deleteMany({ where: { propiedadId: id } }),
+      ...(isParticular ? [db.consulta.deleteMany({ where: { propiedadId: id } })] : []),
       db.propiedad.delete({ where: { id } }),
     ]);
 

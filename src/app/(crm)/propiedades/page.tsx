@@ -338,6 +338,7 @@ export default async function PropiedadesPage({
               propiedad={p as unknown as import("@/types").PropiedadCard}
               href={`/propiedades/${p.id}/editar`}
               showActions
+              canDelete={isParticular || session.user.rol === "ADMIN"}
             />
           ))}
         </div>

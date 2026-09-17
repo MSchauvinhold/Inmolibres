@@ -31,6 +31,10 @@ const createSchema = z.object({
   tipoFirma:            z.enum(["DIGITAL", "MANUAL"]).optional().default("MANUAL"),
   // Si es false, no se genera la operación de comisión en Finanzas al crear la venta
   registrarEnFinanzas:  z.boolean().optional().default(true),
+  // Propiedad del sistema elegida en el wizard (opcional) y estado a dejarle: el wizard
+  // sugiere RESERVADA pero el agente decide; null/ausente = no tocar el estado.
+  propiedadId:          z.string().optional().nullable(),
+  estadoPropiedad:      z.enum(["RESERVADA", "ALQUILADA", "VENDIDA"]).optional().nullable(),
 });
 
 export async function GET() {
@@ -72,16 +76,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { fechaEscritura, sena, registrarEnFinanzas, ...rest } = parsed.data;
+  const { fechaEscritura, sena, registrarEnFinanzas, propiedadId, estadoPropiedad, ...rest } = parsed.data;
 
   try {
-    const venta = await db.contratoVenta.create({
-      data: {
-        ...rest,
-        inmobiliariaId,
-        sena: sena ?? null,
-        fechaEscritura: fechaEscritura ? new Date(fechaEscritura) : null,
-      },
+    if (propiedadId) {
+      const propiedad = await db.propiedad.findUnique({ where: { id: propiedadId }, select: { inmobiliariaId: true } });
+      if (!propiedad || propiedad.inmobiliariaId !== inmobiliariaId) {
+        return NextResponse.json({ error: "Propiedad no válida para esta inmobiliaria" }, { status: 400 });
+      }
+    }
+
+    const venta = await db.$transaction(async (tx) => {
+      const created = await tx.contratoVenta.create({
+        data: {
+          ...rest,
+          inmobiliariaId,
+          propiedadId: propiedadId || null,
+          sena: sena ?? null,
+          fechaEscritura: fechaEscritura ? new Date(fechaEscritura) : null,
+        },
+      });
+      // No toca `publicada`: una propiedad reservada/vendida sigue en el portal con etiqueta
+      if (propiedadId && estadoPropiedad) {
+        await tx.propiedad.update({ where: { id: propiedadId }, data: { estado: estadoPropiedad } });
+      }
+      return created;
     });
 
     // Generar la operación financiera automáticamente (no bloquea si falla) —

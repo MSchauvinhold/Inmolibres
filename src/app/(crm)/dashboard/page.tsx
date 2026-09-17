@@ -149,8 +149,12 @@ export default async function DashboardPage() {
   const hoyARStart = new Date(Date.UTC(arY, arM, arD) + AR_MS);
   const hoyAREnd   = new Date(hoyARStart.getTime() + 86_400_000);
 
-  const inicioSemana = new Date(hoy);
-  inicioSemana.setDate(hoy.getDate() - 7);
+  // Semana calendario argentina (lunes 00:00 → lunes siguiente) para "Visitas esta semana".
+  // Antes contaba visitas *cargadas* en los últimos 7 días (createdAt): marcar una como
+  // realizada no cambiaba nada y el número no respondía a "qué visitas hay esta semana".
+  const diasDesdeLunes = (new Date(Date.UTC(arY, arM, arD)).getUTCDay() + 6) % 7;
+  const semanaARStart = new Date(hoyARStart.getTime() - diasDesdeLunes * 86_400_000);
+  const semanaAREnd   = new Date(semanaARStart.getTime() + 7 * 86_400_000);
   const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
   const en30dias = new Date(hoy);
   en30dias.setDate(hoy.getDate() + 30);
@@ -163,7 +167,7 @@ export default async function DashboardPage() {
     totalPropiedades,
     propiedadesDisponibles,
     totalClientes,
-    visitasSemana,
+    visitasSemanaPorEstado,
     contratosActivos,
     contratosAtrasados,
     consultasNoLeidas,
@@ -177,7 +181,11 @@ export default async function DashboardPage() {
     db.propiedad.count({ where: { inmobiliariaId } }),
     db.propiedad.count({ where: { inmobiliariaId, estado: "DISPONIBLE", publicada: true } }),
     db.cliente.count({ where: { inmobiliariaId } }),
-    db.visita.count({ where: { inmobiliariaId, createdAt: { gte: inicioSemana } } }),
+    db.visita.groupBy({
+      by: ["estado"],
+      where: { inmobiliariaId, fechaHora: { gte: semanaARStart, lt: semanaAREnd }, estado: { not: "CANCELADA" } },
+      _count: { _all: true },
+    }),
     db.contratoAlquiler.count({ where: { inmobiliariaId, fechaFin: { gte: hoy } } }),
     db.contratoAlquiler.count({ where: { inmobiliariaId, fechaFin: { gte: hoy }, estadoPago: "ATRASADO" } }),
     db.consulta.count({ where: { inmobiliariaId, leida: false } }),
@@ -237,6 +245,9 @@ export default async function DashboardPage() {
       })
     ),
   ]);
+
+  const visitasSemana = visitasSemanaPorEstado.reduce((s, g) => s + g._count._all, 0);
+  const visitasSemanaPendientes = visitasSemanaPorEstado.find((g) => g.estado === "PENDIENTE")?._count._all ?? 0;
 
   const pendientes = consultasNoLeidas + contratosAtrasados;
 
@@ -314,7 +325,7 @@ export default async function DashboardPage() {
       <div style={{ gap: 12 }} className="grid grid-cols-2 sm:grid-cols-3 lg:[grid-template-columns:repeat(6,1fr)]">
         <KPICard label="Propiedades activas" value={totalPropiedades} sub={`${propiedadesDisponibles} disponibles`} icon={Building2} iconColor="var(--antracita-700)" iconBg="var(--crema-100)" href="/propiedades" />
         <KPICard label="Pipeline · clientes" value={totalClientes} sub="en el sistema" icon={Users} iconColor="var(--il-accent)" iconBg="var(--il-accent-soft)" href="/clientes" />
-        <KPICard label="Visitas esta semana" value={visitasSemana} sub="agendadas" icon={Clock} iconColor="var(--antracita-700)" iconBg="var(--crema-100)" href="/visitas" />
+        <KPICard label="Visitas esta semana" value={visitasSemana} sub={visitasSemana === 0 ? "sin visitas" : `${visitasSemanaPendientes} pendiente${visitasSemanaPendientes !== 1 ? "s" : ""}`} icon={Clock} iconColor="var(--antracita-700)" iconBg="var(--crema-100)" href="/visitas" />
         <KPICard label="Alquileres activos" value={contratosActivos} sub={contratosAtrasados > 0 ? `${contratosAtrasados} atrasados` : "todos al día"} icon={FileText} iconColor="var(--success-500)" iconBg="var(--success-100)" href="/alquileres" />
         <KPICard label="Operaciones · mes" value={operacionesMes} sub={`desde el 1° de ${formatDate(hoy, { month: "long" })}`} icon={BarChart2} iconColor="var(--antracita-700)" iconBg="var(--crema-100)" href="/finanzas" />
         <KPICard label="Consultas sin leer" value={consultasNoLeidas} sub="del marketplace" icon={MessageSquare} iconColor="var(--terracota-500)" iconBg="var(--terracota-100)" href="/consultas" highlight mono />

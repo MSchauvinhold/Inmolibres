@@ -8,6 +8,7 @@ import {
   formatPrice,
   TIPO_PROPIEDAD_LABELS,
   TIPO_OPERACION_LABELS,
+  ESTADO_PROPIEDAD_LABELS,
   buildWhatsAppLink,
 } from "@/lib/utils";
 import { ConsultaForm } from "@/components/marketplace/ConsultaForm";
@@ -159,6 +160,7 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
     precio: Number(p.precio),
     moneda: p.moneda,
     direccion: p.direccion,
+    estado: p.estado,
     fotos: p.fotos.map((f) => ({ urlCloudinary: f.urlCloudinary, esPortada: f.esPortada })),
     atributos: p.atributos
       ? {
@@ -266,7 +268,7 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
         <div className="min-w-0 space-y-8">
 
           {/* Galería */}
-          {fotos.length > 0 && <PropiedadGallery fotos={fotos} />}
+          {fotos.length > 0 && <PropiedadGallery fotos={fotos} estado={propiedad.estado} />}
 
           {/* Título + precio */}
           <div>
@@ -275,8 +277,9 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
                 {TIPO_OPERACION_LABELS[propiedad.operacion]}
               </Pill>
               <Pill tone="outline">{TIPO_PROPIEDAD_LABELS[propiedad.tipo]}</Pill>
-              <Pill tone="success">
-                {propiedad.estado === "DISPONIBLE" ? "Disponible" : propiedad.estado === "RESERVADA" ? "Reservada" : "Alquilada"}
+              {/* Antes: VENDIDA caía en el último caso del ternario y mostraba "Alquilada", en verde */}
+              <Pill tone={propiedad.estado === "DISPONIBLE" ? "success" : "neutral"}>
+                {ESTADO_PROPIEDAD_LABELS[propiedad.estado]}
               </Pill>
             </div>
 
@@ -623,6 +626,7 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
                 precio={p.precio}
                 moneda={p.moneda}
                 direccion={p.direccion}
+                estado={p.estado}
                 fotos={p.fotos}
                 atributos={p.atributos}
                 inmobiliaria={p.inmobiliaria}

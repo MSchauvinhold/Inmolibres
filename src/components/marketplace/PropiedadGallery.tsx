@@ -5,6 +5,8 @@ import Image from "next/image";
 import { Dialog } from "radix-ui";
 import { ChevronLeft, ChevronRight, Eye, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import type { EstadoPropiedad } from "@prisma/client";
+import { EstadoRibbon } from "@/components/ui/estado-ribbon";
 
 interface FotoItem {
   id: string;
@@ -20,7 +22,7 @@ const slideVariants = {
   exitRight:  { opacity: 0, x: 50 },
 };
 
-export function PropiedadGallery({ fotos }: { fotos: FotoItem[] }) {
+export function PropiedadGallery({ fotos, estado }: { fotos: FotoItem[]; estado: EstadoPropiedad }) {
   /* ── Estado compartido ────────────────────────────────────────── */
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
@@ -130,6 +132,7 @@ export function PropiedadGallery({ fotos }: { fotos: FotoItem[] }) {
           onClick={() => openAt(0)}
         >
           <Image src={fotos[0].urlCloudinary} alt="" fill className="object-cover" priority sizes="(min-width: 1024px) 66vw, 0px" />
+          <EstadoRibbon estado={estado} size="lg" />
           <GaleriaChip />
         </div>
       );
@@ -140,6 +143,7 @@ export function PropiedadGallery({ fotos }: { fotos: FotoItem[] }) {
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 8, height: 440, borderRadius: 18, overflow: "hidden" }}>
           <div style={{ position: "relative", cursor: "pointer" }} onClick={() => openAt(0)}>
             <Image src={fotos[0].urlCloudinary} alt="" fill className="object-cover" priority sizes="(min-width: 1024px) 40vw, 0px" />
+            <EstadoRibbon estado={estado} size="lg" />
             <GaleriaChip />
           </div>
           <div style={{ position: "relative", cursor: "pointer" }} onClick={() => openAt(1)}>
@@ -162,6 +166,7 @@ export function PropiedadGallery({ fotos }: { fotos: FotoItem[] }) {
         }}>
           <div style={{ gridRow: "1 / 3", position: "relative", cursor: "pointer" }} onClick={() => openAt(0)}>
             <Image src={fotos[0].urlCloudinary} alt="" fill className="object-cover" priority sizes="(min-width: 1024px) 40vw, 0px" />
+            <EstadoRibbon estado={estado} size="lg" />
             <GaleriaChip />
           </div>
           <div style={{ position: "relative", cursor: "pointer" }} onClick={() => openAt(1)}>
@@ -194,6 +199,7 @@ export function PropiedadGallery({ fotos }: { fotos: FotoItem[] }) {
         {/* Hero */}
         <div style={{ gridRow: "1 / 3", position: "relative", cursor: "pointer" }} onClick={() => openAt(0)}>
           <Image src={fotos[0].urlCloudinary} alt="" fill className="object-cover" priority sizes="(min-width: 1024px) 38vw, 0px" />
+          <EstadoRibbon estado={estado} size="lg" />
           <GaleriaChip />
         </div>
 
@@ -240,6 +246,9 @@ export function PropiedadGallery({ fotos }: { fotos: FotoItem[] }) {
             />
           </motion.div>
         </AnimatePresence>
+
+        {/* Sello de estado sobre el carrusel (antes de flechas y contador, que quedan encima) */}
+        <EstadoRibbon estado={estado} size="md" />
 
         {count > 1 && (
           <>

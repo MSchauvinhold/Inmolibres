@@ -52,6 +52,8 @@ export interface ContactoFull {
   documentos: DocItem[];
   garante: GaranteData | null;
   contratos: ContratoVinculado[];
+  /** Boletos de compraventa donde figura como vendedor o comprador (vinculados por DNI) */
+  boletos: { id: string; rol: "vendedor" | "comprador"; titulo: string; direccion: string }[];
 }
 
 // ─── Role config ──────────────────────────────────────────────────────────────
@@ -66,7 +68,9 @@ const ROL_CFG: Record<RolContacto, { label: string; bg: string; text: string; ic
 
 function fmtFecha(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso + "T00:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  // La page serializa fechaNacimiento con toISOString() completo: nos quedamos con
+  // "YYYY-MM-DD" antes de agregar la hora local (si no, queda "Invalid Date").
+  return new Date(iso.slice(0, 10) + "T00:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
@@ -424,29 +428,48 @@ export function ContactoDetalle({ contacto: initial }: { contacto: ContactoFull 
             onGaranteChange={handleGaranteChange}
           />
 
-          {/* Contratos vinculados */}
-          {contacto.contratos.length > 0 && (
-            <SectionCard title="Contratos vinculados">
+          {/* Contratos vinculados — siempre visible, para que se note que no tiene (antes
+              se ocultaba y parecía que la ficha no mostraba esa info) */}
+          <SectionCard title="Contratos vinculados">
+            {contacto.contratos.length === 0 && contacto.boletos.length === 0 ? (
+              <p className="text-xs text-text-muted">
+                Sin contratos vinculados. Los alquileres se vinculan al elegir este contacto como inquilino o garante;
+                los boletos de compraventa, cuando el DNI del vendedor o comprador coincide con el de este contacto.
+              </p>
+            ) : (
               <div className="space-y-2">
-                {contacto.contratos.map((cp) => (
+                {[
+                  ...contacto.contratos.map((cp) => ({
+                    key: cp.id,
+                    href: `/alquileres?contrato=${cp.contrato.id}`,
+                    titulo: `${cp.rol.charAt(0)}${cp.rol.slice(1).toLowerCase()} · Alquiler — ${cp.contrato.propiedad.titulo}`,
+                    direccion: cp.contrato.propiedad.direccion,
+                  })),
+                  ...contacto.boletos.map((b) => ({
+                    key: `${b.id}-${b.rol}`,
+                    href: `/alquileres?venta=${b.id}`,
+                    titulo: `${b.rol === "vendedor" ? "Vendedor" : "Comprador"} · Compraventa BCV-${b.id.slice(-4).toUpperCase()} — ${b.titulo}`,
+                    direccion: b.direccion,
+                  })),
+                ].map((item) => (
                   <button
-                    key={cp.id}
-                    onClick={() => router.push(`/alquileres`)}
+                    key={item.key}
+                    onClick={() => router.push(item.href)}
                     className="w-full text-left p-3 rounded-xl border transition-colors hover:border-brand-primary hover:bg-[#F0F7F4] group"
                     style={{ borderColor: "#E8E5E0" }}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-text-primary capitalize">{cp.rol} — {cp.contrato.propiedad.titulo}</p>
-                        <p className="text-[10px] text-text-muted mt-0.5">{cp.contrato.propiedad.direccion}</p>
+                        <p className="text-xs font-semibold text-text-primary">{item.titulo}</p>
+                        <p className="text-[10px] text-text-muted mt-0.5">{item.direccion}</p>
                       </div>
                       <ScrollText className="w-4 h-4 text-text-muted group-hover:text-brand-primary transition-colors" />
                     </div>
                   </button>
                 ))}
               </div>
-            </SectionCard>
-          )}
+            )}
+          </SectionCard>
         </div>
 
         {/* Right column — Documents */}

@@ -7,7 +7,8 @@ import { motion } from "motion/react";
 import { MapPin, Bed, Bath, Square, Car, MessageCircle } from "lucide-react";
 import { formatPrice, buildWhatsAppLink } from "@/lib/utils";
 import { PropertyIllustration } from "@/components/ui/property-illustration";
-import type { Moneda, TipoOperacion, TipoPropiedad } from "@prisma/client";
+import { EstadoRibbon } from "@/components/ui/estado-ribbon";
+import type { EstadoPropiedad, Moneda, TipoOperacion, TipoPropiedad } from "@prisma/client";
 
 const SEED_MAP: Record<string, number> = {
   CASA: 0, DEPARTAMENTO: 1, TERRENO: 2, LOCAL: 3, GALPON: 3, OFICINA: 3,
@@ -41,6 +42,8 @@ interface MarketplacePropiedadCardProps {
   precio: number;
   moneda: Moneda;
   direccion: string;
+  /** Reservada/Alquilada/Vendida se muestran con una etiqueta; la card sigue igual */
+  estado: EstadoPropiedad;
   fotos: { urlCloudinary: string; esPortada: boolean }[];
   atributos: AtributosInfo | null;
   inmobiliaria: InmobiliariaInfo | null;
@@ -69,6 +72,7 @@ export function MarketplacePropiedadCard({
   precio,
   moneda,
   direccion,
+  estado,
   fotos,
   atributos,
   inmobiliaria,
@@ -150,8 +154,9 @@ export function MarketplacePropiedadCard({
       >
         {/* Image */}
         <Link href={href} className="block relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
+          {/* relative: next/image con `fill` exige que su padre directo esté posicionado */}
           <div
-            className="w-full h-full"
+            className="relative w-full h-full"
             style={{ background: "var(--background-mp-alt)" }}
           >
             {portada ? (
@@ -170,6 +175,8 @@ export function MarketplacePropiedadCard({
               <PropertyIllustration seed={SEED_MAP[tipo] ?? 0} style={{ width: "100%", height: "100%" }} />
             )}
           </div>
+
+          <EstadoRibbon estado={estado} size="md" />
 
           {/* Badges row */}
           <div className="absolute top-3 left-3 flex gap-1.5">

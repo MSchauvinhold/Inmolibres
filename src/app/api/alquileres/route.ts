@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Extraer campos que NO van directo al modelo (son solo meta-datos del request)
-    const { inquilinoContactoId, garanteContactoId, registrarEnFinanzas, ...contratoData } = parsed.data;
+    const { inquilinoContactoId, garanteContactoId, registrarEnFinanzas, estadoPropiedad, ...contratoData } = parsed.data;
 
     const contrato = await db.$transaction(async (tx) => {
       const created = await tx.contratoAlquiler.create({
@@ -124,10 +124,13 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      await tx.propiedad.update({
-        where: { id: contratoData.propiedadId },
-        data: { estado: "ALQUILADA" },
-      });
+      // El estado lo elige el agente en el wizard (sugerido: Alquilada). No toca `publicada`.
+      if (estadoPropiedad) {
+        await tx.propiedad.update({
+          where: { id: contratoData.propiedadId },
+          data: { estado: estadoPropiedad },
+        });
+      }
 
       // Vincular contactos al contrato (para acceso desde el módulo de Contactos)
       const personas: { contratoId: string; contactoId: string; rol: string }[] = [];

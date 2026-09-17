@@ -15,8 +15,8 @@ import { CAMPOS_POR_TIPO, CARACTERISTICAS_POR_TIPO } from "@/lib/propiedades-con
 import { FotoUploader, type FotoData } from "./FotoUploader";
 import { VideoUploader } from "./VideoUploader";
 import { PropertyIllustration } from "@/components/ui/property-illustration";
-import { formatPrice } from "@/lib/utils";
-import type { TipoPropiedad, TipoOperacion, Moneda } from "@prisma/client";
+import { formatPrice, ESTADO_PROPIEDAD_LABELS } from "@/lib/utils";
+import type { TipoPropiedad, TipoOperacion, Moneda, EstadoPropiedad } from "@prisma/client";
 
 const MapPicker = dynamic(
   () => import("@/components/maps/MapPicker").then((m) => m.MapPicker),
@@ -44,6 +44,7 @@ export interface PropiedadParaEditar {
   descripcion: string | null;
   videoUrl: string | null;
   publicada: boolean;
+  estado: EstadoPropiedad;
   agenteId: string | null;
   atributos: {
     superficieCubierta: number | null;
@@ -461,6 +462,7 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
           descripcion: propiedad.descripcion ?? "",
           videoUrl: propiedad.videoUrl ?? "",
           publicada: propiedad.publicada,
+          estado: propiedad.estado,
           agenteId: propiedad.agenteId ?? "",
           atributos: propiedad.atributos
             ? {
@@ -887,6 +889,18 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
               />
               <span className="text-sm text-text-primary">Publicada en marketplace</span>
             </label>
+            <div>
+              <label className={lbl}>Estado</label>
+              <select {...register("estado")} className={inp}>
+                {(Object.entries(ESTADO_PROPIEDAD_LABELS) as [EstadoPropiedad, string][]).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-text-muted mt-1">
+                No afecta la publicación: si está Reservada, Alquilada o Vendida, sigue en el portal con una etiqueta sobre la foto.
+                Para sacarla del portal, destildá &ldquo;Publicada en marketplace&rdquo;.
+              </p>
+            </div>
           </div>
         </section>
 

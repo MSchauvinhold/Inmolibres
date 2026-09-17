@@ -71,7 +71,9 @@ export function FotoUploader({ value, onChange, maxFotos = 15 }: Props) {
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
-          if (e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+          // Mismo bloqueo que el click: soltar fotos durante una subida corría con el
+          // `value` viejo y pisaba el lote anterior
+          if (!uploading && e.dataTransfer.files) handleFiles(e.dataTransfer.files);
         }}
         className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
           uploading
@@ -87,8 +89,10 @@ export function FotoUploader({ value, onChange, maxFotos = 15 }: Props) {
         <p className="text-sm text-text-secondary">
           {uploading ? "Subiendo..." : "Arrastrá fotos aquí o hacé clic"}
         </p>
-        <p className="text-xs text-text-muted mt-0.5">
+        <p className={`text-xs mt-0.5 ${value.length > maxFotos ? "text-danger font-semibold" : "text-text-muted"}`}>
           {value.length}/{maxFotos} fotos · JPG, PNG
+          {/* Puede pasar con datos cargados por fuera del formulario: la API rechaza >15 al guardar */}
+          {value.length > maxFotos && ` · Quitá ${value.length - maxFotos} para poder guardar`}
         </p>
         <input
           ref={inputRef}

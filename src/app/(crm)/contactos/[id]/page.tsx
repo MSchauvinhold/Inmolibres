@@ -37,6 +37,33 @@ export default async function ContactoDetallePage({ params }: Params) {
 
   if (!contacto) notFound();
 
+  // Boletos de compraventa donde el contacto es vendedor o comprador. El boleto guarda
+  // las partes como texto (nombre + DNI), sin FK al contacto: se vinculan por DNI
+  // comparando solo dígitos ("28.774.115" = "28774115"), dentro de la misma inmobiliaria.
+  // Un contacto sin DNI cargado no puede vincularse.
+  const soloDigitos = (s: string | null) => (s ?? "").replace(/\D/g, "");
+  const dniContacto = soloDigitos(contacto.dni);
+  const boletosInmobiliaria = dniContacto
+    ? await db.contratoVenta.findMany({
+        where: { inmobiliariaId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true, vendedorDni: true, compradorDni: true, propiedadDireccion: true, propiedadDescripcion: true,
+          propiedad: { select: { titulo: true } },
+        },
+      })
+    : [];
+  const boletos = boletosInmobiliaria.flatMap((b) =>
+    (["vendedor", "comprador"] as const)
+      .filter((rol) => soloDigitos(rol === "vendedor" ? b.vendedorDni : b.compradorDni) === dniContacto)
+      .map((rol) => ({
+        id: b.id,
+        rol,
+        titulo: b.propiedad?.titulo ?? b.propiedadDescripcion ?? "Boleto de compraventa",
+        direccion: b.propiedadDireccion,
+      }))
+  );
+
   const serialized = {
     id: contacto.id,
     nombre: contacto.nombre,
@@ -86,6 +113,7 @@ export default async function ContactoDetallePage({ params }: Params) {
         propiedad: cp.contrato.propiedad,
       },
     })),
+    boletos,
   };
 
   return <ContactoDetalle contacto={serialized} />;
