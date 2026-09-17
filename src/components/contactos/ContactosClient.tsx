@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Plus, Search, FileText, Shield, Trash2, ExternalLink,
-  User, Users, Home, ShoppingCart, X, Loader2, ChevronDown,
+  User, Users, Home, ShoppingCart, X, Loader2, ChevronDown, List, Columns3,
 } from "lucide-react";
 import type { RolContacto } from "@prisma/client";
+import { buildWhatsAppLink, getDaysUntil } from "@/lib/utils";
+import { AvatarInitials } from "@/components/ui/avatar-initials";
+import { KanbanBoard, KanbanCardBadge, type KanbanColumna } from "@/components/ui/kanban-board";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,6 +24,8 @@ export interface ContactoRow {
   garante: { id: string } | null;
   _count: { documentos: number };
   createdAt: string;
+  /** YYYY-MM-DD del contrato vinculado que termina más tarde (null si no tiene) */
+  finContrato: string | null;
 }
 
 interface Props {
@@ -29,7 +34,7 @@ interface Props {
 
 // ─── Role config ──────────────────────────────────────────────────────────────
 
-const ROL_CFG: Record<RolContacto, { label: string; bg: string; text: string; icon: React.ElementType }> = {
+export const ROL_CFG: Record<RolContacto, { label: string; bg: string; text: string; icon: React.ElementType }> = {
   PROPIETARIO: { label: "Propietario", bg: "#E8F5E9", text: "#1B5E20", icon: Home },
   INQUILINO:   { label: "Inquilino",   bg: "#E3F2FD", text: "#0D47A1", icon: Users },
   COMPRADOR:   { label: "Comprador",   bg: "#FFF8E1", text: "#E65100", icon: ShoppingCart },
@@ -41,6 +46,54 @@ const TABS: Array<{ key: RolContacto | "TODOS"; label: string }> = [
   { key: "INQUILINO",   label: "Inquilinos" },
   { key: "COMPRADOR",   label: "Compradores" },
 ];
+
+// ─── Kanban: columnas calculadas desde las fechas del contrato ───────────────
+
+type ColumnaContrato = "SIN_CONTRATO" | "VIGENTE" | "POR_VENCER" | "FINALIZADO";
+
+const DIAS_POR_VENCER = 60;
+
+const COLUMNAS_KANBAN: KanbanColumna<ColumnaContrato>[] = [
+  { key: "SIN_CONTRATO", label: "Sin contrato",                          tone: "neutral" },
+  { key: "VIGENTE",      label: "Contrato vigente",                      tone: "success" },
+  { key: "POR_VENCER",   label: `Vence en ≤${DIAS_POR_VENCER} días`,     tone: "warning" },
+  { key: "FINALIZADO",   label: "Contrato finalizado",                   tone: "danger" },
+];
+
+function diasHastaFin(c: ContactoRow): number | null {
+  return c.finContrato ? getDaysUntil(new Date(c.finContrato + "T00:00:00")) : null;
+}
+
+function columnaContacto(dias: number | null): ColumnaContrato {
+  if (dias === null) return "SIN_CONTRATO";
+  if (dias < 0) return "FINALIZADO";
+  if (dias <= DIAS_POR_VENCER) return "POR_VENCER";
+  return "VIGENTE";
+}
+
+// Preferencia Lista/Kanban en localStorage. useSyncExternalStore evita el mismatch de
+// hidratación (el server siempre renderiza "lista") sin setState dentro de un effect.
+type Vista = "lista" | "kanban";
+const VISTA_KEY = "contactos_vista";
+const VISTA_EVENT = "contactos_vista_change";
+
+function subscribeVista(cb: () => void) {
+  window.addEventListener(VISTA_EVENT, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(VISTA_EVENT, cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+
+function leerVista(): Vista {
+  try { return localStorage.getItem(VISTA_KEY) === "kanban" ? "kanban" : "lista"; } catch { return "lista"; }
+}
+
+function guardarVista(v: Vista) {
+  try { localStorage.setItem(VISTA_KEY, v); } catch { /* ignore */ }
+  window.dispatchEvent(new Event(VISTA_EVENT));
+}
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
@@ -62,6 +115,7 @@ function Avatar({ nombre, rol }: { nombre: string; rol: RolContacto | undefined 
 const ESTADO_CIVIL = ["Soltero/a", "Casado/a", "Divorciado/a", "Viudo/a"];
 
 function NuevoContactoModal({ onClose, onCreated }: { onClose: () => void; onCreated: (c: ContactoRow) => void }) {
+  const router = useRouter();
   const [form, setForm] = useState({
     roles: [] as RolContacto[],
     nombre: "",
@@ -103,9 +157,16 @@ function NuevoContactoModal({ onClose, onCreated }: { onClose: () => void; onCre
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const json = await res.json() as { data?: ContactoRow; error?: string };
+      const json = await res.json() as { data?: ContactoRow; error?: string; existenteId?: string };
+      // Ya existe un contacto con ese teléfono: abrir su ficha en vez de duplicarlo
+      if (res.status === 409 && json.existenteId) {
+        toast.info(json.error ?? "Ya existe un contacto con ese teléfono");
+        onClose();
+        router.push(`/contactos/${json.existenteId}`);
+        return;
+      }
       if (!res.ok) throw new Error(json.error ?? "Error al crear");
-      onCreated({ ...json.data!, garante: null, _count: { documentos: 0 } });
+      onCreated({ ...json.data!, garante: null, _count: { documentos: 0 }, finContrato: null });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al crear");
     } finally {
@@ -252,6 +313,7 @@ export function ContactosClient({ contactos: initial }: Props) {
     }
   }, [initial]);
   const [showNuevo, setShowNuevo] = useState(false);
+  const vista = useSyncExternalStore(subscribeVista, leerVista, () => "lista" as Vista);
 
   const filtered = useMemo(() => {
     let list = contactos;
@@ -303,10 +365,33 @@ export function ContactosClient({ contactos: initial }: Props) {
           </h1>
           <p className="text-sm text-text-muted mt-0.5">{contactos.length} contacto{contactos.length !== 1 ? "s" : ""} registrado{contactos.length !== 1 ? "s" : ""}</p>
         </div>
-        <button onClick={() => setShowNuevo(true)} className="btn-primary text-sm flex items-center gap-2">
-          <Plus className="w-3.5 h-3.5" />
-          Nuevo contacto
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 p-1 rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}>
+            {([
+              { key: "lista",  label: "Lista",  Icon: List },
+              { key: "kanban", label: "Kanban", Icon: Columns3 },
+            ] as const).map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                onClick={() => guardarVista(key)}
+                aria-pressed={vista === key}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{
+                  background: vista === key ? "var(--surface)" : "transparent",
+                  color: vista === key ? "var(--brand-primary)" : "var(--text-muted)",
+                  boxShadow: vista === key ? "var(--shadow-card)" : "none",
+                }}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setShowNuevo(true)} className="btn-primary text-sm flex items-center gap-2">
+            <Plus className="w-3.5 h-3.5" />
+            Nuevo contacto
+          </button>
+        </div>
       </div>
 
       {/* Mini dashboard de tipos */}
@@ -385,6 +470,74 @@ export function ContactosClient({ contactos: initial }: Props) {
             </button>
           )}
         </div>
+      ) : vista === "kanban" ? (
+        <KanbanBoard
+          columnas={COLUMNAS_KANBAN}
+          items={filtered}
+          getId={(c) => c.id}
+          getColumna={(c) => columnaContacto(diasHastaFin(c))}
+          vacio="Sin contactos"
+          renderCard={(c) => {
+            const dias = diasHastaFin(c);
+            return (
+              <>
+                {/* Avatar + name */}
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                  <AvatarInitials name={c.nombre} size={26} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <button
+                      onClick={() => router.push(`/contactos/${c.id}`)}
+                      title="Ver detalle"
+                      style={{
+                        display: "block", maxWidth: "100%", padding: 0, background: "none", border: "none", cursor: "pointer",
+                        fontSize: 12.5, fontWeight: 600, color: "var(--antracita-900)", textAlign: "left",
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      }}
+                    >
+                      {c.nombre}
+                    </button>
+                    <div className="mono" style={{ fontSize: 10, color: "var(--antracita-300)" }}>
+                      {c.telefono ?? "Sin teléfono"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div
+                  style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    paddingTop: 8, borderTop: "1px solid var(--border)", marginTop: 4, gap: 4,
+                  }}
+                >
+                  <span className="mono" style={{ fontSize: 9.5, color: "var(--antracita-400)" }}>
+                    {dias === null
+                      ? (c.dni ? `DNI ${c.dni}` : "—")
+                      : dias < 0
+                        ? `Finalizó hace ${Math.abs(dias)}d`
+                        : `Vence en ${dias}d`}
+                  </span>
+                  {c.telefono && (
+                    <a
+                      href={buildWhatsAppLink(c.telefono)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-flex", padding: "2px 6px", borderRadius: 5,
+                        background: "rgba(37,211,102,0.14)", color: "#25D366",
+                        fontSize: 9.5, fontWeight: 700, textDecoration: "none",
+                      }}
+                    >
+                      WA
+                    </a>
+                  )}
+                </div>
+
+                {/* Roles */}
+                <KanbanCardBadge>{c.roles.map((r) => ROL_CFG[r].label).join(" · ")}</KanbanCardBadge>
+              </>
+            );
+          }}
+        />
       ) : (
         <div className="bg-white rounded-2xl shadow-card overflow-hidden">
           <table className="w-full">

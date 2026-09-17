@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PipelineKanban } from "@/components/clientes/PipelineKanban";
 import { requirePermisoAgente } from "@/lib/permisos";
+import { toPlanKey } from "@/lib/planes";
 import type { EstadoPipeline } from "@prisma/client";
 
 export const metadata = { title: "Prospectos" };
@@ -48,7 +49,11 @@ export default async function ClientesPage({
     db.cliente.findMany({
       where,
       orderBy: { ultimaActividad: "desc" },
-      include: { agente: { select: { nombre: true } } },
+      include: {
+        agente: { select: { nombre: true } },
+        // Para sugerir el rol al convertir en contacto (venta → comprador, alquiler → inquilino)
+        propiedades: { select: { propiedad: { select: { operacion: true } } } },
+      },
     }),
     isParticular || isAgente
       ? []
@@ -59,10 +64,11 @@ export default async function ClientesPage({
         }),
   ]);
 
-  const serialized = clientes.map((c) => ({
+  const serialized = clientes.map(({ propiedades, ...c }) => ({
     ...c,
     ultimaActividad: c.ultimaActividad.toISOString(),
     createdAt: c.createdAt.toISOString(),
+    operacionesInteres: [...new Set(propiedades.map((p) => p.propiedad.operacion))],
   }));
 
   const leadsTotal = clientes.length;
@@ -168,7 +174,11 @@ export default async function ClientesPage({
         </div>
       </div>
 
-      <PipelineKanban clientes={serialized} />
+      {/* Contactos es módulo Pro y de inmobiliaria (mismo gating que /contactos) */}
+      <PipelineKanban
+        clientes={serialized}
+        puedeConvertirEnContacto={!isParticular && toPlanKey(session.user.plan) === "PRO"}
+      />
     </div>
   );
 }

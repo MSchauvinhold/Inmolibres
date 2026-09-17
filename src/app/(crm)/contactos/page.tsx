@@ -24,21 +24,33 @@ export default async function ContactosPage() {
     include: {
       garante: { select: { id: true } },
       _count: { select: { documentos: true } },
+      // Para la vista Kanban: la columna se calcula con el contrato que termina más tarde
+      contratos: {
+        where: { contrato: { inmobiliariaId } },
+        select: { contrato: { select: { fechaFin: true } } },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  const serialized = contactos.map((c) => ({
-    id: c.id,
-    nombre: c.nombre,
-    roles: c.roles as RolContacto[],
-    telefono: c.telefono,
-    email: c.email,
-    dni: c.dni,
-    garante: c.garante,
-    _count: c._count,
-    createdAt: c.createdAt.toISOString(),
-  }));
+  const serialized = contactos.map((c) => {
+    const finContrato = c.contratos.reduce<Date | null>(
+      (max, { contrato }) => (!max || contrato.fechaFin > max ? contrato.fechaFin : max),
+      null,
+    );
+    return {
+      id: c.id,
+      nombre: c.nombre,
+      roles: c.roles as RolContacto[],
+      telefono: c.telefono,
+      email: c.email,
+      dni: c.dni,
+      garante: c.garante,
+      _count: c._count,
+      createdAt: c.createdAt.toISOString(),
+      finContrato: finContrato ? finContrato.toISOString().slice(0, 10) : null,
+    };
+  });
 
   return <ContactosClient contactos={serialized} />;
 }
