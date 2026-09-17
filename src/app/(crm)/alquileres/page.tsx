@@ -8,7 +8,11 @@ import { AjustesPendientes } from "@/components/alquileres/AjustesPendientes";
 
 export const metadata = { title: "Contratos" };
 
-export default async function AlquileresPage() {
+export default async function AlquileresPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ contrato?: string; venta?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.inmobiliariaId) redirect("/login");
   // Módulo exclusivo del plan Pro — ver nota en /finanzas.
@@ -19,6 +23,7 @@ export default async function AlquileresPage() {
 
   const inmobiliariaId = session.user.inmobiliariaId;
   const isAdmin = session.user.rol === "ADMIN";
+  const { contrato: contratoParam, venta: ventaParam } = await searchParams;
 
   const [contratos, ventas, propiedades, config, inmobiliaria] = await Promise.all([
     db.contratoAlquiler.findMany({
@@ -26,6 +31,12 @@ export default async function AlquileresPage() {
       orderBy: { fechaFin: "asc" },
       include: {
         propiedad: { select: { id: true, titulo: true, direccion: true } },
+        // DNI del inquilino para el comprobante de pago (solo si hay contacto vinculado)
+        personas: {
+          where: { rol: "INQUILINO", contacto: { inmobiliariaId } },
+          select: { contacto: { select: { dni: true } } },
+          take: 1,
+        },
       },
     }),
     db.contratoVenta.findMany({
@@ -50,6 +61,7 @@ export default async function AlquileresPage() {
     inmobiliariaId: c.inmobiliariaId,
     inquilinoNombre: c.inquilinoNombre,
     inquilinoTel: c.inquilinoTel,
+    inquilinoDni: c.personas[0]?.contacto.dni ?? null,
     precioMensual: Number(c.precioMensual),
     moneda: c.moneda as "ARS" | "USD",
     diaVencimientoPago: c.diaVencimientoPago,
@@ -111,6 +123,9 @@ export default async function AlquileresPage() {
       isAdmin={isAdmin}
       config={configData}
       inmobiliaria={inmobiliaria}
+      // Solo si el contrato es de esta inmobiliaria (la lista ya viene filtrada por tenant)
+      contratoInicialId={serialized.find((c) => c.id === contratoParam)?.id}
+      ventaInicialId={serializedVentas.find((v) => v.id === ventaParam)?.id}
     />
     </>
   );

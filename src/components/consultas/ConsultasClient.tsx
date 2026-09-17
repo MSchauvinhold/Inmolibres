@@ -85,7 +85,15 @@ export function ConsultasClient({ consultas: initial }: Props) {
         }),
       });
       if (!res.ok) {
-        const d = await res.json();
+        const d = (await res.json().catch(() => ({}))) as { error?: string; existenteId?: string };
+        // Ya hay un prospecto con ese teléfono: abrirlo en vez de crear un duplicado
+        // (su ficha ya muestra esta consulta, vinculada por teléfono)
+        if (res.status === 409 && d.existenteId) {
+          toast.info(d.error ?? "Ya existe un prospecto con ese teléfono");
+          setSelected(null);
+          startTransition(() => router.push(`/clientes/${d.existenteId}`));
+          return;
+        }
         throw new Error(d.error ?? "Error");
       }
       toast.success(`${consulta.nombreVisitante} agregado como cliente`);
@@ -181,8 +189,10 @@ export function ConsultasClient({ consultas: initial }: Props) {
         <DialogContent className="light-portal max-w-md w-full p-0 overflow-hidden">
           {selected && (
             <>
-              {/* Header con avatar (pr-10 para no pisar la X de cerrar del Dialog, que es absolute) */}
-              <div className="flex items-start gap-4 p-5 pr-10 pb-4 border-b border-border">
+              {/* Header con avatar. pr-14 reserva lugar para la X de cerrar del Dialog (absolute,
+                  top-4 right-4, 16px + anillo de foco que Radix le pone al abrir): con pr-10
+                  la fecha quedaba pegada al anillo. */}
+              <div className="flex items-start gap-4 p-5 pr-14 pb-4 border-b border-border">
                 <div className="w-12 h-12 rounded-full bg-[#8B4513]/10 flex items-center justify-center shrink-0 text-lg font-bold text-[#8B4513]">
                   {selected.nombreVisitante[0]?.toUpperCase()}
                 </div>

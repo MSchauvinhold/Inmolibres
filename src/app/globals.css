@@ -6,6 +6,7 @@
   --terracota-50:  #FBF1EC;
   --terracota-100: #F4D8C9;
   --terracota-300: #E0A088;
+  --terracota-400: #D0856C; /* interpolado 300↔500: se usaba sin estar definido */
   --terracota-500: #C1694F;
   --terracota-600: #A85737;
   --terracota-700: #7E3F26;
@@ -24,11 +25,20 @@
   --crema-200: #ECE4D6;
   --crema-300: #DED2BE;
 
-  /* Antracita — tipografía y elementos oscuros */
+  /* Antracita — tipografía y elementos oscuros.
+     100/200/400/600/800 se usan en ~150 lugares pero no estaban definidos: una var()
+     inexistente invalida `color` y el texto heredaba el del contenedor (en modo oscuro,
+     casi blanco sobre las .il-card blancas → fechas "invisibles"). Son pasos intermedios
+     interpolados entre los vecinos de la escala. */
   --antracita-50:  #F4F1ED;
+  --antracita-100: #D9D5D0;
+  --antracita-200: #A49D96;
   --antracita-300: #6F665C;
+  --antracita-400: #544C44;
   --antracita-500: #3A332C;
+  --antracita-600: #2E2822;
   --antracita-700: #221E19;
+  --antracita-800: #1B1713;
   --antracita-900: #14110E;
 
   /* Especiales */
@@ -54,11 +64,14 @@
   --il-accent-soft: #DEE5ED;
   --il-accent-deep: #1B3149;
 
-  /* Semánticos */
+  /* Semánticos (-600: variante oscura para texto; se usaban sin estar definidas) */
+  --success-600: #3D6A4A;
   --success-500: #4A7C59;
   --success-100: #DCEAE0;
+  --danger-600:  #962F24;
   --danger-500:  #B23A2D;
   --danger-100:  #F5DBD6;
+  --warning-600: #A6741F;
   --warning-500: #C58B2F;
   --warning-100: #F4E4C5;
   --info-500:    #3A6B89;

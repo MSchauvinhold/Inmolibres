@@ -14,6 +14,7 @@ import { uploadToCloudinary } from "@/lib/cloudinary";
 import {
   buildContratoAlquilerHtml,
   buildContratoVentaHtml,
+  buildComprobantePagoHtml,
   printHtml,
   duracionMeses,
   type PdfConfig,
@@ -36,6 +37,8 @@ interface Contrato {
   inmobiliariaId: string;
   inquilinoNombre: string;
   inquilinoTel: string;
+  // undefined en contratos recién creados desde el wizard (hasta recargar): el comprobante lo omite
+  inquilinoDni?: string | null;
   precioMensual: number;
   moneda: "ARS" | "USD";
   diaVencimientoPago: number;
@@ -115,6 +118,8 @@ interface Props {
   isAdmin: boolean;
   config: Config | null;
   inmobiliaria: WizardInmobiliaria | null;
+  contratoInicialId?: string;
+  ventaInicialId?: string;
 }
 
 type TipoTab = "alquiler" | "compraventa";
@@ -1300,14 +1305,15 @@ function AjustesHistorial({ contratoId, ajusteActivo }: { contratoId: string; aj
 // ─── PagosHistorial ────────────────────────────────────────────────────────────
 
 function PagosHistorial({
-  contratoId,
-  defaultMonto,
-  defaultMoneda,
+  contrato,
+  config,
+  inmobiliaria,
 }: {
-  contratoId: string;
-  defaultMonto: number;
-  defaultMoneda: "ARS" | "USD";
+  contrato: Contrato;
+  config: Config | null;
+  inmobiliaria: WizardInmobiliaria | null;
 }) {
+  const { id: contratoId, precioMensual: defaultMonto, moneda: defaultMoneda } = contrato;
   const mesLabel = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" });
 
   const [pagos, setPagos]     = useState<PagoItem[]>([]);
@@ -1361,6 +1367,11 @@ function PagosHistorial({
     }
   };
 
+  const handleComprobante = (pago: PagoItem) => {
+    const html = buildComprobantePagoHtml(pago, contrato, config as PdfConfig | null, inmobiliaria);
+    printHtml(html, () => toast.error("Habilitá las ventanas emergentes para imprimir"));
+  };
+
   const handleDelete = async (pagoId: string) => {
     if (!confirm("¿Eliminar este registro de pago?")) return;
     try {
@@ -1409,9 +1420,14 @@ function PagosHistorial({
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={{ fontSize: 11, color: "var(--antracita-400)", fontWeight: 600, display: "block", marginBottom: 4 }}>Concepto *</label>
+              {/* Concepto y monto vienen precargados (mes actual / canon): al enfocar se
+                  seleccionan para que lo que se tipea los reemplace. Sin esto, tipear sobre
+                  el valor precargado lo concatenaba ("Pago septiembre de 2026Pago…",
+                  350000 → 350000100000) y se guardaba así. */}
               <input
                 value={form.concepto}
                 onChange={(e) => setForm((f) => ({ ...f, concepto: e.target.value }))}
+                onFocus={(e) => e.target.select()}
                 placeholder="Ej: Pago enero 2025"
                 style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "#fff", outline: "none" }}
               />
@@ -1422,6 +1438,7 @@ function PagosHistorial({
                 type="number"
                 value={form.monto}
                 onChange={(e) => setForm((f) => ({ ...f, monto: e.target.value }))}
+                onFocus={(e) => e.target.select()}
                 style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-mono)", background: "#fff", outline: "none" }}
               />
             </div>
@@ -1486,7 +1503,7 @@ function PagosHistorial({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--antracita-900)", marginBottom: 2 }}>{p.concepto}</div>
                 <div style={{ display: "flex", gap: 10, fontSize: 11, color: "var(--antracita-400)" }}>
-                  <span className="mono">{new Date(p.fecha + "T00:00:00").toLocaleDateString("es-AR")}</span>
+                  <span className="mono">{fmtFecha(p.fecha)}</span>
                   {p.metodoPago && <span>· {p.metodoPago}</span>}
                 </div>
               </div>
@@ -1494,6 +1511,15 @@ function PagosHistorial({
                 <span className="mono" style={{ fontSize: 14, fontWeight: 700, color: "var(--success-500)" }}>
                   {formatPrice(p.monto, p.moneda)}
                 </span>
+                <button
+                  onClick={() => handleComprobante(p)}
+                  className="il-btn il-btn--ghost"
+                  style={{ height: 28, fontSize: 11, gap: 5, padding: "0 8px" }}
+                  title="Descargar comprobante"
+                  aria-label="Descargar comprobante"
+                >
+                  <Download size={12} /> <span className="hidden sm:inline">Comprobante</span>
+                </button>
                 <button
                   onClick={() => handleDelete(p.id)}
                   style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: "var(--antracita-300)", display: "flex", opacity: 0.7 }}
@@ -1731,11 +1757,7 @@ function ContratoDetalleModal({
                     : <DocumentoPreview contrato={contratoVivo} config={config} inmobiliaria={inmobiliaria} onPrint={() => setShowPrint(true)} />
                 )}
                 {subTab === "pagos" && (
-                  <PagosHistorial
-                    contratoId={contrato.id}
-                    defaultMonto={contrato.precioMensual}
-                    defaultMoneda={contrato.moneda}
-                  />
+                  <PagosHistorial contrato={contratoVivo} config={config} inmobiliaria={inmobiliaria} />
                 )}
                 {subTab === "ajustes" && (
                   <AjustesTab contrato={contratoVivo} onSaved={setAjusteState} />
@@ -1807,52 +1829,42 @@ function ContratoDetalleModal({
                 {/* Timeline */}
                 <div className="il-card" style={{ padding: 18 }}>
                   <h3 className="display" style={{ fontSize: 16, margin: "0 0 14px", color: "var(--antracita-900)" }}>Línea de tiempo</h3>
-                  {/* Track container — altura fija para que los labels no se corten */}
-                  <div style={{ position: "relative", height: 80, background: "var(--crema-100)", borderRadius: 10, padding: "0 14px" }}>
-                    {/* Track (riel) */}
-                    <div style={{ position: "absolute", left: 14, right: 14, top: 32, height: 4, background: "var(--crema-300)", borderRadius: 999 }} />
-                    {/* Progress fill */}
-                    <div style={{ position: "absolute", left: 14, top: 32, width: `${pct}%`, maxWidth: "calc(100% - 28px)", height: 4, background: "var(--terracota-500)", borderRadius: 999, transition: "width 0.6s ease" }} />
-                    {/* Markers: Inicio y Fin siempre; Hoy solo si no solapa con ninguno */}
-                    {((): { p: number; l: string; d: string; current?: boolean; done?: boolean }[] => {
-                      type M = { p: number; l: string; d: string; current?: boolean; done?: boolean };
-                      const hoyLabel = new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
-                      const base: M[] = [
-                        { p: 0,   l: "Inicio", d: fmtFecha(contrato.fechaInicio), done: true },
-                        { p: 100, l: "Fin",    d: fmtFecha(contrato.fechaFin),    done: dias < 0 },
-                      ];
-                      // Mostrar "Hoy" solo si está suficientemente lejos de Inicio y de Fin como para
-                      // que su label (centrado, ~60px) no se superponga con el de Inicio/Fin — con
-                      // el ancho típico de esta tarjeta, por debajo de ~18% se pisaban los textos.
-                      if (pct > 18 && pct < 82) {
-                        base.splice(1, 0, { p: pct, l: "Hoy", d: hoyLabel, current: true });
-                      }
-                      return base;
-                    })().map((m, i) => (
-                      <div key={i} style={{
-                        position: "absolute",
-                        // Inicio: alineado a la izquierda; Fin: compensar ancho del label; Hoy: centrado
-                        left: m.p === 0
-                          ? "14px"
-                          : m.p === 100
-                            ? "calc(100% - 14px)"
-                            : `calc(${m.p}% + 14px)`,
-                        top: 22,
-                        transform: m.p === 0 ? "none" : m.p === 100 ? "translateX(-100%)" : "translateX(-50%)",
-                      }}>
-                        <div style={{
-                          width: 12, height: 12, borderRadius: 999,
-                          background: m.current ? "var(--terracota-500)" : m.done ? "var(--success-500, #22C55E)" : "var(--crema-300)",
-                          border: "2px solid #fff",
-                          boxShadow: "0 0 0 1.5px var(--border)",
-                          margin: m.p === 100 ? "0 0 0 auto" : "0",
+                  {/* Etiqueta "Hoy" arriba del riel e Inicio/Fin abajo: al vivir en franjas distintas
+                      no se pisan nunca, sin depender del ancho de la tarjeta ni del % transcurrido. */}
+                  <div style={{ position: "relative", height: 88, background: "var(--crema-100)", borderRadius: 10 }}>
+                    {/* Riel: las posiciones en % de los hijos son relativas a este div */}
+                    <div style={{ position: "absolute", left: 14, right: 14, top: 38, height: 4, background: "var(--crema-300)", borderRadius: 999 }}>
+                      <div style={{ width: `${pct}%`, height: "100%", background: "var(--terracota-500)", borderRadius: 999, transition: "width 0.6s ease" }} />
+                      {[
+                        { p: 0,   color: "var(--success-500, #22C55E)" },
+                        { p: 100, color: dias < 0 ? "var(--success-500, #22C55E)" : "var(--crema-300)" },
+                        ...(pct > 0 && pct < 100 ? [{ p: pct, color: "var(--terracota-500)" }] : []),
+                      ].map((m) => (
+                        <div key={m.p} style={{
+                          position: "absolute", left: `${m.p}%`, top: -4, transform: "translateX(-50%)",
+                          width: 12, height: 12, borderRadius: 999, background: m.color,
+                          border: "2px solid #fff", boxShadow: "0 0 0 1.5px var(--border)",
                         }} />
-                        <div style={{ marginTop: 5, fontSize: 9, color: m.current ? "var(--terracota-600)" : "var(--antracita-400)", fontWeight: m.current ? 700 : 500, whiteSpace: "nowrap", textAlign: m.p === 100 ? "right" : "left" }}>
-                          <div className="mono" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{m.l}</div>
-                          <div className="mono" style={{ fontSize: 9, color: "var(--antracita-600)" }}>{m.d}</div>
+                      ))}
+                      {pct > 0 && pct < 100 && (
+                        // translateX(-pct%): alineado a izquierda cerca de Inicio, centrado a mitad y a derecha cerca de Fin
+                        <div className="mono" style={{ position: "absolute", left: `${pct}%`, bottom: 14, transform: `translateX(-${pct}%)`, fontSize: 9, fontWeight: 700, color: "var(--terracota-600)", whiteSpace: "nowrap", textAlign: "center" }}>
+                          <div style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>Hoy</div>
+                          <div>{new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
                         </div>
-                      </div>
-                    ))}
+                      )}
+                    </div>
+                    <div className="mono" style={{ position: "absolute", left: 14, right: 14, top: 52, display: "flex", justifyContent: "space-between", gap: 12, fontSize: 9, fontWeight: 500, color: "var(--antracita-400)", whiteSpace: "nowrap" }}>
+                      {[
+                        { l: "Inicio", d: fmtFecha(contrato.fechaInicio) },
+                        { l: "Fin",    d: fmtFecha(contrato.fechaFin) },
+                      ].map((m, i) => (
+                        <div key={m.l} style={{ textAlign: i === 0 ? "left" : "right" }}>
+                          <div style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>{m.l}</div>
+                          <div style={{ color: "var(--antracita-600)" }}>{m.d}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--antracita-500)" }}>
                     <span>Transcurrido: <strong className="mono" style={{ color: "var(--antracita-900)" }}>{transcurrido}d</strong></span>
@@ -2460,7 +2472,7 @@ function ContratoDocumentoModal({
 // ─── AlquileresClient (main) ──────────────────────────────────────────────────
 
 export function AlquileresClient({
-  contratos: initialContratos, ventas: initialVentas, propiedades, isAdmin, config, inmobiliaria,
+  contratos: initialContratos, ventas: initialVentas, propiedades, isAdmin, config, inmobiliaria, contratoInicialId, ventaInicialId,
 }: Props) {
   const [contratos, setContratos] = useState(initialContratos);
   const [ventas, setVentas] = useState(initialVentas);
@@ -2472,12 +2484,13 @@ export function AlquileresClient({
   useEffect(() => { setContratos(initialContratos); }, [initialContratos]);
   useEffect(() => { setVentas(initialVentas); }, [initialVentas]);
 
-  const [tipoTab, setTipoTab] = useState<TipoTab>("alquiler");
+  const [tipoTab, setTipoTab] = useState<TipoTab>(ventaInicialId ? "compraventa" : "alquiler");
   const [filtroAlq, setFiltroAlq] = useState<FiltroAlq>("al_dia");
   const [busqueda, setBusqueda] = useState("");
 
-  const [selectedAlqId, setSelectedAlqId] = useState<string | null>(null);
-  const [selectedVentaId, setSelectedVentaId] = useState<string | null>(null);
+  // ?contrato=<id> / ?venta=<id> abren directo el detalle (links desde la ficha de un contacto)
+  const [selectedAlqId, setSelectedAlqId] = useState<string | null>(contratoInicialId ?? null);
+  const [selectedVentaId, setSelectedVentaId] = useState<string | null>(ventaInicialId ?? null);
   const [showNuevo, setShowNuevo] = useState(false);
 
   // ── Stats alquiler
@@ -2666,9 +2679,14 @@ export function AlquileresClient({
       {tipoTab === "compraventa" && (
         <div className="grid grid-cols-2 gap-3">
           <StatCard label="Boletos registrados" value={ventas.length} color="#D4A853" />
+          {/* Por moneda, sin mezclar: antes sumaba solo USD y descartaba los boletos en pesos */}
           <StatCard
             label="Valor total"
-            value={Math.round(ventas.filter(v => v.moneda === "USD").reduce((s, v) => s + v.precioVenta, 0))}
+            value={(["USD", "ARS"] as const)
+              .map((m) => [m, ventas.filter((v) => v.moneda === m).reduce((s, v) => s + v.precioVenta, 0)] as const)
+              .filter(([, total]) => total > 0)
+              .map(([m, total]) => formatPrice(total, m))
+              .join(" · ") || formatPrice(0, "USD")}
             color="var(--brand-primary)"
           />
         </div>

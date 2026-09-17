@@ -1,7 +1,8 @@
 /**
  * contrato-pdf.ts
  * Builders HTML compartidos para el PDF de contratos.
- * Usados por: el wizard de creación (preview + print) y el CRM (detalle del contrato).
+ * Usados por: el wizard de creación (preview + print) y el CRM (detalle del contrato,
+ * incluido el comprobante de cada pago registrado).
  * Un solo formato, una sola fuente de verdad.
  */
 
@@ -167,6 +168,41 @@ body{font-family:Georgia,"Times New Roman",serif;font-size:11.5px;line-height:1.
 }`;
 }
 
+// ─── Encabezado compartido (datos de la inmobiliaria + logo + folio) ─────────
+
+function datosEmisor(cfg: PdfConfig | null, inmobiliaria: PdfInmobiliaria | null) {
+  const cp   = cfg?.colorPrimario     ?? "#1B4332";
+  const cs   = cfg?.colorSecundario   ?? "#2C2C2C";
+  const rs   = cfg?.razonSocial       ?? inmobiliaria?.nombre ?? "Inmobiliaria";
+  const cuit = cfg?.cuit              ?? "";
+  const dom  = cfg?.domicilioLegal    ?? "";
+  const mat  = cfg?.matriculaCorredora ?? "";
+  const pie  = cfg?.piePaginaContrato
+    ?? [rs, inmobiliaria?.whatsapp && `Tel: ${inmobiliaria.whatsapp}`].filter(Boolean).join(" · ");
+  const hoy  = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+  return { cp, cs, rs, cuit, dom, mat, pie, hoy };
+}
+
+function buildHband(
+  e: ReturnType<typeof datosEmisor>,
+  inmobiliaria: PdfInmobiliaria | null,
+  folioLabel: string,
+  folio: string,
+): string {
+  const logoHtml = inmobiliaria?.logoUrl
+    ? `<img src="${inmobiliaria.logoUrl}" alt="${e.rs}" style="height:48px;width:auto;object-fit:contain;background:#fff;border-radius:8px;padding:4px;flex-shrink:0"/>`
+    : `<div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,${e.cp},${e.cs});display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:600;flex-shrink:0">${e.rs.charAt(0).toUpperCase()}</div>`;
+
+  return `<div class="hband">
+  <div class="hleft">${logoHtml}<div>
+    <div class="aname">${e.rs}</div>
+    ${e.cuit ? `<div class="ameta">CUIT ${e.cuit}${e.mat ? ` · Mat. ${e.mat}` : ""}</div>` : ""}
+    ${e.dom ? `<div class="ameta" style="font-family:inherit">${e.dom}</div>` : ""}
+  </div></div>
+  <div style="text-align:right"><div class="flabel">${folioLabel}</div><div class="fnum">${folio}</div><div class="fdate">Emitido ${e.hoy}</div></div>
+</div>`;
+}
+
 // ─── Builder: Contrato de Alquiler ────────────────────────────────────────────
 
 export function buildContratoAlquilerHtml(
@@ -174,15 +210,8 @@ export function buildContratoAlquilerHtml(
   cfg:          PdfConfig | null,
   inmobiliaria: PdfInmobiliaria | null,
 ): string {
-  const cp    = cfg?.colorPrimario     ?? "#1B4332";
-  const cs    = cfg?.colorSecundario   ?? "#2C2C2C";
-  const rs    = cfg?.razonSocial       ?? inmobiliaria?.nombre ?? "Inmobiliaria";
-  const cuit  = cfg?.cuit              ?? "";
-  const dom   = cfg?.domicilioLegal    ?? "";
-  const mat   = cfg?.matriculaCorredora ?? "";
-  const pie   = cfg?.piePaginaContrato
-    ?? [rs, inmobiliaria?.whatsapp && `Tel: ${inmobiliaria.whatsapp}`].filter(Boolean).join(" · ");
-  const hoy   = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+  const emisor = datosEmisor(cfg, inmobiliaria);
+  const { cp, cs, rs, cuit, dom, mat, pie } = emisor;
   const meses = duracionMeses(contrato.fechaInicio, contrato.fechaFin);
   const ctr   = `CTR-${contrato.id.slice(-4).toUpperCase()}`;
   const lugar = `${cfg?.ciudad ?? "Paso de los Libres"}, ${cfg?.provincia ?? "Corrientes"}`;
@@ -201,11 +230,6 @@ export function buildContratoAlquilerHtml(
     ? `cada ${contrato.ajusteMeses} meses`
     : "precio fijo";
 
-  // Logo / avatar
-  const logoHtml = inmobiliaria?.logoUrl
-    ? `<img src="${inmobiliaria.logoUrl}" alt="${rs}" style="height:48px;width:auto;object-fit:contain;background:#fff;border-radius:8px;padding:4px;flex-shrink:0"/>`
-    : `<div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,${cp},${cs});display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:600;flex-shrink:0">${rs.charAt(0).toUpperCase()}</div>`;
-
   // Firma del locador
   const digitalFirma = contrato.tipoFirma === "DIGITAL" && inmobiliaria?.firmaUrl;
   const firmaLocadorHtml = digitalFirma
@@ -218,14 +242,7 @@ export function buildContratoAlquilerHtml(
 </head><body>
 <div class="wm">VIGENTE</div>
 <div class="page">
-<div class="hband">
-  <div class="hleft">${logoHtml}<div>
-    <div class="aname">${rs}</div>
-    ${cuit ? `<div class="ameta">CUIT ${cuit}${mat ? ` · Mat. ${mat}` : ""}</div>` : ""}
-    ${dom ? `<div class="ameta" style="font-family:inherit">${dom}</div>` : ""}
-  </div></div>
-  <div style="text-align:right"><div class="flabel">Folio</div><div class="fnum">${ctr}</div><div class="fdate">Emitido ${hoy}</div></div>
-</div>
+${buildHband(emisor, inmobiliaria, "Folio", ctr)}
 <div class="tarea">
   <div class="tsub">Ley 27.551 — Régimen general</div>
   <div class="ttit">Contrato de Locación de Inmueble</div>
@@ -276,24 +293,13 @@ export function buildContratoVentaHtml(
   cfg:          PdfConfig | null,
   inmobiliaria: PdfInmobiliaria | null,
 ): string {
-  const cp    = cfg?.colorPrimario     ?? "#1B4332";
-  const cs    = cfg?.colorSecundario   ?? "#2C2C2C";
-  const rs    = cfg?.razonSocial       ?? inmobiliaria?.nombre ?? "Inmobiliaria";
-  const cuit  = cfg?.cuit              ?? "";
-  const dom   = cfg?.domicilioLegal    ?? "";
-  const mat   = cfg?.matriculaCorredora ?? "";
-  const pie   = cfg?.piePaginaContrato
-    ?? [rs, inmobiliaria?.whatsapp && `Tel: ${inmobiliaria.whatsapp}`].filter(Boolean).join(" · ");
-  const hoy   = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+  const emisor = datosEmisor(cfg, inmobiliaria);
+  const { cp, cs, rs, mat, pie } = emisor;
   const bcv   = `BCV-${venta.id.slice(-4).toUpperCase()}`;
 
   const clausulaParrafos = (venta.clausulas ?? "")
     .split(/\n\n+/).filter(Boolean)
     .map((p) => `<p style="margin:0 0 8px">${p.replace(/\n/g, "<br>")}</p>`).join("");
-
-  const logoHtml = inmobiliaria?.logoUrl
-    ? `<img src="${inmobiliaria.logoUrl}" alt="${rs}" style="height:48px;width:auto;object-fit:contain;background:#fff;border-radius:8px;padding:4px;flex-shrink:0"/>`
-    : `<div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,${cp},${cs});display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:600;flex-shrink:0">${rs.charAt(0).toUpperCase()}</div>`;
 
   const digitalFirma = venta.tipoFirma === "DIGITAL" && inmobiliaria?.firmaUrl;
   const firmaCorredorHtml = digitalFirma
@@ -306,14 +312,7 @@ export function buildContratoVentaHtml(
 </head><body>
 <div class="wm">BOLETO</div>
 <div class="page">
-<div class="hband">
-  <div class="hleft">${logoHtml}<div>
-    <div class="aname">${rs}</div>
-    ${cuit ? `<div class="ameta">CUIT ${cuit}${mat ? ` · Mat. ${mat}` : ""}</div>` : ""}
-    ${dom ? `<div class="ameta" style="font-family:inherit">${dom}</div>` : ""}
-  </div></div>
-  <div style="text-align:right"><div class="flabel">Folio</div><div class="fnum">${bcv}</div><div class="fdate">Emitido ${hoy}</div></div>
-</div>
+${buildHband(emisor, inmobiliaria, "Folio", bcv)}
 <div class="tarea">
   <div class="tsub">Instrumento privado</div>
   <div class="ttit">Boleto de Compraventa</div>
@@ -354,6 +353,85 @@ ${clausulaParrafos ? `<div class="sectit">II — Cláusulas especiales</div><div
 </div>
 <div class="footer"><span>${pie}</span></div>
 </div></body></html>`;
+}
+
+// ─── Builder: Comprobante de pago de alquiler ────────────────────────────────
+
+export interface PagoComprobantePdf {
+  id:         string;
+  concepto:   string;         // se usa como período (ej: "Pago septiembre de 2026")
+  monto:      number;
+  moneda:     "ARS" | "USD";
+  metodoPago: string | null;
+  fecha:      string;         // YYYY-MM-DD
+}
+
+export interface ContratoComprobantePdf {
+  id:              string;
+  inquilinoNombre: string;
+  inquilinoTel:    string;
+  inquilinoDni?:   string | null;  // solo si el contrato tiene un contacto inquilino con DNI
+  propiedad:       { titulo: string; direccion: string };
+}
+
+/** Un documento, dos páginas idénticas: "Copia inquilino" y "Copia inmobiliaria". */
+export function buildComprobantePagoHtml(
+  pago:         PagoComprobantePdf,
+  contrato:     ContratoComprobantePdf,
+  cfg:          PdfConfig | null,
+  inmobiliaria: PdfInmobiliaria | null,
+): string {
+  const emisor = datosEmisor(cfg, inmobiliaria);
+  const { cp, cs, rs, cuit, dom, pie } = emisor;
+  const rec   = `REC-${pago.id.slice(-6).toUpperCase()}`;
+  const ctr   = `CTR-${contrato.id.slice(-4).toUpperCase()}`;
+  const monto = formatPrice(pago.monto, pago.moneda);
+
+  const copia = (label: string) => `<div class="page">
+${buildHband(emisor, inmobiliaria, "Comprobante", rec)}
+<div class="tarea">
+  <div class="tsub">${label}</div>
+  <div class="ttit">Comprobante de pago</div>
+</div>
+<div class="pgrid">
+  <div class="pcard" style="border-top:3px solid #D4A853">
+    <div class="prole">Recibido de (locatario)</div>
+    <div class="pname">${contrato.inquilinoNombre}</div>
+    ${contrato.inquilinoDni ? `<div class="pdet">DNI ${contrato.inquilinoDni}</div>` : ""}
+    <div class="pdet">${contrato.inquilinoTel}</div>
+  </div>
+  <div class="pcard" style="border-top:3px solid ${cp}">
+    <div class="prole">Recibido por</div>
+    <div class="pname">${rs}</div>
+    ${cuit ? `<div class="pdet">CUIT ${cuit}</div>` : ""}
+    ${dom ? `<div class="pdet" style="font-family:inherit">${dom}</div>` : ""}
+  </div>
+</div>
+<div class="propbox">
+  <div class="proplab">Inmueble · Contrato ${ctr}</div>
+  <div class="ptit">${contrato.propiedad.titulo}</div><div class="padr">${contrato.propiedad.direccion}</div>
+</div>
+<div class="cgrid">
+  <div class="fch"><div class="flh">Monto</div><div class="fvh">${monto}</div><div class="fs">${pago.moneda}</div></div>
+  <div class="fc"><div class="fl">Período</div><div class="fv" style="font-family:inherit">${pago.concepto}</div></div>
+  <div class="fc"><div class="fl">Fecha de pago</div><div class="fv">${fmtFecha(pago.fecha)}</div></div>
+  <div class="fc"><div class="fl">Método</div><div class="fv" style="font-family:inherit">${pago.metodoPago ?? "—"}</div></div>
+</div>
+<p class="intro">Recibimos de <strong>${contrato.inquilinoNombre}</strong>${contrato.inquilinoDni ? `, DNI ${contrato.inquilinoDni}` : ""}, la suma de <strong>${monto}</strong> en concepto de <strong>${pago.concepto}</strong>, correspondiente a la locación del inmueble ubicado en ${contrato.propiedad.direccion}.</p>
+<div class="sigs" style="grid-template-columns:1fr;max-width:260px;margin-left:auto">
+  <div><div class="sline"></div><div class="srole">Firma y aclaración</div><div class="sname">${rs}</div></div>
+</div>
+<div class="footer"><span>${pie}</span><span>${rec}</span></div>
+</div>`;
+
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Comprobante ${rec} — ${contrato.inquilinoNombre}</title>
+<style>${buildCss(cp, cs)}.page+.page{break-before:page;page-break-before:always}</style>
+</head><body>
+<div class="wm">PAGADO</div>
+${copia("Copia inquilino")}
+${copia("Copia inmobiliaria")}
+</body></html>`;
 }
 
 // ─── Helper: abrir en ventana y disparar print ────────────────────────────────

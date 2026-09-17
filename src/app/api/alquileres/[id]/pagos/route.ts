@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { pagoRegistroSchema } from "@/lib/validations/rental";
 import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
@@ -17,6 +18,15 @@ async function assertOwnership(contratoId: string, inmobiliariaId: string) {
   if (!contrato) return null;
   if (contrato.inmobiliariaId !== inmobiliariaId) return false;
   return true;
+}
+
+/**
+ * Decimal → number para serialización JSON segura, y `fecha` (@db.Date) como
+ * "YYYY-MM-DD" — mismo formato que usa /alquileres/page.tsx para fechaInicio/fechaFin,
+ * que es lo que esperan los helpers de fecha del cliente.
+ */
+function serializarPago<T extends { monto: Prisma.Decimal; fecha: Date }>(p: T) {
+  return { ...p, monto: Number(p.monto), fecha: p.fecha.toISOString().slice(0, 10) };
 }
 
 // ─── GET /api/alquileres/[id]/pagos ──────────────────────────────────────────
@@ -45,8 +55,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       orderBy: { fecha: "desc" },
     });
 
-    // Decimal → number para serialización JSON segura
-    const data = pagos.map((p) => ({ ...p, monto: Number(p.monto) }));
+    const data = pagos.map(serializarPago);
     return NextResponse.json({ data });
   } catch {
     return NextResponse.json({ error: "Error al obtener pagos" }, { status: 500 });
@@ -100,8 +109,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       },
     });
 
-    // Decimal → number para serialización JSON segura
-    return NextResponse.json({ data: { ...pago, monto: Number(pago.monto) } }, { status: 201 });
+    return NextResponse.json({ data: serializarPago(pago) }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Error al registrar pago" }, { status: 500 });
   }
