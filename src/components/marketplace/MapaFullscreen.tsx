@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import type { MapProperty } from "./MarketplaceMap";
 import { createPriceMarkerIcon, tipoDeOperacion, PRICE_MARKER_STYLES } from "@/lib/map-markers";
+import { estadoRibbonHtml } from "@/components/ui/estado-ribbon";
 
 interface Props {
   properties: MapProperty[];
@@ -43,9 +44,11 @@ function buildPopupHtml(prop: MapProperty): string {
   const safeTitulo = escapeHtml(prop.titulo);
   const safeFotoUrl = prop.fotoUrl?.startsWith("https://") ? prop.fotoUrl : null;
 
+  // position:relative para apoyar el cartel de estado (Reservada/Alquilada/Vendida) sobre la foto
+  const cartelEstado = prop.estado ? estadoRibbonHtml(prop.estado) : "";
   const fotoHtml = safeFotoUrl
-    ? `<img src="${safeFotoUrl}" alt="" style="width:260px;height:140px;object-fit:cover;display:block;" />`
-    : `<div style="width:260px;height:80px;background:#f0ede8;display:flex;align-items:center;justify-content:center;"><span style="color:#9c9590;font-size:12px;font-family:system-ui;">Sin foto</span></div>`;
+    ? `<div style="position:relative;"><img src="${safeFotoUrl}" alt="" style="width:260px;height:140px;object-fit:cover;display:block;" />${cartelEstado}</div>`
+    : `<div style="position:relative;width:260px;height:80px;background:#f0ede8;display:flex;align-items:center;justify-content:center;"><span style="color:#9c9590;font-size:12px;font-family:system-ui;">Sin foto</span>${cartelEstado}</div>`;
 
   const wpNum = prop.whatsapp ? prop.whatsapp.replace(/\D/g, "") : null;
   const wpLink = wpNum

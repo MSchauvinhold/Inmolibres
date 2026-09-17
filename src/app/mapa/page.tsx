@@ -27,6 +27,7 @@ export default async function MapaPage() {
       slug: true,
       tipo: true,
       operacion: true,
+      estado: true,
       precio: true,
       moneda: true,
       latitud: true,
@@ -51,6 +52,7 @@ export default async function MapaPage() {
     longitud: p.longitud!,
     fotoUrl: p.fotos[0]?.urlCloudinary ?? null,
     whatsapp: p.inmobiliaria?.whatsapp ?? null,
+    estado: p.estado,
   }));
 
   return (

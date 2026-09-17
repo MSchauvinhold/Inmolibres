@@ -17,6 +17,8 @@ export interface MapProperty {
   inmobiliariaNombre: string | null;
   fotoUrl?: string | null;
   whatsapp?: string | null;
+  /** Reservada/Alquilada/Vendida: cartel sobre la foto del popup */
+  estado?: "DISPONIBLE" | "RESERVADA" | "ALQUILADA" | "VENDIDA";
 }
 
 interface MarketplaceMapProps {
