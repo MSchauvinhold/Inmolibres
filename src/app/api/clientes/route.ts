@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { clienteSchema } from "@/lib/validations/client";
-import { buildPaginationMeta } from "@/lib/utils";
+import { buildPaginationMeta, telefonosCoinciden } from "@/lib/utils";
 import { requireCrmAuth, isNextResponse } from "@/lib/api-auth";
 import type { Prisma, EstadoPipeline } from "@prisma/client";
 
@@ -100,6 +100,22 @@ export async function POST(request: NextRequest) {
       if (!agente || agente.inmobiliariaId !== inmobiliariaId) {
         return NextResponse.json({ error: "Agente no válido para esta inmobiliaria" }, { status: 400 });
       }
+    }
+
+    // Un prospecto por teléfono dentro de la inmobiliaria (o del particular). Antes
+    // "Convertir en cliente" desde Consultas creaba un duplicado exacto cada vez que se
+    // tocaba. Se compara con telefonosCoinciden (ignora formato/prefijos), igual que la
+    // ficha del prospecto cruza sus consultas por teléfono.
+    const existentes = await db.cliente.findMany({
+      where: isParticular ? { agenteId: userId, inmobiliariaId: null } : { inmobiliariaId: inmobiliariaId! },
+      select: { id: true, nombre: true, telefono: true },
+    });
+    const duplicado = existentes.find((c) => telefonosCoinciden(c.telefono, clienteData.telefono));
+    if (duplicado) {
+      return NextResponse.json(
+        { error: `Ya existe un prospecto con ese teléfono: ${duplicado.nombre}`, existenteId: duplicado.id },
+        { status: 409 }
+      );
     }
 
     if (propiedadIds?.length) {

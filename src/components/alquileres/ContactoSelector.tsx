@@ -163,7 +163,15 @@ export function ContactoSelector({ label, required, selected, color = "#1B4332",
           estadoCivil: form.estadoCivil || null,
         }),
       });
-      const json = await res.json() as { data: ContactoMinimal; error?: string };
+      const json = await res.json() as { data: ContactoMinimal; error?: string; existente?: ContactoMinimal };
+      // Ya existe un contacto con ese teléfono: se selecciona ese en vez de duplicarlo,
+      // así el wizard sigue sin cortar el flujo
+      if (res.status === 409 && json.existente) {
+        toast.info(`${json.error ?? "Ya existe un contacto con ese teléfono"} — se seleccionó ese contacto`);
+        handleSelect(json.existente);
+        setForm({ nombre: "", dni: "", telefono: "", domicilio: "", estadoCivil: "soltero" });
+        return;
+      }
       if (!res.ok) throw new Error(json.error ?? "Error al crear el contacto");
       toast.success(`Contacto "${form.nombre}" creado`);
       handleSelect(json.data);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { telefonosCoinciden } from "@/lib/utils";
 import type { RolContacto } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -67,6 +68,28 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Un contacto por teléfono dentro de la inmobiliaria (mismo criterio que POST
+    // /api/clientes). Un duplicado acá contamina después los vínculos con contratos y
+    // boletos. El teléfono es opcional en contactos: sin teléfono no hay con qué comparar.
+    if (body.telefono?.trim()) {
+      const existentes = await db.contacto.findMany({
+        where: { inmobiliariaId, telefono: { not: null } },
+        select: { id: true, nombre: true, dni: true, telefono: true, domicilio: true, estadoCivil: true, email: true },
+      });
+      const duplicado = existentes.find((c) => telefonosCoinciden(c.telefono!, body.telefono!));
+      if (duplicado) {
+        return NextResponse.json(
+          {
+            error: `Ya existe un contacto con ese teléfono: ${duplicado.nombre}`,
+            existenteId: duplicado.id,
+            // Datos mínimos para que el selector del wizard de contratos lo elija directo
+            existente: duplicado,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const contacto = await db.contacto.create({
       data: {
         inmobiliariaId,
