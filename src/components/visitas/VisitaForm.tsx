@@ -20,7 +20,7 @@ export function VisitaForm({ propiedades, clientes, agentes }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<VisitaInput>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<VisitaInput>({
     resolver: zodResolver(visitaSchema),
     defaultValues: { tipo: "VISITA_COMPRADOR" },
   });
@@ -54,7 +54,10 @@ export function VisitaForm({ propiedades, clientes, agentes }: Props) {
         return;
       }
       toast.success("Visita agendada");
-      router.push("/visitas");
+      // Limpia el form (evita reenviar la misma visita sin querer) y refresca la página
+      // actual. Antes hacía router.push("/visitas"), que además te sacaba de la vista
+      // Semana/Calendario a la Lista: el form vive embebido en /visitas, no hace falta navegar.
+      reset();
       router.refresh();
     } catch {
       toast.error("Error inesperado");
@@ -117,7 +120,9 @@ export function VisitaForm({ propiedades, clientes, agentes }: Props) {
       </div>
 
       <div className="flex gap-3">
-        <button type="button" onClick={() => router.back()} className="btn-outline">Cancelar</button>
+        {/* El form está embebido en /visitas: "Cancelar" limpia los campos (antes hacía
+            router.back() y te sacaba de la página) */}
+        <button type="button" onClick={() => reset()} className="btn-outline">Cancelar</button>
         <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2">
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
           Agendar visita

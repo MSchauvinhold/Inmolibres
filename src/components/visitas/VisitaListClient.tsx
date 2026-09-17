@@ -21,6 +21,15 @@ interface Props {
 
 export function VisitaListClient({ visitas: initialVisitas }: Props) {
   const [visitas, setVisitas] = useState(initialVisitas);
+
+  // VisitaForm hace router.refresh() al agendar: sin esto la lista conservaba el estado
+  // inicial y la visita nueva no aparecía hasta recargar (el contador del header, que es
+  // del server component, sí se actualizaba). Mismo patrón que TasacionListClient.
+  const [prevInitial, setPrevInitial] = useState(initialVisitas);
+  if (initialVisitas !== prevInitial) {
+    setPrevInitial(initialVisitas);
+    setVisitas(initialVisitas);
+  }
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFecha, setEditFecha] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
