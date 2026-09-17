@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Trash2, Loader2, MapPin } from "lucide-react";
+import { Trash2, Loader2, MapPin, Home } from "lucide-react";
 import { Pill } from "@/components/ui/pill";
 import { TIPO_PROPIEDAD_LABELS, formatMonto, formatDate } from "@/lib/utils";
 
@@ -19,6 +21,7 @@ interface Tasacion {
   fechaTasacion: string | null;
   notas: string | null;
   agente: { nombre: string } | null;
+  propiedad?: { id: string; titulo: string } | null;
   createdAt: string;
 }
 
@@ -41,8 +44,17 @@ interface Props {
 }
 
 export function TasacionListClient({ tasaciones: initial }: Props) {
+  const router = useRouter();
   const [tasaciones, setTasaciones] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
+
+  // TasacionForm hace router.refresh() al cargar una tasación: sin esto la lista
+  // conservaba el estado inicial y la nueva no aparecía hasta recargar la página.
+  const [prevInitial, setPrevInitial] = useState(initial);
+  if (initial !== prevInitial) {
+    setPrevInitial(initial);
+    setTasaciones(initial);
+  }
 
   async function cambiarEstado(id: string, estado: Tasacion["estado"]) {
     setBusy(id);
@@ -56,6 +68,8 @@ export function TasacionListClient({ tasaciones: initial }: Props) {
       if (!res.ok) throw new Error(json.error ?? "Error al actualizar la tasación");
       setTasaciones((prev) => prev.map((t) => (t.id === id ? { ...t, estado } : t)));
       toast.success("Estado actualizado");
+      // Los contadores del header ("· N pendientes") vienen del server component
+      router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al actualizar la tasación");
     } finally {
@@ -72,6 +86,7 @@ export function TasacionListClient({ tasaciones: initial }: Props) {
       if (!res.ok) throw new Error(json.error ?? "Error al eliminar la tasación");
       setTasaciones((prev) => prev.filter((t) => t.id !== id));
       toast.success("Tasación eliminada");
+      router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al eliminar la tasación");
     } finally {
@@ -106,8 +121,17 @@ export function TasacionListClient({ tasaciones: initial }: Props) {
                   {TIPO_PROPIEDAD_LABELS[t.tipo]}
                   {t.superficie ? ` · ${t.superficie} m²` : ""}
                   {t.agente ? ` · ${t.agente.nombre}` : ""}
-                  {t.fechaTasacion ? ` · ${formatDate(t.fechaTasacion)}` : ""}
+                  {/* @db.Date = medianoche UTC: en hora local mostraba el día anterior */}
+                  {t.fechaTasacion ? ` · ${formatDate(t.fechaTasacion, { timeZone: "UTC" })}` : ""}
                 </div>
+                {t.propiedad && (
+                  <Link
+                    href={`/propiedades/${t.propiedad.id}/editar`}
+                    style={{ fontSize: 11, color: "var(--terracota-600)", marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none" }}
+                  >
+                    <Home size={11} /> {t.propiedad.titulo}
+                  </Link>
+                )}
                 {t.notas && (
                   <p style={{ fontSize: 12, color: "var(--antracita-500)", marginTop: 6, fontStyle: "italic" }}>{t.notas}</p>
                 )}

@@ -21,6 +21,7 @@ export const tasacionSchema = z.object({
     .default("PENDIENTE"),
   fechaTasacion: z.string().optional().or(z.literal("")),
   clienteId: z.string().optional().or(z.literal("")),
+  propiedadId: z.string().optional().or(z.literal("")),
   agenteId: z.string().optional().or(z.literal("")),
   notas: z.string().max(1000, "Máximo 1000 caracteres").optional(),
 });

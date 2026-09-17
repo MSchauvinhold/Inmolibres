@@ -92,6 +92,17 @@ export function formatDate(
   });
 }
 
+/**
+ * Las fechas de operaciones y egresos son fechas de calendario (vienen de inputs
+ * date) y se guardan como medianoche UTC. Formatearlas con toLocaleDateString()
+ * las convierte a hora local y en Argentina (UTC-3) muestran el día ANTERIOR:
+ * un egreso del 01/08 se veía como "31/7". Formateamos en UTC para que se lea
+ * la fecha que el usuario cargó.
+ */
+export function fmtFechaUTC(fechaStr: string, opts: Intl.DateTimeFormatOptions = {}) {
+  return new Date(fechaStr).toLocaleDateString("es-AR", { timeZone: "UTC", ...opts });
+}
+
 export function formatDateTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return d.toLocaleString("es-AR", {

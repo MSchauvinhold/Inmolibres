@@ -81,13 +81,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { clienteId, agenteId, clienteTelefono, fechaTasacion, ...resto } = parsed.data;
+  const { clienteId, propiedadId, agenteId, clienteTelefono, fechaTasacion, ...resto } = parsed.data;
 
   try {
     if (clienteId) {
       const cliente = await db.cliente.findUnique({ where: { id: clienteId }, select: { inmobiliariaId: true } });
       if (!cliente || cliente.inmobiliariaId !== inmobiliariaId) {
         return NextResponse.json({ error: "Cliente no válido para esta inmobiliaria" }, { status: 400 });
+      }
+    }
+
+    if (propiedadId) {
+      const propiedad = await db.propiedad.findUnique({ where: { id: propiedadId }, select: { inmobiliariaId: true } });
+      if (!propiedad || propiedad.inmobiliariaId !== inmobiliariaId) {
+        return NextResponse.json({ error: "Propiedad no válida para esta inmobiliaria" }, { status: 400 });
       }
     }
 
@@ -103,6 +110,7 @@ export async function POST(request: NextRequest) {
         clienteTelefono: clienteTelefono || null,
         fechaTasacion: fechaTasacion ? new Date(fechaTasacion) : null,
         clienteId: clienteId || null,
+        propiedadId: propiedadId || null,
         agenteId: agenteFinal,
         inmobiliariaId: inmobiliariaId!,
       },

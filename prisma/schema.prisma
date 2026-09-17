@@ -262,6 +262,9 @@ model Propiedad {
   visitas             Visita[]
   contratos           ContratoAlquiler[]
   consultas           Consulta[]
+  tasaciones          Tasacion[]
+  egresos             EgresoInmobiliaria[]
+  boletosVenta        ContratoVenta[]
 
   @@index([inmobiliariaId], map: "idx_propiedades_inmobiliaria")
   @@index([tipo, operacion], map: "idx_propiedades_tipo_operacion")
@@ -446,6 +449,9 @@ model AjusteAlquiler {
 model ContratoVenta {
   id                   String    @id @default(cuid())
   inmobiliariaId       String    @map("inmobiliaria_id")
+  // Opcional: propiedad del sistema elegida en el wizard. Los datos del inmueble se copian
+  // igual como texto (el boleto es un documento y no debe cambiar si se edita la propiedad).
+  propiedadId          String?   @map("propiedad_id")
 
   propiedadDireccion   String    @map("propiedad_direccion")
   propiedadDescripcion String?   @map("propiedad_descripcion")
@@ -488,8 +494,10 @@ model ContratoVenta {
   updatedAt            DateTime  @updatedAt      @map("updated_at") @db.Timestamptz(6)
 
   inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade)
+  propiedad    Propiedad?   @relation(fields: [propiedadId], references: [id], onDelete: SetNull)
 
   @@index([inmobiliariaId], map: "idx_contratos_venta_inmobiliaria")
+  @@index([propiedadId], map: "idx_contratos_venta_propiedad")
   @@map("contratos_venta")
 }
 
@@ -694,10 +702,15 @@ model EgresoInmobiliaria {
   moneda         Moneda   @default(ARS)
   fecha          DateTime @default(now()) @db.Timestamptz(6)
   categoria      String?
+  // Opcional: gasto de mantenimiento de una propiedad (ficha de propiedad). Sigue
+  // contando en Finanzas como cualquier egreso. Si se borra la propiedad, queda en null.
+  propiedadId    String?  @map("propiedad_id")
 
   inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id])
+  propiedad    Propiedad?   @relation(fields: [propiedadId], references: [id], onDelete: SetNull)
 
   @@index([inmobiliariaId])
+  @@index([propiedadId])
   @@map("egresos_inmobiliaria")
 }
 
@@ -818,6 +831,7 @@ model Tasacion {
   inmobiliariaId  String         @map("inmobiliaria_id")
   agenteId        String?        @map("agente_id")
   clienteId       String?        @map("cliente_id") // opcional: vincula a un prospecto ya cargado
+  propiedadId     String?        @map("propiedad_id") // opcional: tasación de una propiedad ya cargada (historial en su ficha)
 
   clienteNombre   String         @map("cliente_nombre")
   clienteTelefono String?        @map("cliente_telefono")
@@ -836,8 +850,10 @@ model Tasacion {
   inmobiliaria Inmobiliaria @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade)
   agente       Usuario?     @relation(fields: [agenteId], references: [id], onUpdate: NoAction)
   cliente      Cliente?     @relation(fields: [clienteId], references: [id], onUpdate: NoAction)
+  propiedad    Propiedad?   @relation(fields: [propiedadId], references: [id], onDelete: SetNull)
 
   @@index([inmobiliariaId], map: "idx_tasaciones_inmobiliaria")
+  @@index([propiedadId], map: "idx_tasaciones_propiedad")
   @@index([estado], map: "idx_tasaciones_estado")
   @@map("tasaciones")
 }

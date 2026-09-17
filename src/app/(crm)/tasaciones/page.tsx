@@ -28,7 +28,10 @@ export default async function TasacionesPage() {
       where,
       orderBy: { createdAt: "desc" },
       take: 200,
-      include: { agente: { select: { nombre: true } } },
+      include: {
+        agente: { select: { nombre: true } },
+        propiedad: { select: { id: true, titulo: true } },
+      },
     }),
     db.cliente.findMany({
       where: { inmobiliariaId },
@@ -50,6 +53,7 @@ export default async function TasacionesPage() {
     fechaTasacion: t.fechaTasacion ? t.fechaTasacion.toISOString() : null,
     notas: t.notas,
     agente: t.agente,
+    propiedad: t.propiedad,
     createdAt: t.createdAt.toISOString(),
   }));
 

@@ -13,15 +13,28 @@ interface SelectOption { id: string; label: string }
 
 interface Props {
   clientes: SelectOption[];
+  /** Carga desde la ficha de una propiedad: precarga sus datos y deja la tasación vinculada */
+  propiedad?: { id: string; direccion: string; tipo: TasacionInput["tipo"]; superficie: number | null };
 }
 
-export function TasacionForm({ clientes }: Props) {
+export function TasacionForm({ clientes, propiedad }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
+  const defaults: Partial<TasacionInput> = {
+    tipo: propiedad?.tipo ?? "CASA",
+    moneda: "USD",
+    estado: "PENDIENTE",
+    ...(propiedad && {
+      propiedadId: propiedad.id,
+      direccion: propiedad.direccion,
+      superficie: propiedad.superficie ?? undefined,
+    }),
+  };
+
   const { register, handleSubmit, formState: { errors }, reset } = useForm<TasacionInput>({
     resolver: zodResolver(tasacionSchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- mismo workaround que ClienteForm: z.default() rompe la inferencia del resolver
-    defaultValues: { tipo: "CASA", moneda: "USD", estado: "PENDIENTE" },
+    defaultValues: defaults,
   });
 
   async function onSubmit(data: TasacionInput) {
@@ -38,7 +51,7 @@ export function TasacionForm({ clientes }: Props) {
         return;
       }
       toast.success("Tasación cargada");
-      reset({ tipo: "CASA", moneda: "USD", estado: "PENDIENTE", clienteNombre: "", direccion: "" });
+      reset({ clienteNombre: "", direccion: "", ...defaults });
       router.refresh();
     } catch {
       toast.error("Error inesperado");

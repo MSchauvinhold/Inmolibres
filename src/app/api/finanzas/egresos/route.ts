@@ -44,6 +44,7 @@ export async function POST(req: Request) {
     moneda: Moneda;
     fecha?: string;
     categoria?: string;
+    propiedadId?: string | null;
   };
   try {
     body = await req.json();
@@ -62,6 +63,14 @@ export async function POST(req: Request) {
   }
 
   try {
+    // Gasto de mantenimiento cargado desde la ficha de una propiedad
+    if (body.propiedadId) {
+      const propiedad = await db.propiedad.findUnique({ where: { id: body.propiedadId }, select: { inmobiliariaId: true } });
+      if (!propiedad || propiedad.inmobiliariaId !== inmobiliariaId) {
+        return NextResponse.json({ error: "Propiedad no válida para esta inmobiliaria" }, { status: 400 });
+      }
+    }
+
     const egreso = await db.egresoInmobiliaria.create({
       data: {
         inmobiliariaId,
@@ -70,6 +79,7 @@ export async function POST(req: Request) {
         moneda: body.moneda ?? "ARS",
         fecha: body.fecha ? new Date(body.fecha) : undefined,
         categoria: body.categoria,
+        propiedadId: body.propiedadId || null,
       },
     });
 
