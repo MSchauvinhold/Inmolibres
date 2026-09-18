@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
 
-  const inmobiliariaId = session.user.inmobiliariaId;
+  const { inmobiliariaId } = session;
   const { searchParams } = new URL(req.url);
   const meses = Number(searchParams.get("meses") ?? "6");
 

@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import type { Rol, EstadoInmobiliaria } from "@prisma/client";
 import { authConfig } from "@/lib/auth.config";
+import { isRateLimited, getClientIp } from "@/lib/rate-limit";
 
 // ─── Module Augmentation ──────────────────────────────────────────────────────
 
@@ -54,8 +55,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Contraseña", type: "password" },
       },
-      authorize: async (credentials) => {
+      authorize: async (credentials, request) => {
         if (!credentials?.email || !credentials?.password) return null;
+
+        // Freno a la fuerza bruta, mismo criterio que forgot/reset-password: una
+        // cuenta concreta aguanta pocos intentos por IP, y una misma IP no puede
+        // barrer muchas cuentas distintas. Cuenta todos los intentos, no solo los
+        // fallidos — con el volumen de usuarios de esto no molesta a nadie.
+        const ip = getClientIp(request);
+        const emailKey = String(credentials.email).trim().toLowerCase();
+        const VENTANA = 15 * 60 * 1000;
+        if (
+          isRateLimited(`login:${ip}:${emailKey}`, { limit: 8, windowMs: VENTANA }) ||
+          isRateLimited(`login-ip:${ip}`, { limit: 30, windowMs: VENTANA })
+        ) {
+          return null;
+        }
 
         const usuario = await db.usuario.findUnique({
           where: { email: credentials.email as string },

@@ -6,7 +6,7 @@
  * Un solo formato, una sola fuente de verdad.
  */
 
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, TZ_AR } from "@/lib/utils";
 
 // ─── Tipos mínimos aceptados por los builders ─────────────────────────────────
 
@@ -94,6 +94,45 @@ function fmtFechaLarga(iso: string): string {
   });
 }
 
+/**
+ * Escapa texto libre antes de interpolarlo en el HTML del contrato.
+ * Los datos salen de la config de la inmobiliaria y de los contratos cargados en
+ * el CRM: sin esto, un `<script>` guardado en un nombre, una dirección o una
+ * cláusula se ejecuta al abrir el preview o el PDF (XSS almacenado).
+ */
+function esc(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  return String(v)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Colores de marca: se interpolan dentro del <style>, donde escapar no alcanza.
+ * Solo se acepta hex; cualquier otra cosa cae al color por defecto.
+ */
+function safeColor(v: string | null | undefined, fallback: string): string {
+  const t = typeof v === "string" ? v.trim() : "";
+  return /^#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?$/.test(t) ? t : fallback;
+}
+
+/** URL para el src de un <img>: solo http(s), ya escapada para el atributo. */
+function safeUrl(v: string | null | undefined): string | null {
+  const t = typeof v === "string" ? v.trim() : "";
+  return /^https?:\/\//i.test(t) ? esc(t) : null;
+}
+
+/** Texto multilínea (cláusulas) → párrafos HTML, escapando cada línea. */
+function parrafosHtml(texto: string): string {
+  return texto
+    .split(/\n\n+/).filter(Boolean)
+    .map((p) => `<p style="margin:0 0 8px">${esc(p).replace(/\n/g, "<br>")}</p>`)
+    .join("");
+}
+
 const DEFAULT_CLAUSULAS_ALQ = `PRIMERA — DESTINO: El inmueble será destinado exclusivamente a uso habitacional familiar, quedando prohibida su utilización para cualquier otra actividad.
 
 SEGUNDA — SUBARRENDAMIENTO: El locatario no podrá subarrendar, ceder ni transferir este contrato sin el consentimiento expreso y por escrito del locador.
@@ -171,16 +210,22 @@ body{font-family:Georgia,"Times New Roman",serif;font-size:11.5px;line-height:1.
 // ─── Encabezado compartido (datos de la inmobiliaria + logo + folio) ─────────
 
 function datosEmisor(cfg: PdfConfig | null, inmobiliaria: PdfInmobiliaria | null) {
-  const cp   = cfg?.colorPrimario     ?? "#1B4332";
-  const cs   = cfg?.colorSecundario   ?? "#2C2C2C";
-  const rs   = cfg?.razonSocial       ?? inmobiliaria?.nombre ?? "Inmobiliaria";
-  const cuit = cfg?.cuit              ?? "";
-  const dom  = cfg?.domicilioLegal    ?? "";
-  const mat  = cfg?.matriculaCorredora ?? "";
-  const pie  = cfg?.piePaginaContrato
-    ?? [rs, inmobiliaria?.whatsapp && `Tel: ${inmobiliaria.whatsapp}`].filter(Boolean).join(" · ");
-  const hoy  = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
-  return { cp, cs, rs, cuit, dom, mat, pie, hoy };
+  // Todo lo que sale de acá ya viene escapado: los builders lo interpolan directo.
+  const rsRaw  = cfg?.razonSocial ?? inmobiliaria?.nombre ?? "Inmobiliaria";
+  const pieRaw = cfg?.piePaginaContrato
+    ?? [rsRaw, inmobiliaria?.whatsapp && `Tel: ${inmobiliaria.whatsapp}`].filter(Boolean).join(" · ");
+  const hoy = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric", timeZone: TZ_AR });
+  return {
+    cp:      safeColor(cfg?.colorPrimario, "#1B4332"),
+    cs:      safeColor(cfg?.colorSecundario, "#2C2C2C"),
+    rs:      esc(rsRaw),
+    inicial: esc(rsRaw.charAt(0).toUpperCase()),
+    cuit:    esc(cfg?.cuit ?? ""),
+    dom:     esc(cfg?.domicilioLegal ?? ""),
+    mat:     esc(cfg?.matriculaCorredora ?? ""),
+    pie:     esc(pieRaw),
+    hoy,
+  };
 }
 
 function buildHband(
@@ -189,9 +234,10 @@ function buildHband(
   folioLabel: string,
   folio: string,
 ): string {
-  const logoHtml = inmobiliaria?.logoUrl
-    ? `<img src="${inmobiliaria.logoUrl}" alt="${e.rs}" style="height:48px;width:auto;object-fit:contain;background:#fff;border-radius:8px;padding:4px;flex-shrink:0"/>`
-    : `<div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,${e.cp},${e.cs});display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:600;flex-shrink:0">${e.rs.charAt(0).toUpperCase()}</div>`;
+  const logoUrl = safeUrl(inmobiliaria?.logoUrl);
+  const logoHtml = logoUrl
+    ? `<img src="${logoUrl}" alt="${e.rs}" style="height:48px;width:auto;object-fit:contain;background:#fff;border-radius:8px;padding:4px;flex-shrink:0"/>`
+    : `<div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,${e.cp},${e.cs});display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:600;flex-shrink:0">${e.inicial}</div>`;
 
   return `<div class="hband">
   <div class="hleft">${logoHtml}<div>
@@ -214,30 +260,35 @@ export function buildContratoAlquilerHtml(
   const { cp, cs, rs, cuit, dom, mat, pie } = emisor;
   const meses = duracionMeses(contrato.fechaInicio, contrato.fechaFin);
   const ctr   = `CTR-${contrato.id.slice(-4).toUpperCase()}`;
-  const lugar = `${cfg?.ciudad ?? "Paso de los Libres"}, ${cfg?.provincia ?? "Corrientes"}`;
+  const lugar = esc(`${cfg?.ciudad ?? "Paso de los Libres"}, ${cfg?.provincia ?? "Corrientes"}`);
+
+  // Texto libre del contrato: se escapa una sola vez acá y después se interpola directo.
+  const inquilino  = esc(contrato.inquilinoNombre);
+  const inquilinoTel = esc(contrato.inquilinoTel);
+  const propTitulo = esc(contrato.propiedad.titulo);
+  const propDir    = esc(contrato.propiedad.direccion);
+  const moneda     = esc(contrato.moneda);
 
   // Cláusulas: override del wizard > config > default
   const clausulasRaw = contrato.clausulasOverride ?? cfg?.clausulasAdicionales ?? DEFAULT_CLAUSULAS_ALQ;
-  const clausulas = clausulasRaw
-    .split(/\n\n+/).filter(Boolean)
-    .map((p) => `<p style="margin:0 0 8px">${p.replace(/\n/g, "<br>")}</p>`).join("");
+  const clausulas = parrafosHtml(clausulasRaw);
 
   // Ajuste
   const ajusteLabel = contrato.ajusteActivo !== false && contrato.ajusteIndice
-    ? `${contrato.ajusteIndice} · ${contrato.ajusteIndice === "IPC" ? "INDEC" : "BCRA"}`
+    ? esc(`${contrato.ajusteIndice} · ${contrato.ajusteIndice === "IPC" ? "INDEC" : "BCRA"}`)
     : "Sin ajuste";
   const ajusteSub = contrato.ajusteActivo !== false && contrato.ajusteMeses
     ? `cada ${contrato.ajusteMeses} meses`
     : "precio fijo";
 
   // Firma del locador
-  const digitalFirma = contrato.tipoFirma === "DIGITAL" && inmobiliaria?.firmaUrl;
-  const firmaLocadorHtml = digitalFirma
-    ? `<img class="firma-img" src="${inmobiliaria!.firmaUrl}" alt="Firma">`
+  const firmaUrl = contrato.tipoFirma === "DIGITAL" ? safeUrl(inmobiliaria?.firmaUrl) : null;
+  const firmaLocadorHtml = firmaUrl
+    ? `<img class="firma-img" src="${firmaUrl}" alt="Firma">`
     : `<div class="sline"></div>`;
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Contrato — ${contrato.inquilinoNombre}</title>
+<title>Contrato — ${inquilino}</title>
 <style>${buildCss(cp, cs)}.sigs{grid-template-columns:1fr 1fr}</style>
 </head><body>
 <div class="wm">VIGENTE</div>
@@ -256,31 +307,31 @@ ${buildHband(emisor, inmobiliaria, "Folio", ctr)}
   </div>
   <div class="pcard" style="border-top:3px solid #D4A853">
     <div class="prole">Locatario</div>
-    <div class="pname">${contrato.inquilinoNombre}</div>
-    <div class="pdet">${contrato.inquilinoTel}</div>
+    <div class="pname">${inquilino}</div>
+    <div class="pdet">${inquilinoTel}</div>
   </div>
 </div>
 <div class="propbox">
   <div class="proplab">Inmueble objeto del contrato</div>
   <div class="propgr">
-    <div><div class="ptit">${contrato.propiedad.titulo}</div><div class="padr">${contrato.propiedad.direccion}</div></div>
+    <div><div class="ptit">${propTitulo}</div><div class="padr">${propDir}</div></div>
     <div><div class="dlabel">Duración</div><div class="dval">${meses} meses</div></div>
     <div><div class="dlabel">Día de pago</div><div class="dval">Día ${contrato.diaVencimientoPago}</div></div>
   </div>
 </div>
 <div class="sectit">I — Condiciones económicas</div>
 <div class="cgrid">
-  <div class="fch"><div class="flh">Valor inicial</div><div class="fvh">${formatPrice(contrato.precioMensual, contrato.moneda)}</div><div class="fs">${contrato.moneda} · mensual</div></div>
+  <div class="fch"><div class="flh">Valor inicial</div><div class="fvh">${formatPrice(contrato.precioMensual, contrato.moneda)}</div><div class="fs">${moneda} · mensual</div></div>
   <div class="fc"><div class="fl">Día de pago</div><div class="fv">${contrato.diaVencimientoPago}</div><div class="fs">de cada mes</div></div>
   <div class="fc"><div class="fl">Plazo</div><div class="fv">${meses} meses</div><div class="fs">${fmtFecha(contrato.fechaInicio)} – ${fmtFecha(contrato.fechaFin)}</div></div>
   <div class="fc"><div class="fl">Ajuste</div><div class="fv">${ajusteLabel}</div><div class="fs">${ajusteSub}</div></div>
 </div>
-<p class="intro">En la ciudad de <strong>${lugar}</strong>, entre <strong>${rs}</strong>${cuit ? `, CUIT ${cuit}` : ""}${dom ? `, con domicilio en ${dom}` : ""}${mat ? `, corredor inmobiliario matrícula N° ${mat}` : ""}, en adelante el <strong>LOCADOR</strong>; y <strong>${contrato.inquilinoNombre}</strong>, tel. ${contrato.inquilinoTel}, en adelante el <strong>LOCATARIO</strong>; se celebra el presente Contrato de Locación bajo los siguientes términos y condiciones:</p>
+<p class="intro">En la ciudad de <strong>${lugar}</strong>, entre <strong>${rs}</strong>${cuit ? `, CUIT ${cuit}` : ""}${dom ? `, con domicilio en ${dom}` : ""}${mat ? `, corredor inmobiliario matrícula N° ${mat}` : ""}, en adelante el <strong>LOCADOR</strong>; y <strong>${inquilino}</strong>, tel. ${inquilinoTel}, en adelante el <strong>LOCATARIO</strong>; se celebra el presente Contrato de Locación bajo los siguientes términos y condiciones:</p>
 <div class="sectit">II — Cláusulas y condiciones</div>
 <div class="clauses">${clausulas}</div>
 <div class="sigs">
   <div>${firmaLocadorHtml}<div class="srole">Locador / Inmobiliaria</div><div class="sname">${rs}</div>${mat ? `<div class="sname">Mat. N° ${mat}</div>` : ""}</div>
-  <div><div class="sline"></div><div class="srole">Locatario</div><div class="sname">${contrato.inquilinoNombre}</div><div class="sname">Tel: ${contrato.inquilinoTel}</div></div>
+  <div><div class="sline"></div><div class="srole">Locatario</div><div class="sname">${inquilino}</div><div class="sname">Tel: ${inquilinoTel}</div></div>
 </div>
 <div class="footer"><span>${pie}</span></div>
 </div></body></html>`;
@@ -297,17 +348,30 @@ export function buildContratoVentaHtml(
   const { cp, cs, rs, mat, pie } = emisor;
   const bcv   = `BCV-${venta.id.slice(-4).toUpperCase()}`;
 
-  const clausulaParrafos = (venta.clausulas ?? "")
-    .split(/\n\n+/).filter(Boolean)
-    .map((p) => `<p style="margin:0 0 8px">${p.replace(/\n/g, "<br>")}</p>`).join("");
+  // Texto libre cargado en el CRM: escapado una sola vez, acá.
+  const vendedor      = esc(venta.vendedorNombre);
+  const vendedorDni   = esc(venta.vendedorDni);
+  const vendedorDom   = esc(venta.vendedorDomicilio);
+  const comprador     = esc(venta.compradorNombre);
+  const compradorDni  = esc(venta.compradorDni);
+  const compradorDom  = esc(venta.compradorDomicilio);
+  const propDir       = esc(venta.propiedadDireccion);
+  const propDesc      = esc(venta.propiedadDescripcion);
+  const matriculaInm  = esc(venta.matriculaInmueble);
+  const formaPago     = esc(venta.formaPago);
+  const escribano     = esc(venta.escribanoNombre);
+  const escribanoReg  = esc(venta.escribanoRegistro);
+  const moneda        = esc(venta.moneda);
 
-  const digitalFirma = venta.tipoFirma === "DIGITAL" && inmobiliaria?.firmaUrl;
-  const firmaCorredorHtml = digitalFirma
-    ? `<img class="firma-img" src="${inmobiliaria!.firmaUrl}" alt="Firma">`
+  const clausulaParrafos = parrafosHtml(venta.clausulas ?? "");
+
+  const firmaUrl = venta.tipoFirma === "DIGITAL" ? safeUrl(inmobiliaria?.firmaUrl) : null;
+  const firmaCorredorHtml = firmaUrl
+    ? `<img class="firma-img" src="${firmaUrl}" alt="Firma">`
     : `<div class="sline"></div>`;
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Boleto CV — ${venta.compradorNombre}</title>
+<title>Boleto CV — ${comprador}</title>
 <style>${buildCss(cp, cs)}.sigs{grid-template-columns:1fr 1fr 1fr}</style>
 </head><body>
 <div class="wm">BOLETO</div>
@@ -320,35 +384,35 @@ ${buildHband(emisor, inmobiliaria, "Folio", bcv)}
 <div class="pgrid">
   <div class="pcard" style="border-top:3px solid ${cp}">
     <div class="prole">Vendedor</div>
-    <div class="pname">${venta.vendedorNombre}</div>
-    <div class="pdet">DNI ${venta.vendedorDni}</div>
-    ${venta.vendedorDomicilio ? `<div class="pdet" style="font-family:inherit">${venta.vendedorDomicilio}</div>` : ""}
+    <div class="pname">${vendedor}</div>
+    <div class="pdet">DNI ${vendedorDni}</div>
+    ${vendedorDom ? `<div class="pdet" style="font-family:inherit">${vendedorDom}</div>` : ""}
   </div>
   <div class="pcard" style="border-top:3px solid #D4A853">
     <div class="prole">Comprador</div>
-    <div class="pname">${venta.compradorNombre}</div>
-    <div class="pdet">DNI ${venta.compradorDni}</div>
-    ${venta.compradorDomicilio ? `<div class="pdet" style="font-family:inherit">${venta.compradorDomicilio}</div>` : ""}
+    <div class="pname">${comprador}</div>
+    <div class="pdet">DNI ${compradorDni}</div>
+    ${compradorDom ? `<div class="pdet" style="font-family:inherit">${compradorDom}</div>` : ""}
   </div>
 </div>
 <div class="propbox">
   <div class="proplab">Inmueble objeto de la operación</div>
-  <div class="ptit">${venta.propiedadDireccion}</div>
-  ${venta.propiedadDescripcion ? `<div class="padr">${venta.propiedadDescripcion}</div>` : ""}
-  ${venta.matriculaInmueble ? `<div style="font-size:10px;color:#7A7268;margin-top:4px;font-family:monospace">Matrícula: ${venta.matriculaInmueble}</div>` : ""}
+  <div class="ptit">${propDir}</div>
+  ${propDesc ? `<div class="padr">${propDesc}</div>` : ""}
+  ${matriculaInm ? `<div style="font-size:10px;color:#7A7268;margin-top:4px;font-family:monospace">Matrícula: ${matriculaInm}</div>` : ""}
 </div>
 <div class="sectit">I — Condiciones económicas</div>
 <div class="cgrid">
-  <div class="fch"><div class="flh">Precio de venta</div><div class="fvh">${formatPrice(venta.precioVenta, venta.moneda)}</div><div class="fs">${venta.moneda} · contado</div></div>
+  <div class="fch"><div class="flh">Precio de venta</div><div class="fvh">${formatPrice(venta.precioVenta, venta.moneda)}</div><div class="fs">${moneda} · contado</div></div>
   <div class="fc"><div class="fl">Seña / Reserva</div><div class="fv">${venta.sena ? formatPrice(venta.sena, venta.moneda) : "—"}</div><div class="fs">al momento de firma</div></div>
-  <div class="fc"><div class="fl">Forma de pago</div><div class="fv">${venta.formaPago}</div><div class="fs">acordada entre partes</div></div>
+  <div class="fc"><div class="fl">Forma de pago</div><div class="fv">${formaPago}</div><div class="fs">acordada entre partes</div></div>
   <div class="fc"><div class="fl">Comisiones</div><div class="fv">V ${venta.comisionVendedorPct}% · C ${venta.comisionCompradorPct}%</div><div class="fs">sobre precio de venta</div></div>
 </div>
-${(venta.escribanoNombre || venta.fechaEscritura) ? `<div class="escrbox"><div class="fl" style="margin-bottom:6px">Escribanía</div>${venta.escribanoNombre ? `<div style="font-size:12.5px;font-weight:600;color:#221E19">${venta.escribanoNombre}${venta.escribanoRegistro ? ` · Reg. ${venta.escribanoRegistro}` : ""}</div>` : ""}${venta.fechaEscritura ? `<div style="font-size:11px;color:#7A7268;margin-top:3px">Fecha de escritura tentativa: ${fmtFechaLarga(venta.fechaEscritura)}</div>` : ""}</div>` : ""}
+${(escribano || venta.fechaEscritura) ? `<div class="escrbox"><div class="fl" style="margin-bottom:6px">Escribanía</div>${escribano ? `<div style="font-size:12.5px;font-weight:600;color:#221E19">${escribano}${escribanoReg ? ` · Reg. ${escribanoReg}` : ""}</div>` : ""}${venta.fechaEscritura ? `<div style="font-size:11px;color:#7A7268;margin-top:3px">Fecha de escritura tentativa: ${fmtFechaLarga(venta.fechaEscritura)}</div>` : ""}</div>` : ""}
 ${clausulaParrafos ? `<div class="sectit">II — Cláusulas especiales</div><div class="clauses">${clausulaParrafos}</div>` : ""}
 <div class="sigs">
-  <div><div class="sline"></div><div class="srole">Vendedor</div><div class="sname">${venta.vendedorNombre}</div></div>
-  <div><div class="sline"></div><div class="srole">Comprador</div><div class="sname">${venta.compradorNombre}</div></div>
+  <div><div class="sline"></div><div class="srole">Vendedor</div><div class="sname">${vendedor}</div></div>
+  <div><div class="sline"></div><div class="srole">Comprador</div><div class="sname">${comprador}</div></div>
   <div>${firmaCorredorHtml}<div class="srole">Corredor Inmobiliario</div><div class="sname">${rs}</div>${mat ? `<div class="sname">Mat. N° ${mat}</div>` : ""}</div>
 </div>
 <div class="footer"><span>${pie}</span></div>
@@ -387,6 +451,16 @@ export function buildComprobantePagoHtml(
   const ctr   = `CTR-${contrato.id.slice(-4).toUpperCase()}`;
   const monto = formatPrice(pago.monto, pago.moneda);
 
+  // Texto libre (inquilino, propiedad, concepto del pago): escapado una sola vez.
+  const inquilino    = esc(contrato.inquilinoNombre);
+  const inquilinoTel = esc(contrato.inquilinoTel);
+  const inquilinoDni = esc(contrato.inquilinoDni);
+  const propTitulo   = esc(contrato.propiedad.titulo);
+  const propDir      = esc(contrato.propiedad.direccion);
+  const concepto     = esc(pago.concepto);
+  const metodoPago   = esc(pago.metodoPago) || "—";
+  const moneda       = esc(pago.moneda);
+
   const copia = (label: string) => `<div class="page">
 ${buildHband(emisor, inmobiliaria, "Comprobante", rec)}
 <div class="tarea">
@@ -396,9 +470,9 @@ ${buildHband(emisor, inmobiliaria, "Comprobante", rec)}
 <div class="pgrid">
   <div class="pcard" style="border-top:3px solid #D4A853">
     <div class="prole">Recibido de (locatario)</div>
-    <div class="pname">${contrato.inquilinoNombre}</div>
-    ${contrato.inquilinoDni ? `<div class="pdet">DNI ${contrato.inquilinoDni}</div>` : ""}
-    <div class="pdet">${contrato.inquilinoTel}</div>
+    <div class="pname">${inquilino}</div>
+    ${inquilinoDni ? `<div class="pdet">DNI ${inquilinoDni}</div>` : ""}
+    <div class="pdet">${inquilinoTel}</div>
   </div>
   <div class="pcard" style="border-top:3px solid ${cp}">
     <div class="prole">Recibido por</div>
@@ -409,15 +483,15 @@ ${buildHband(emisor, inmobiliaria, "Comprobante", rec)}
 </div>
 <div class="propbox">
   <div class="proplab">Inmueble · Contrato ${ctr}</div>
-  <div class="ptit">${contrato.propiedad.titulo}</div><div class="padr">${contrato.propiedad.direccion}</div>
+  <div class="ptit">${propTitulo}</div><div class="padr">${propDir}</div>
 </div>
 <div class="cgrid">
-  <div class="fch"><div class="flh">Monto</div><div class="fvh">${monto}</div><div class="fs">${pago.moneda}</div></div>
-  <div class="fc"><div class="fl">Período</div><div class="fv" style="font-family:inherit">${pago.concepto}</div></div>
+  <div class="fch"><div class="flh">Monto</div><div class="fvh">${monto}</div><div class="fs">${moneda}</div></div>
+  <div class="fc"><div class="fl">Período</div><div class="fv" style="font-family:inherit">${concepto}</div></div>
   <div class="fc"><div class="fl">Fecha de pago</div><div class="fv">${fmtFecha(pago.fecha)}</div></div>
-  <div class="fc"><div class="fl">Método</div><div class="fv" style="font-family:inherit">${pago.metodoPago ?? "—"}</div></div>
+  <div class="fc"><div class="fl">Método</div><div class="fv" style="font-family:inherit">${metodoPago}</div></div>
 </div>
-<p class="intro">Recibimos de <strong>${contrato.inquilinoNombre}</strong>${contrato.inquilinoDni ? `, DNI ${contrato.inquilinoDni}` : ""}, la suma de <strong>${monto}</strong> en concepto de <strong>${pago.concepto}</strong>, correspondiente a la locación del inmueble ubicado en ${contrato.propiedad.direccion}.</p>
+<p class="intro">Recibimos de <strong>${inquilino}</strong>${inquilinoDni ? `, DNI ${inquilinoDni}` : ""}, la suma de <strong>${monto}</strong> en concepto de <strong>${concepto}</strong>, correspondiente a la locación del inmueble ubicado en ${propDir}.</p>
 <div class="sigs" style="grid-template-columns:1fr;max-width:260px;margin-left:auto">
   <div><div class="sline"></div><div class="srole">Firma y aclaración</div><div class="sname">${rs}</div></div>
 </div>
@@ -425,7 +499,7 @@ ${buildHband(emisor, inmobiliaria, "Comprobante", rec)}
 </div>`;
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Comprobante ${rec} — ${contrato.inquilinoNombre}</title>
+<title>Comprobante ${rec} — ${inquilino}</title>
 <style>${buildCss(cp, cs)}.page+.page{break-before:page;page-break-before:always}</style>
 </head><body>
 <div class="wm">PAGADO</div>

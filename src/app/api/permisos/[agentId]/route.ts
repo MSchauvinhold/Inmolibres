@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ agentId: string }> }) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
 
   const { agentId } = await params;
 
   const agente = await db.usuario.findFirst({
-    where: { id: agentId, inmobiliariaId: session.user.inmobiliariaId, rol: "AGENTE" },
+    where: { id: agentId, inmobiliariaId: session.inmobiliariaId, rol: "AGENTE" },
   });
   if (!agente) return NextResponse.json({ error: "Agente no encontrado" }, { status: 404 });
 
@@ -22,14 +22,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ agentId
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ agentId: string }> }) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (session.user.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
+  if (session.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
 
   const { agentId } = await params;
 
   const agente = await db.usuario.findFirst({
-    where: { id: agentId, inmobiliariaId: session.user.inmobiliariaId, rol: "AGENTE" },
+    where: { id: agentId, inmobiliariaId: session.inmobiliariaId, rol: "AGENTE" },
   });
   if (!agente) return NextResponse.json({ error: "Agente no encontrado" }, { status: 404 });
 

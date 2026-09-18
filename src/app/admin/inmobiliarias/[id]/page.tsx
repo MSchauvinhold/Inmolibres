@@ -211,7 +211,7 @@ export default function InmobiliariaDetallePage() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+      <div className="rg-kpis" style={{ gap: 14 }}>
         {[
           { label: "Propiedades", value: data._count.propiedades, icon: Home,      color: "var(--terracota-500)", bg: "var(--terracota-100)" },
           { label: "Clientes",    value: data._count.clientes,    icon: Users,     color: "var(--accent)",        bg: "var(--accent-soft)"  },
@@ -233,7 +233,7 @@ export default function InmobiliariaDetallePage() {
         <h3 className="display" style={{ fontSize: 17, margin: "0 0 18px", color: "var(--antracita-900)" }}>
           Suscripción
         </h3>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.4fr", gap: 18 }}>
+        <div className="rg-3col rg-3col--ancho" style={{ gap: 18 }}>
           {/* Plan */}
           <div>
             <label style={{ fontSize: 11, color: "var(--antracita-300)", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 8, fontFamily: "var(--font-jetbrains-mono, monospace)" }}>
@@ -277,7 +277,7 @@ export default function InmobiliariaDetallePage() {
               />
             </div>
             {/* Extensión rápida */}
-            <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
               <span style={{ fontSize: 11, color: "var(--antracita-400)", alignSelf: "center" }}>Extender:</span>
               {[30, 60, 90, 180, 365].map((d) => (
                 <button
@@ -310,7 +310,8 @@ export default function InmobiliariaDetallePage() {
             Usuarios ({data.usuarios.length})
           </h3>
         </div>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <div className="overflow-x-auto scrollbar-thin">
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 620 }}>
           <thead>
             <tr style={{ background: "var(--crema-100)" }}>
               {["Nombre", "Email", "Rol", "Estado", "Desde", "Acciones"].map((h) => (
@@ -382,6 +383,7 @@ export default function InmobiliariaDetallePage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Modal de reset de contraseña */}

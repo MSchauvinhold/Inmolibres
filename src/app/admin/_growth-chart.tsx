@@ -63,7 +63,7 @@ export function AdminGrowthChart({ inmobiliarias }: Props) {
   const areaPath = `M${xAt(0)},${yAt(DATA_ACTIVAS[0])} ${DATA_ACTIVAS.map((v, i) => `L${xAt(i)},${yAt(v)}`).join(" ")} L${xAt(MONTHS.length - 1)},${padT + ch} L${xAt(0)},${padT + ch} Z`;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 18 }}>
+    <div className="rg-2col rg-2col--c" style={{ gap: 14, marginBottom: 18 }}>
 
       {/* ── Growth Area Chart ── */}
       <div className="il-card" style={{ padding: 22 }}>

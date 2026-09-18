@@ -162,7 +162,7 @@ export function CalculadoraDivisas() {
 
         {/* Cotización actual */}
         {cotActual && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="rounded-xl p-4 border" style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}>
               <p className="text-[10px] text-text-muted uppercase tracking-wide font-semibold">Compra</p>
               <p className="text-2xl font-bold tabular-nums mt-1" style={{ fontFamily: "var(--font-mono)", color: "var(--brand-primary)" }}>
@@ -175,7 +175,7 @@ export function CalculadoraDivisas() {
                 ${cotActual.venta.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
               </p>
             </div>
-            <div className="col-span-2 flex items-center justify-between text-xs text-text-muted px-1">
+            <div className="sm:col-span-2 flex items-center justify-between text-xs text-text-muted px-1">
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 {new Date(cotActual.fechaActualizacion).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}

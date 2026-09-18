@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
-import { formatDate } from "@/lib/utils";
+import { formatFechaCalendario } from "@/lib/utils";
 import { ESTADO_INMOBILIARIA_LABELS } from "@/lib/utils";
 import { BarChart3, AlertTriangle, Plus, Building2, Users, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { Pill } from "@/components/ui/pill";
@@ -57,7 +57,7 @@ export default async function AdminPage() {
     <div className="w-full max-w-[1060px] mx-auto" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* ── Header ── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <p
             className="mono"
@@ -72,7 +72,7 @@ export default async function AdminPage() {
             {stats.activas} activas · {stats.prueba} en prueba · {stats.suspendidas} suspendidas
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link
             href="/admin/inmobiliarias"
             className="il-btn il-btn--ghost"
@@ -93,7 +93,7 @@ export default async function AdminPage() {
 
       {/* ── KPI Cards ── */}
       {/* Card 4 (Propiedades) highlighted in terracota-500, mirrors the MRR highlight in the design */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+      <div className="rg-kpis" style={{ gap: 14 }}>
         {[
           {
             label: "Activas",
@@ -183,7 +183,7 @@ export default async function AdminPage() {
         <h3 className="display" style={{ fontSize: 18, margin: "0 0 14px", color: "var(--antracita-900)" }}>
           Estado de suscripciones
         </h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+        <div className="rg-3col" style={{ gap: 14 }}>
 
           {/* Al día */}
           <div className="il-card" style={{ padding: 0, overflow: "hidden" }}>
@@ -200,7 +200,7 @@ export default async function AdminPage() {
                   <div style={{ minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 500, color: "var(--antracita-900)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.nombre}</p>
                     <p style={{ fontSize: 11, color: "var(--antracita-400)", margin: 0 }}>
-                      {i.fechaVencimiento ? `Vence ${formatDate(i.fechaVencimiento)}` : "Sin vencimiento"}
+                      {i.fechaVencimiento ? `Vence ${formatFechaCalendario(i.fechaVencimiento)}` : "Sin vencimiento"}
                     </p>
                   </div>
                   <Link href={`/admin/inmobiliarias/${i.id}`} style={{ fontSize: 11, color: "var(--terracota-600)", textDecoration: "none", flexShrink: 0 }}>
@@ -230,7 +230,7 @@ export default async function AdminPage() {
                     <div style={{ minWidth: 0 }}>
                       <p style={{ fontSize: 13, fontWeight: 500, color: "var(--antracita-900)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.nombre}</p>
                       <p style={{ fontSize: 11, color: "#B45309", margin: 0, fontWeight: 500 }}>
-                        Vence en {diasRestantes ?? "?"} día{diasRestantes !== 1 ? "s" : ""} — {i.fechaVencimiento ? formatDate(i.fechaVencimiento) : ""}
+                        Vence en {diasRestantes ?? "?"} día{diasRestantes !== 1 ? "s" : ""} — {i.fechaVencimiento ? formatFechaCalendario(i.fechaVencimiento) : ""}
                       </p>
                     </div>
                     <Link href={`/admin/inmobiliarias/${i.id}`} style={{ fontSize: 11, color: "var(--terracota-600)", textDecoration: "none", flexShrink: 0 }}>
@@ -257,7 +257,7 @@ export default async function AdminPage() {
                   <div style={{ minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 500, color: "var(--antracita-900)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.nombre}</p>
                     <p style={{ fontSize: 11, color: "#B91C1C", margin: 0 }}>
-                      {i.estado === "SUSPENDIDA" ? "Suspendida" : i.estado === "INACTIVA" ? "Inactiva" : `Vencida el ${i.fechaVencimiento ? formatDate(i.fechaVencimiento) : "—"}`}
+                      {i.estado === "SUSPENDIDA" ? "Suspendida" : i.estado === "INACTIVA" ? "Inactiva" : `Vencida el ${i.fechaVencimiento ? formatFechaCalendario(i.fechaVencimiento) : "—"}`}
                     </p>
                   </div>
                   <Link href={`/admin/inmobiliarias/${i.id}`} style={{ fontSize: 11, color: "var(--terracota-600)", textDecoration: "none", flexShrink: 0 }}>
@@ -349,7 +349,7 @@ export default async function AdminPage() {
                       </Pill>
                     </td>
                     <td style={{ padding: "13px 18px", color: "var(--antracita-500)", fontSize: 12.5 }}>
-                      {i.fechaVencimiento ? formatDate(i.fechaVencimiento) : "—"}
+                      {i.fechaVencimiento ? formatFechaCalendario(i.fechaVencimiento) : "—"}
                     </td>
                     <td style={{ padding: "13px 18px", textAlign: "center" }}>
                       <span className="mono" style={{ fontWeight: 600, color: "var(--antracita-900)", fontSize: 14 }}>

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import type { Moneda } from "@prisma/client";
 
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
 
-  const inmobiliariaId = session.user.inmobiliariaId;
+  const { inmobiliariaId } = session;
   const { searchParams } = new URL(req.url);
   const mes = searchParams.get("mes");
   const categoria = searchParams.get("categoria");
@@ -32,11 +32,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (session.user.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
+  if (session.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
 
-  const inmobiliariaId = session.user.inmobiliariaId;
+  const { inmobiliariaId } = session;
 
   let body: {
     concepto: string;

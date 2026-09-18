@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { PropiedadCard } from "@/components/propiedades/PropiedadCard";
 import { PropiedadesFilters } from "@/components/propiedades/PropiedadesFilters";
 import { ImportButton } from "@/components/propiedades/ImportButton";
+import { PropiedadTablaRow } from "@/components/propiedades/PropiedadTablaRow";
 import { requirePermisoAgente } from "@/lib/permisos";
 import { TIPO_PROPIEDAD_LABELS, TIPO_OPERACION_LABELS } from "@/lib/utils";
 import { LIMITES_PLAN } from "@/lib/planes";
@@ -148,7 +149,7 @@ export default async function PropiedadesPage({
           )}
         </div>
 
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center flex-wrap">
           {!isParticular && <ImportButton />}
           {puedeAgregar && (
             <Link
@@ -192,9 +193,18 @@ export default async function PropiedadesPage({
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--crema-100, #F0E9DC)" }}>
-                {["Propiedad", "Dirección", "Precio", "Operación", "Estado"].map((h, i) => (
+                {/* En teléfono sobreviven Propiedad, Precio y Estado; el resto se
+                    esconde, igual que en la tabla de Contactos. */}
+                {[
+                  { h: "Propiedad", cls: "" },
+                  { h: "Dirección", cls: "hidden md:table-cell" },
+                  { h: "Precio", cls: "" },
+                  { h: "Operación", cls: "hidden sm:table-cell" },
+                  { h: "Estado", cls: "" },
+                ].map(({ h, cls }, i) => (
                   <th
                     key={h}
+                    className={cls}
                     style={{
                       textAlign: i >= 2 ? "right" : "left",
                       padding: "10px 18px",
@@ -215,21 +225,10 @@ export default async function PropiedadesPage({
             </thead>
             <tbody>
               {propiedades.map((p, i) => (
-                <tr
+                <PropiedadTablaRow
                   key={p.id}
-                  style={{
-                    borderBottom:
-                      i < propiedades.length - 1 ? "1px solid var(--border)" : "none",
-                    cursor: "pointer",
-                    transition: "background 150ms",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "var(--crema-50, #FBF8F2)")
-                  }
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "")}
-                  onClick={() => {
-                    window.location.href = `/propiedades/${p.id}/editar`;
-                  }}
+                  propiedadId={p.id}
+                  isLast={i === propiedades.length - 1}
                 >
                   <td style={{ padding: "12px 18px" }}>
                     <span
@@ -250,6 +249,7 @@ export default async function PropiedadesPage({
                     </span>
                   </td>
                   <td
+                    className="hidden md:table-cell"
                     style={{
                       padding: "12px 18px",
                       color: "var(--antracita-500)",
@@ -273,7 +273,7 @@ export default async function PropiedadesPage({
                     {p.moneda === "USD" ? "US$ " : "$ "}
                     {Number(p.precio).toLocaleString("es-AR")}
                   </td>
-                  <td style={{ padding: "12px 18px", textAlign: "right" }}>
+                  <td className="hidden sm:table-cell" style={{ padding: "12px 18px", textAlign: "right" }}>
                     <span
                       style={{
                         display: "inline-flex",
@@ -322,7 +322,7 @@ export default async function PropiedadesPage({
                         : "Vendida"}
                     </span>
                   </td>
-                </tr>
+                </PropiedadTablaRow>
               ))}
             </tbody>
           </table>

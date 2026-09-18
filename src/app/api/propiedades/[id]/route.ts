@@ -28,9 +28,21 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
     }
 
-    // Marketplace: only return published
-    if (!inmobiliariaId && !propiedad.publicada) {
-      return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
+    // Marketplace: solo publicadas y de inmobiliarias con la suscripción al día,
+    // el mismo criterio que el listado, la búsqueda y el mapa.
+    if (!inmobiliariaId) {
+      if (!propiedad.publicada) {
+        return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
+      }
+      if (propiedad.inmobiliariaId) {
+        const duena = await db.inmobiliaria.findUnique({
+          where: { id: propiedad.inmobiliariaId },
+          select: { estado: true },
+        });
+        if (!duena || (duena.estado !== "ACTIVA" && duena.estado !== "PRUEBA")) {
+          return NextResponse.json({ error: "Propiedad no encontrada" }, { status: 404 });
+        }
+      }
     }
 
     // CRM: verify tenant

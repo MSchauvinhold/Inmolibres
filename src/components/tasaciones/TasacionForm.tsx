@@ -94,7 +94,7 @@ export function TasacionForm({ clientes, propiedad }: Props) {
         {errors.direccion && <p className={errorCls}>{errors.direccion.message}</p>}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Tipo</label>
           <select {...register("tipo")} className={inputCls}>
@@ -109,7 +109,7 @@ export function TasacionForm({ clientes, propiedad }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Valor estimado</label>
           <input {...register("valorEstimado")} type="number" step="0.01" className={inputCls} placeholder="150000" />

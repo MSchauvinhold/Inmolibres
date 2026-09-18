@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, ShieldCheck } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminKaiBell } from "./AdminKaiBell";
 
@@ -30,6 +30,7 @@ export function AdminTopBar({ email }: AdminTopBarProps) {
           </button>
         </SheetTrigger>
         <SheetContent side="left" className="p-0 w-64">
+          <SheetTitle className="sr-only">Menú del panel de administración</SheetTitle>
           <AdminSidebar email={email} className="h-full" />
         </SheetContent>
       </Sheet>

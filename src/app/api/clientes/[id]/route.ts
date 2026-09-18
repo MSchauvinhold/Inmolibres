@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { clienteSchema, actualizarPipelineSchema } from "@/lib/validations/client";
 import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { Prisma } from "@prisma/client";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -174,9 +175,35 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    await db.cliente.delete({ where: { id } });
-    return NextResponse.json({ success: true });
-  } catch {
+    // Las visitas y las tasaciones apuntan al cliente con FK RESTRICT: sin esto el
+    // borrado fallaba siempre que el cliente tuviera al menos una visita agendada.
+    // Las visitas son historial del propio cliente y se van con él; las tasaciones
+    // sobreviven (guardan nombre y teléfono propios) y solo se desvinculan.
+    const [visitas, tasaciones] = await db.$transaction([
+      db.visita.deleteMany({ where: { clienteId: id } }),
+      db.tasacion.updateMany({ where: { clienteId: id }, data: { clienteId: null } }),
+      db.cliente.delete({ where: { id } }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      visitasEliminadas: visitas.count,
+      tasacionesDesvinculadas: tasaciones.count,
+    });
+  } catch (e) {
+    // Red de contención: si aparece otra FK RESTRICT que todavía no contemplamos,
+    // devolver un 409 que explique el motivo en vez de un 500 opaco.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2003") {
+      return NextResponse.json(
+        {
+          error:
+            "No se puede eliminar el cliente porque tiene registros asociados en otra parte del CRM. " +
+            "Quitá esa vinculación antes de borrarlo.",
+        },
+        { status: 409 }
+      );
+    }
+    console.error("[DELETE /api/clientes/[id]]", e);
     return NextResponse.json({ error: "Error al eliminar cliente" }, { status: 500 });
   }
 }

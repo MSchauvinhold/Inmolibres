@@ -11,7 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area,
 } from "recharts";
-import { formatMonto, fmtFechaUTC } from "@/lib/utils";
+import { formatMonto, fmtFechaUTC, TZ_AR } from "@/lib/utils";
 import { Pill } from "@/components/ui/pill";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { EgresosTabla, NuevoEgresoModal, type Egreso } from "@/components/finanzas/Egresos";
@@ -513,7 +513,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <p className="mono" style={{ fontSize: 11, color: "var(--antracita-300)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 2 }}>
-            Finanzas · {new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
+            Finanzas · {new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric", timeZone: TZ_AR })}
           </p>
           <h1 className="display" style={{ fontSize: 26, color: "var(--antracita-900)", margin: 0 }}>
             Tu inmobiliaria, en números.
@@ -561,15 +561,17 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
             Exportar
           </button>
 
-          {/* Nueva operación */}
-          <button
-            onClick={() => setShowNuevaOp(true)}
-            className="il-btn il-btn--primary"
-            style={{ height: 36, fontSize: 13, gap: 6 }}
-          >
-            <Plus size={14} color="#fff" />
-            Nueva operación
-          </button>
+          {/* Nueva operación — solo ADMIN, igual que el alta de egresos */}
+          {isAdmin && (
+            <button
+              onClick={() => setShowNuevaOp(true)}
+              className="il-btn il-btn--primary"
+              style={{ height: 36, fontSize: 13, gap: 6 }}
+            >
+              <Plus size={14} color="#fff" />
+              Nueva operación
+            </button>
+          )}
         </div>
       </div>
 
@@ -970,7 +972,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
                   Ranking de agentes
                 </h3>
                 <span style={{ fontSize: 11, color: "var(--antracita-400)" }}>
-                  {new Date().toLocaleDateString("es-AR", { month: "short" })}
+                  {new Date().toLocaleDateString("es-AR", { month: "short", timeZone: TZ_AR })}
                 </span>
               </div>
               {ranking.length === 0 ? (
@@ -1098,15 +1100,17 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
       {/* ─── OPERACIONES ─── */}
       {tab === "operaciones" && (
         <div className="space-y-4">
-          <div className="flex justify-end">
-            <button
-              onClick={() => setShowNuevaOp(true)}
-              className="il-btn il-btn--primary"
-              style={{ height: 38, fontSize: 13, gap: 6 }}
-            >
-              <Plus size={14} color="#fff" /> Nueva operación
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowNuevaOp(true)}
+                className="il-btn il-btn--primary"
+                style={{ height: 38, fontSize: 13, gap: 6 }}
+              >
+                <Plus size={14} color="#fff" /> Nueva operación
+              </button>
+            </div>
+          )}
           <div className="il-card" style={{ padding: 0, overflow: "hidden" }}>
             <div className="overflow-x-auto">
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -1496,7 +1500,7 @@ function NuevaOperacionModal({
           <button type="button" onClick={onClose} style={{ background: "none", border: "none", fontSize: 22, color: "var(--antracita-400)", cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
         <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14, maxHeight: "68vh", overflowY: "auto" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div className="rg-fields rg-fields--2" style={{ gap: 12 }}>
             <div>
               <label className={lbl} style={{ color: "var(--antracita-700)" }}>Tipo</label>
               <select value={form.tipo} onChange={(e) => setForm((p) => ({ ...p, tipo: e.target.value as Operacion["tipo"] }))} className={inp}>
@@ -1517,7 +1521,7 @@ function NuevaOperacionModal({
             <label className={lbl} style={{ color: "var(--antracita-700)" }}>Precio de la operación *</label>
             <input type="number" required min={0} value={form.precioOperacion} onChange={(e) => setForm((p) => ({ ...p, precioOperacion: e.target.value }))} className={inp} placeholder="100000" />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div className="rg-fields rg-fields--2" style={{ gap: 12 }}>
             <div>
               <label className={lbl} style={{ color: "var(--antracita-700)" }}>Comisión vendedor %</label>
               <input type="number" min={0} max={10} step={0.5} value={form.comisionVendedorPct} onChange={(e) => setForm((p) => ({ ...p, comisionVendedorPct: Number(e.target.value) }))} className={inp} />

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, Clock, Trash2, Loader2, ActivitySquare } from "lucide-react";
 import { Pill } from "@/components/ui/pill";
+import { formatDateTime } from "@/lib/utils";
 
 interface Corrida {
   origen: string;
@@ -31,7 +32,7 @@ interface Props {
 
 function fmtFecha(iso: string | null): string {
   if (!iso) return "nunca";
-  return new Date(iso).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" });
+  return formatDateTime(iso, { dateStyle: "medium", timeStyle: "short" });
 }
 
 export function MonitoreoClient({ corridas, logs, errores24h, errores7d }: Props) {

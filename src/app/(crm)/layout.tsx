@@ -36,7 +36,7 @@ export default async function CrmLayout({ children }: { children: React.ReactNod
       <div className="hidden lg:block lg:row-span-2">
         <Sidebar user={user} permisos={permisos} />
       </div>
-      <TopBar user={user} />
+      <TopBar user={user} permisos={permisos} />
       <main className="overflow-y-auto p-4 sm:p-6 scrollbar-thin">
         {children}
       </main>

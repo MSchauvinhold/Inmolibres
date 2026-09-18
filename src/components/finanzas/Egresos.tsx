@@ -183,7 +183,7 @@ export function NuevoEgresoModal({
             <label className={lbl} style={{ color: "var(--antracita-700)" }}>Concepto *</label>
             <input required value={form.concepto} onChange={(e) => setForm((p) => ({ ...p, concepto: e.target.value }))} className={inp} placeholder={propiedadId ? "Arreglo de cañería..." : "Publicidad portal..."} />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div className="rg-fields rg-fields--2" style={{ gap: 12 }}>
             <div>
               <label className={lbl} style={{ color: "var(--antracita-700)" }}>Monto *</label>
               <input type="number" required min={0} value={form.monto} onChange={(e) => setForm((p) => ({ ...p, monto: e.target.value }))} className={inp} placeholder="0" />

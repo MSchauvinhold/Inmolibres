@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(request: NextRequest, { params }: Params) {
   const { id } = await params;
 
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (session.user.rol !== "ADMIN" || session.user.inmobiliariaId !== id) {
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
+  if (session.inmobiliariaId !== id || session.rol !== "ADMIN") {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 

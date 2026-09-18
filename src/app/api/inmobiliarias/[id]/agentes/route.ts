@@ -1,27 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import { auth } from "@/lib/auth";
+import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
 import { toPlanKey, LIMITES_PLAN } from "@/lib/planes";
 
 type Params = { params: Promise<{ id: string }> };
 
-async function requireAdmin(inmobiliariaId: string) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (
-    session.user.rol !== "ADMIN" ||
-    session.user.inmobiliariaId !== inmobiliariaId
-  ) {
-    return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-  }
-  return session;
-}
-
 export async function POST(request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const check = await requireAdmin(id);
-  if (check instanceof NextResponse) return check;
+
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
+  if (session.inmobiliariaId !== id || session.rol !== "ADMIN") {
+    return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+  }
 
   let body: { nombre?: string; email?: string; password?: string };
   try {

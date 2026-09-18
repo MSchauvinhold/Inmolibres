@@ -184,7 +184,7 @@ export function VisitaListClient({ visitas: initialVisitas }: Props) {
 
               {/* Action buttons for PENDIENTE visits */}
               {isPendiente && !isEditing && (
-                <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+                <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
                   <button
                     className="il-btn il-btn--ghost"
                     style={{ height: 28, fontSize: 11, gap: 4, color: "var(--antracita-600)" }}

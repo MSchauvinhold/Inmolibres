@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { TipoNotificacion, Rol } from "@prisma/client";
+import { formatHora, formatFechaCalendario } from "@/lib/utils";
 
 type CreateNotificacionInput = {
   usuarioId: string;
@@ -104,10 +105,9 @@ export const NotifMessages = {
   },
 
   visitaProxima(titulo: string, fechaHora: Date) {
-    const hora = fechaHora.toLocaleTimeString("es-AR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    // En hora argentina explícita: el cron corre en UTC y sin esto una visita a
+    // las 10:00 avisaba "a las 01:00 p. m.".
+    const hora = formatHora(fechaHora);
     // Calcular tiempo restante al momento de crear la notificación
     const minutos = Math.round((fechaHora.getTime() - Date.now()) / 60_000);
     const tiempoLabel =
@@ -128,7 +128,7 @@ export const NotifMessages = {
       : `${dias} días`;
     return {
       titulo: `Contrato por vencer en ${tiempoLabel} — ${titulo}`,
-      mensaje: `El contrato de alquiler de "${titulo}" vence el ${fechaFin.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}.`,
+      mensaje: `El contrato de alquiler de "${titulo}" vence el ${formatFechaCalendario(fechaFin, { day: "numeric", month: "long", year: "numeric" })}.`,
       url: "/alquileres",
     };
   },

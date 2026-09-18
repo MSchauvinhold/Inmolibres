@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Copy, Info, Loader2 } from "lucide-react";
 import { calcularAjusteICL, fmt, fmtNum } from "@/lib/calculadoras";
 import { ResultadoCard } from "./ResultadoCard";
+import { TZ_AR } from "@/lib/utils";
 
 const inputCls = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-all focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary";
 const inputStyle = { background: "var(--surface)", borderColor: "var(--border)", color: "var(--text-primary)" };
@@ -26,7 +27,7 @@ export function CalculadoraICL() {
   const [ipc, setIpc] = useState<IndiceData | null>(null);
   const [loadingIndices, setLoadingIndices] = useState(false);
 
-  const mesActual = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+  const mesActual = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric", timeZone: TZ_AR });
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -127,7 +128,7 @@ export function CalculadoraICL() {
         </div>
 
         {/* Índices */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className={labelCls}>{indiceType} al inicio del período</label>
             <input

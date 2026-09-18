@@ -198,7 +198,7 @@ export default function AdminInmobiliariasPage() {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-text-primary">Inmobiliarias</h1>
         <button onClick={() => setShowForm((p) => !p)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" /> Nueva inmobiliaria

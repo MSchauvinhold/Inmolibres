@@ -104,7 +104,7 @@ export default async function VisitasPage({
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <VisitasToggle vista={vista} />
           {!isParticular && (
             <a

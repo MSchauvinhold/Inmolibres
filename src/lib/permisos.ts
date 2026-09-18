@@ -29,10 +29,24 @@ export async function requirePermisoAgente(
   flag: PermisoFlag,
   moduloLabel: string
 ): Promise<void> {
-  if (rol !== "AGENTE") return;
+  if (await tienePermisoAgente(userId, rol, flag)) return;
+  redirect(`/sin-permiso?modulo=${encodeURIComponent(moduloLabel)}`);
+}
+
+/**
+ * Misma regla que `requirePermisoAgente`, pero devolviendo un valor en vez de
+ * redirigir: las rutas de API no pueden usar `redirect()`, y sin este chequeo
+ * gatear solo la página deja la API abierta (un AGENTE sin el permiso igual
+ * puede pegarle directo al endpoint).
+ */
+export async function tienePermisoAgente(
+  userId: string,
+  rol: Rol | string,
+  flag: PermisoFlag
+): Promise<boolean> {
+  if (rol !== "AGENTE") return true;
 
   const permisos = await db.permisosAgente.findUnique({ where: { usuarioId: userId } });
-  if (permisos && permisos[flag] === false) {
-    redirect(`/sin-permiso?modulo=${encodeURIComponent(moduloLabel)}`);
-  }
+  if (!permisos) return true; // fail-open: agente nuevo, sin fila todavía
+  return permisos[flag] !== false;
 }

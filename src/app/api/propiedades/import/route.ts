@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireCrmAuth, isNextResponse } from "@/lib/api-auth";
+import { toPlanKey, LIMITES_PLAN } from "@/lib/planes";
 import { generateUniqueSlug } from "@/lib/utils";
 import type { TipoPropiedad, TipoOperacion, Moneda } from "@prisma/client";
 
@@ -58,11 +59,27 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
-  const { userId, inmobiliariaId, rol } = session;
+  const { userId, inmobiliariaId, rol, plan } = session;
 
   // Solo ADMIN y AGENTE pueden importar (no PARTICULAR)
   if (rol === "PARTICULAR") {
     return NextResponse.json({ error: "No permitido" }, { status: 403 });
+  }
+
+  // Mismo límite de plan que el alta manual (POST /api/propiedades): sin esto el
+  // import era la puerta de atrás para pasarse del plan de un saque.
+  const planKey = toPlanKey(plan);
+  const maxPropiedades = LIMITES_PLAN[planKey].maxPropiedades;
+  let cupoRestante = Number.POSITIVE_INFINITY;
+  if (maxPropiedades !== null && inmobiliariaId) {
+    const yaCargadas = await db.propiedad.count({ where: { inmobiliariaId } });
+    cupoRestante = maxPropiedades - yaCargadas;
+    if (cupoRestante <= 0) {
+      return NextResponse.json(
+        { error: `Límite de ${maxPropiedades} propiedades alcanzado en tu plan. Actualizá a un plan superior.` },
+        { status: 403 }
+      );
+    }
   }
 
   let text: string;
@@ -93,6 +110,16 @@ export async function POST(request: NextRequest) {
   for (let i = 0; i < dataLines.length; i++) {
     const linea = dataLines[i];
     if (!linea.trim()) continue;
+
+    // El cupo se cuenta sobre el total ya cargado + lo que va importando este archivo.
+    if (resultados.importadas >= cupoRestante) {
+      const sinImportar = dataLines.slice(i).filter((l) => l.trim()).length;
+      resultados.errores.push(
+        `Límite de ${maxPropiedades} propiedades del plan alcanzado: quedaron ${sinImportar} fila(s) sin importar. ` +
+        `Actualizá a un plan superior para cargar el resto.`
+      );
+      break;
+    }
 
     const row = linea.split(",");
     const lineaNum = i + 2;

@@ -1121,7 +1121,7 @@ function CvStep3({
               <p className="font-bold text-sm tabular-nums mt-0.5" style={{ color }}>{formatPrice(precio * comC, data.moneda)}</p>
             </div>
             {sena > 0 && (
-              <div className="col-span-3 text-center border-t pt-2 mt-1" style={{ borderColor: "#D4D0CB" }}>
+              <div className="sm:col-span-3 text-center border-t pt-2 mt-1" style={{ borderColor: "#D4D0CB" }}>
                 <p className="text-[10px] text-[#6a6a6a]">Seña: <span className="font-bold text-[#1a1a1a]">{formatPrice(sena, data.moneda)}</span> ({((sena / precio) * 100).toFixed(1)}% del precio)</p>
               </div>
             )}

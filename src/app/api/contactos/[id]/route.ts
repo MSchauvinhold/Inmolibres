@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { requireInmobiliariaAuth, checkPermisoAgente, isNextResponse } from "@/lib/api-auth";
 import type { RolContacto } from "@prisma/client";
 
 type Params = { params: Promise<{ id: string }> };
@@ -9,6 +9,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const session = await requireInmobiliariaAuth();
   if (isNextResponse(session)) return session;
   const inmobiliariaId = session.inmobiliariaId;
+
+  // El permiso `verClientes` gatea /contactos en el sidebar y en la página; sin
+  // esto mismo acá, un AGENTE con el permiso desactivado igual llega por la API.
+  const sinPermiso = await checkPermisoAgente(session, "verClientes", "Contactos");
+  if (sinPermiso) return sinPermiso;
+
   const { id } = await params;
 
   const contacto = await db.contacto.findFirst({
@@ -34,6 +40,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const session = await requireInmobiliariaAuth();
   if (isNextResponse(session)) return session;
   const inmobiliariaId = session.inmobiliariaId;
+
+  // El permiso `verClientes` gatea /contactos en el sidebar y en la página; sin
+  // esto mismo acá, un AGENTE con el permiso desactivado igual llega por la API.
+  const sinPermiso = await checkPermisoAgente(session, "verClientes", "Contactos");
+  if (sinPermiso) return sinPermiso;
+
   const { id } = await params;
 
   const existing = await db.contacto.findFirst({ where: { id, inmobiliariaId } });
@@ -94,10 +106,40 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const session = await requireInmobiliariaAuth();
   if (isNextResponse(session)) return session;
   const inmobiliariaId = session.inmobiliariaId;
+
+  // El permiso `verClientes` gatea /contactos en el sidebar y en la página; sin
+  // esto mismo acá, un AGENTE con el permiso desactivado igual llega por la API.
+  const sinPermiso = await checkPermisoAgente(session, "verClientes", "Contactos");
+  if (sinPermiso) return sinPermiso;
+
+  // Mismo criterio que clientes y visitas: eliminar es cosa del ADMIN.
+  if (session.rol !== "ADMIN") {
+    return NextResponse.json(
+      { error: "Solo el administrador puede eliminar contactos" },
+      { status: 403 }
+    );
+  }
+
   const { id } = await params;
 
-  const existing = await db.contacto.findFirst({ where: { id, inmobiliariaId } });
+  const existing = await db.contacto.findFirst({
+    where: { id, inmobiliariaId },
+    include: { _count: { select: { contratos: true } } },
+  });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // ContratoPersona cascadea con el contacto: borrarlo dejaría contratos sin su
+  // inquilino o garante, en silencio. Se bloquea y se explica por qué.
+  if (existing._count.contratos > 0) {
+    return NextResponse.json(
+      {
+        error:
+          `No se puede eliminar: el contacto figura en ${existing._count.contratos} contrato(s). ` +
+          "Desvinculalo de esos contratos antes de borrarlo.",
+      },
+      { status: 409 }
+    );
+  }
 
   try {
     await db.contacto.delete({ where: { id } });

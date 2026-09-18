@@ -99,7 +99,7 @@ export function VisitaForm({ propiedades, clientes, agentes }: Props) {
         {errors.agenteId && <p className={errorCls}>{errors.agenteId.message}</p>}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Fecha y hora *</label>
           <input

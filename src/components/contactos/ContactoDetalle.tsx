@@ -178,7 +178,7 @@ function GaranteSection({
         </div>
       ) : expanded ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={lbl}>Nombre completo *</label>
               <input className={inp} style={inpStyle} value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} />
@@ -195,11 +195,11 @@ function GaranteSection({
               <label className={lbl}>Teléfono</label>
               <input className={inp} style={inpStyle} value={form.telefono} onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))} />
             </div>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <label className={lbl}>Domicilio</label>
               <input className={inp} style={inpStyle} value={form.domicilio} onChange={(e) => setForm((p) => ({ ...p, domicilio: e.target.value }))} />
             </div>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <label className={lbl}>Relación con el contacto</label>
               <input className={inp} style={inpStyle} value={form.relacionConContacto} onChange={(e) => setForm((p) => ({ ...p, relacionConContacto: e.target.value }))} placeholder="padre, cónyuge, hermano..." />
             </div>
@@ -289,7 +289,7 @@ function EditForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className={lbl}>Nombre *</label>
           <input className={inp} style={inpStyle} value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} />
@@ -309,7 +309,7 @@ function EditForm({
             {ESTADO_CIVIL.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className={lbl}>Domicilio</label>
           <input className={inp} style={inpStyle} value={form.domicilio} onChange={(e) => setForm((p) => ({ ...p, domicilio: e.target.value }))} />
         </div>
@@ -321,11 +321,11 @@ function EditForm({
           <label className={lbl}>Email</label>
           <input type="email" className={inp} style={inpStyle} value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
         </div>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className={lbl}>Ocupación</label>
           <input className={inp} style={inpStyle} value={form.ocupacion} onChange={(e) => setForm((p) => ({ ...p, ocupacion: e.target.value }))} />
         </div>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <label className={lbl}>Notas internas</label>
           <textarea rows={3} className={inp + " resize-none"} style={inpStyle} value={form.notas} onChange={(e) => setForm((p) => ({ ...p, notas: e.target.value }))} />
         </div>

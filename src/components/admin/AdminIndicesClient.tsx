@@ -116,7 +116,7 @@ export function AdminIndicesClient() {
       </div>
 
       {/* Valores actuales de la fuente oficial */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {TIPOS.map((t) => {
           const info = t === "ICL" ? actual?.icl : actual?.ipc;
           return (
@@ -146,7 +146,7 @@ export function AdminIndicesClient() {
         <h2 className="font-semibold text-text-primary flex items-center gap-2">
           <Plus className="w-4 h-4" /> Cargar valor manual
         </h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div>
             <label className="block text-xs font-medium text-text-primary mb-1">Índice</label>
             <select value={tipo} onChange={(e) => setTipo(e.target.value as (typeof TIPOS)[number])} className={inp}>

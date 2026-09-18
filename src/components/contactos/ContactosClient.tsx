@@ -221,7 +221,7 @@ function NuevoContactoModal({ onClose, onCreated }: { onClose: () => void; onCre
           </div>
 
           {/* Nombre + DNI */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={lbl}>Nombre completo *</label>
               <input className={inp} style={inpStyle} value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} placeholder="Juan Pérez" />
@@ -234,7 +234,7 @@ function NuevoContactoModal({ onClose, onCreated }: { onClose: () => void; onCre
           </div>
 
           {/* Nacimiento + Estado civil */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={lbl}>Fecha de nacimiento</label>
               <input type="date" className={inp} style={inpStyle} value={form.fechaNacimiento} onChange={(e) => setForm((p) => ({ ...p, fechaNacimiento: e.target.value }))} />
@@ -255,7 +255,7 @@ function NuevoContactoModal({ onClose, onCreated }: { onClose: () => void; onCre
           </div>
 
           {/* Tel + Email */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={lbl}>Teléfono</label>
               <input className={inp} style={inpStyle} value={form.telefono} onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))} placeholder="+54 3772 ..." />
@@ -395,7 +395,7 @@ export function ContactosClient({ contactos: initial }: Props) {
       </div>
 
       {/* Mini dashboard de tipos */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {([
           { rol: "PROPIETARIO" as RolContacto, label: "Propietarios", count: cntProp, icon: Home,         bg: "#E8F5E9", text: "#1B5E20" },
           { rol: "INQUILINO"   as RolContacto, label: "Inquilinos",   count: cntInq,  icon: Users,        bg: "#E3F2FD", text: "#0D47A1" },
@@ -439,12 +439,14 @@ export function ContactosClient({ contactos: initial }: Props) {
           />
         </div>
 
-        <div className="flex gap-1 p-1 rounded-xl border" style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}>
+        {/* Con flex-1 a secas, en 375px cada tab cae a ~85px y "Compradores" se
+            corta: con min-w-max no se achican y la fila scrollea. */}
+        <div className="flex gap-1 p-1 rounded-xl border overflow-x-auto scrollbar-thin" style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}>
           {TABS.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              className="flex-1 min-w-max whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
               style={{
                 background: tab === key ? "var(--surface)" : "transparent",
                 color: tab === key ? "var(--brand-primary)" : "var(--text-muted)",

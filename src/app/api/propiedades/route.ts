@@ -58,9 +58,16 @@ export async function GET(request: NextRequest) {
   }
 
   if (search) {
-    where.OR = [
-      { titulo: { contains: search, mode: "insensitive" } },
-      { direccion: { contains: search, mode: "insensitive" } },
+    // Va como AND y no como `where.OR`: el marketplace ya usa OR para limitar a
+    // inmobiliarias ACTIVA/PRUEBA, y sobrescribirlo dejaba ver propiedades de
+    // inmobiliarias suspendidas apenas se buscaba algo.
+    where.AND = [
+      {
+        OR: [
+          { titulo: { contains: search, mode: "insensitive" } },
+          { direccion: { contains: search, mode: "insensitive" } },
+        ],
+      },
     ];
   }
 

@@ -6,7 +6,7 @@ import {
   Building2, Users, CalendarCheck, FileText,
   Bell, TrendingUp, BarChart2, Clock, MessageSquare,
 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatFechaCalendario } from "@/lib/utils";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { Pill } from "@/components/ui/pill";
 import { DashboardActivityChart } from "@/components/crm/DashboardActivityChart";
@@ -254,11 +254,11 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-5">
       {/* ── Greeting ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 style={{
             fontFamily: "var(--font-fraunces-display), Georgia, serif",
-            fontSize: 38, fontWeight: 500, margin: 0,
+            fontSize: "clamp(26px, 7vw, 38px)", fontWeight: 500, margin: 0,
             color: "var(--antracita-900, #14110E)", lineHeight: 1.1, letterSpacing: "-0.02em",
           }}>
             {greeting},{" "}
@@ -274,7 +274,7 @@ export default async function DashboardPage() {
             )}
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           {pendientes > 0 && (
             <Pill tone="terra">
               {pendientes} acción{pendientes !== 1 ? "es" : ""} pendiente{pendientes !== 1 ? "s" : ""}
@@ -306,7 +306,7 @@ export default async function DashboardPage() {
             contratosPorVencer={contratosPorVencer.map((c) => ({
               propiedad: c.propiedad.titulo,
               inquilino: c.inquilinoNombre,
-              fechaFin: formatDate(c.fechaFin, { day: "numeric", month: "short", year: "numeric" }),
+              fechaFin: formatFechaCalendario(c.fechaFin, { day: "numeric", month: "short", year: "numeric" }),
               diasRestantes: Math.ceil((c.fechaFin.getTime() - hoy.getTime()) / 86400_000),
             }))}
           />

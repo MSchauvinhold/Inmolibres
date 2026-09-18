@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { tienePermisoAgente, type PermisoFlag } from "@/lib/permisos";
 
 export interface ApiSession {
   userId: string;
@@ -70,6 +71,22 @@ export async function requireSuperAdmin(): Promise<ApiSession | NextResponse> {
     return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
   }
   return result;
+}
+
+/**
+ * Aplica en la API el mismo permiso por agente que gatea las páginas del CRM.
+ * Devuelve un 403 listo para retornar, o null si el usuario puede seguir.
+ */
+export async function checkPermisoAgente(
+  session: ApiSession,
+  flag: PermisoFlag,
+  moduloLabel: string
+): Promise<NextResponse | null> {
+  if (await tienePermisoAgente(session.userId, session.rol, flag)) return null;
+  return NextResponse.json(
+    { error: `No tenés permiso para acceder a ${moduloLabel}` },
+    { status: 403 }
+  );
 }
 
 export function isNextResponse(val: unknown): val is NextResponse {

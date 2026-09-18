@@ -207,7 +207,7 @@ const STEPS = [
 
 function StepperBar({ current }: { current: number }) {
   return (
-    <div style={{
+    <div className="overflow-x-auto scrollbar-thin" style={{
       padding: "16px 24px", marginBottom: 20,
       background: "white", borderRadius: "var(--radius-lg)",
       border: "1px solid var(--border)",
@@ -619,7 +619,7 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
       <div className="space-y-5">
         {/* Medidas */}
         {campos && (hasMedida("superficieCubierta") || hasMedida("superficieTotal") || hasMedida("anchoMetros") || hasMedida("largoMetros") || hasMedida("alturaInterna")) && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          <div className="rg-fields rg-fields--3" style={{ gap: 12 }}>
             {hasMedida("superficieCubierta") && (
               <WizardField label="Sup. cubierta" suffix="m²">
                 <input {...register("atributos.superficieCubierta", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
@@ -650,7 +650,7 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
 
         {/* Numéricos */}
         {campos && campos.numericos.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          <div className="rg-fields rg-fields--3" style={{ gap: 12 }}>
             {hasNumerico("habitaciones") && (
               <WizardField label="Dormitorios">
                 <input {...register("atributos.habitaciones", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
@@ -739,7 +739,7 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
             <div style={{ fontSize: 11.5, color: "var(--antracita-500)", marginBottom: 10, fontWeight: 500 }}>
               Precios temporarios
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 8 }}>
+            <div className="rg-fields rg-fields--3" style={{ gap: 12, marginBottom: 8 }}>
               <WizardField label="Por día" suffix="$" required error={errors.atributos?.precioPorDia?.message}>
                 <input {...register("atributos.precioPorDia", { valueAsNumber: true })} type="number" style={{ ...W_INPUT, fontWeight: 700 }} placeholder="0" />
               </WizardField>
@@ -831,7 +831,7 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
               <input {...register("titulo")} className={inp} placeholder="Casa en barrio céntrico..." />
               {errors.titulo && <p className={errS}>{errors.titulo.message}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={lbl}>Tipo *</label>
                 <select {...register("tipo")} className={inp}>
@@ -856,8 +856,8 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
                 {errors.operacion && <p className={errS}>{errors.operacion.message}</p>}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
                 <label className={lbl}>Precio *</label>
                 <input {...register("precio", { valueAsNumber: true })} type="number" className={inp} placeholder="0" />
                 {errors.precio && <p className={errS}>{errors.precio.message}</p>}
@@ -1084,7 +1084,7 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
                   </div>
 
                   {/* Precio + Moneda */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 100px", gap: 12, alignItems: "start" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 100px", gap: 12, alignItems: "start" }}>
                     <WizardField label="Precio" required error={errors.precio?.message}>
                       <input
                         {...register("precio", { valueAsNumber: true })}

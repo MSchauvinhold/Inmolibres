@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, Calendar, MessageSquare, FileText } from "lucide-react";
-import { ESTADO_PIPELINE_LABELS, PIPELINE_COLORS, ORIGEN_LEAD_LABELS, formatDate, formatMonto, buildWhatsAppLink, telefonosCoinciden } from "@/lib/utils";
+import { ESTADO_PIPELINE_LABELS, PIPELINE_COLORS, ORIGEN_LEAD_LABELS, formatDate, formatFechaCalendario, formatMonto, buildWhatsAppLink, telefonosCoinciden } from "@/lib/utils";
 import { ClienteForm } from "@/components/clientes/ClienteForm";
 import { DocumentosExpediente } from "@/components/clientes/DocumentosExpediente";
 import type { ClienteInput } from "@/lib/validations/client";
@@ -142,7 +142,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
               <div key={o.id} className="flex items-center justify-between text-sm py-1.5 border-b border-border last:border-0">
                 <div className="min-w-0">
                   <span className="text-text-primary">{o.tipo === "VENTA" ? "Venta" : "Alquiler"} · {o.propiedadTitulo}</span>
-                  <span className="block text-xs text-text-muted">{formatDate(o.fechaCierre)}</span>
+                  <span className="block text-xs text-text-muted">{formatFechaCalendario(o.fechaCierre)}</span>
                 </div>
                 <span className="text-text-primary font-medium shrink-0 ml-3">
                   {formatMonto(Number(o.precioOperacion), o.moneda)}

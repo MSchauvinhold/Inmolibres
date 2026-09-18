@@ -7,7 +7,7 @@ import {
   Settings, Shield, ChevronDown, ChevronUp, ImageIcon, Upload, Trash2,
   Volume2, VolumeX, Lock, PenLine,
 } from "lucide-react";
-import { formatDate, ESTADO_INMOBILIARIA_LABELS, ESTADO_INMOBILIARIA_COLORS } from "@/lib/utils";
+import { formatFechaCalendario, ESTADO_INMOBILIARIA_LABELS, ESTADO_INMOBILIARIA_COLORS } from "@/lib/utils";
 import { puedeAgregarAgente, toPlanKey, LIMITES_PLAN } from "@/lib/planes";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { PermisosSheet } from "./PermisosSheet";
@@ -342,7 +342,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
             <p className="text-text-muted text-xs mb-0.5">Email</p>
             <p className="font-medium text-text-primary">{inmo.email}</p>
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <p className="text-text-muted text-xs mb-0.5">WhatsApp</p>
             {editingWa ? (
               <div className="flex gap-2">
@@ -372,7 +372,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
           </div>
 
           {/* Logo */}
-          <div className="col-span-2 pt-1 border-t border-border">
+          <div className="sm:col-span-2 pt-1 border-t border-border">
             <p className="text-text-muted text-xs mb-3">Logo de la inmobiliaria</p>
             <div className="flex items-center gap-5">
               {/* Preview */}
@@ -434,7 +434,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
           <div>
             <p className="text-xs text-text-muted mb-0.5">Vencimiento</p>
             <p className="font-medium text-text-primary">
-              {inmo.fechaVencimiento ? formatDate(inmo.fechaVencimiento) : "Sin fecha"}
+              {inmo.fechaVencimiento ? formatFechaCalendario(inmo.fechaVencimiento) : "Sin fecha"}
             </p>
           </div>
           {diasRestantes !== null && (
@@ -492,7 +492,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="card p-4 text-center">
           <p className="font-price text-3xl font-bold text-brand-primary">{inmo._count.propiedades}</p>
           <p className="text-sm text-text-muted mt-1">Propiedades</p>
@@ -594,7 +594,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
               {/* Distribución interna */}
               <div>
                 <label className={lbl}>Distribución de comisión</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <p className="text-[10px] text-text-muted mb-1">% Inmobiliaria</p>
                     <input
@@ -685,7 +685,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                     className={inp} placeholder="Inmobiliaria SRL"
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className={lbl}>Domicilio legal</label>
                   <input
                     value={config.domicilioLegal ?? ""}
@@ -745,7 +745,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
           <SectionHeader id="visual" title="Identidad visual para contratos" icon={Settings} />
           {openSection === "visual" && (
             <div className="space-y-4 pt-1">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={lbl}>Color primario</label>
                   <div className="flex items-center gap-2">
@@ -912,7 +912,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                     className={inp} placeholder="agente@email.com" required
                   />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className={lbl}>Contraseña inicial *</label>
                   <div className="relative">
                     <input

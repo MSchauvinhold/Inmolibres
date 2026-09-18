@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { configuracionSchema } from "@/lib/validations/configuracion";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
 
-  const inmobiliariaId = session.user.inmobiliariaId;
+  const { inmobiliariaId } = session;
 
   let config = await db.configuracionInmobiliaria.findUnique({ where: { inmobiliariaId } });
 
@@ -18,27 +19,33 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (session.user.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
+  if (session.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
 
-  const inmobiliariaId = session.user.inmobiliariaId;
+  const { inmobiliariaId } = session;
 
-  const body = await req.json() as Record<string, unknown>;
-
-  const allowed = [
-    "comisionVendedorPct", "comisionCompradorPct", "comisionAlquilerMeses",
-    "comisionAdministracionPct",
-    "comisionAgentePct", "comisionInmobPct", "ivaIncluido", "monedaPreferida",
-    "colorPrimario", "colorSecundario", "clausulasAdicionales", "piePaginaContrato",
-    "cuit", "razonSocial", "domicilioLegal", "matriculaCorredora",
-    "ciudad", "provincia",
-    "logoEnContrato",
-  ];
-  const data: Record<string, unknown> = {};
-  for (const key of allowed) {
-    if (key in body) data[key] = body[key];
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
   }
+
+  // El schema hace de allowlist: los campos desconocidos se descartan y el texto
+  // libre que termina en el PDF del contrato se valida acá (ver contrato-pdf.ts).
+  const parsed = configuracionSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Datos inválidos", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
+  // Solo se tocan las claves que el cliente mandó (los patches son parciales).
+  const data = Object.fromEntries(
+    Object.entries(parsed.data).filter(([, v]) => v !== undefined)
+  );
 
   try {
     const config = await db.configuracionInmobiliaria.upsert({

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -8,9 +8,9 @@ const schema = z.object({
 });
 
 export async function PUT(req: Request) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (session.user.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
+  if (session.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
 
   let json: unknown;
   try {
@@ -24,7 +24,7 @@ export async function PUT(req: Request) {
 
   try {
     const inmobiliaria = await db.inmobiliaria.update({
-      where: { id: session.user.inmobiliariaId },
+      where: { id: session.inmobiliariaId },
       data: { logoUrl: body.data.logoUrl },
       select: { logoUrl: true },
     });

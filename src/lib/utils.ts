@@ -79,17 +79,64 @@ export function generateUniqueSlug(base: string, suffix?: string): string {
 
 // ─── Date Formatting ──────────────────────────────────────────────────────────
 
+/**
+ * Zona horaria del negocio. Va explícita en todo formateo de instantes: el
+ * servidor (Vercel) corre en UTC y el navegador en hora argentina, así que sin
+ * esto la misma fecha se ve distinta según dónde se renderice — y entre las 21 y
+ * las 24 hs cae en el día siguiente.
+ */
+export const TZ_AR = "America/Argentina/Buenos_Aires";
+
+/**
+ * Node y los navegadores traen versiones distintas de ICU: para el mismo formato
+ * uno separa "a. m." con espacio duro (U+00A0 / U+202F) y el otro con espacio
+ * común. Se ven iguales pero no lo son, y en un componente cliente eso rompe la
+ * hidratación ("server rendered text didn't match").
+ */
+function espaciosComunes(s: string): string {
+  return s.replace(/[\u00A0\u202F]/g, " ");
+}
+
+/**
+ * Instante (createdAt, hora de una visita, "hoy") → fecha en hora argentina.
+ * Para fechas de calendario (vencimientos, inicio/fin de contrato, cierres) usar
+ * `formatFechaCalendario`: esas se guardan a las 00:00 UTC.
+ */
 export function formatDate(
   date: Date | string,
   options?: Intl.DateTimeFormatOptions
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString("es-AR", {
+  return espaciosComunes(d.toLocaleDateString("es-AR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: TZ_AR,
     ...options,
-  });
+  }));
+}
+
+/**
+ * Fecha de calendario (vencimiento de suscripción, inicio/fin de contrato, fecha
+ * de cierre…): se carga desde un input date y queda a las 00:00 UTC. Leída en
+ * hora argentina caería a las 21:00 del día ANTERIOR, así que se formatea en UTC.
+ * Mismo formato por defecto que `formatDate` (DD/MM/AAAA).
+ */
+export function formatFechaCalendario(
+  date: Date | string,
+  options?: Intl.DateTimeFormatOptions
+): string {
+  return formatDate(date, { timeZone: "UTC", ...options });
+}
+
+/** Hora de un instante (ej. una visita) en hora argentina: "10:00 a. m." */
+export function formatHora(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return espaciosComunes(d.toLocaleTimeString("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: TZ_AR,
+  }));
 }
 
 /**
@@ -103,15 +150,25 @@ export function fmtFechaUTC(fechaStr: string, opts: Intl.DateTimeFormatOptions =
   return new Date(fechaStr).toLocaleDateString("es-AR", { timeZone: "UTC", ...opts });
 }
 
-export function formatDateTime(date: Date | string): string {
+/**
+ * Fecha y hora de un instante, en hora argentina. `options` reemplaza el formato
+ * por defecto (no se mezcla: `dateStyle`/`timeStyle` no se combinan con `day`…).
+ */
+export function formatDateTime(
+  date: Date | string,
+  options?: Intl.DateTimeFormatOptions
+): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return espaciosComunes(d.toLocaleString("es-AR", {
+    timeZone: TZ_AR,
+    ...(options ?? {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  }));
 }
 
 export function formatRelativeTime(date: Date | string): string {

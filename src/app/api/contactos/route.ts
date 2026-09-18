@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { requireInmobiliariaAuth, checkPermisoAgente, isNextResponse } from "@/lib/api-auth";
 import { telefonosCoinciden } from "@/lib/utils";
 import type { RolContacto } from "@prisma/client";
 
@@ -8,6 +8,11 @@ export async function GET(req: NextRequest) {
   const session = await requireInmobiliariaAuth();
   if (isNextResponse(session)) return session;
   const inmobiliariaId = session.inmobiliariaId;
+
+  // El permiso `verClientes` gatea /contactos en el sidebar y en la página; sin
+  // esto mismo acá, un AGENTE con el permiso desactivado igual llega por la API.
+  const sinPermiso = await checkPermisoAgente(session, "verClientes", "Contactos");
+  if (sinPermiso) return sinPermiso;
 
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") ?? "";
@@ -40,6 +45,11 @@ export async function POST(req: NextRequest) {
   const session = await requireInmobiliariaAuth();
   if (isNextResponse(session)) return session;
   const inmobiliariaId = session.inmobiliariaId;
+
+  // El permiso `verClientes` gatea /contactos en el sidebar y en la página; sin
+  // esto mismo acá, un AGENTE con el permiso desactivado igual llega por la API.
+  const sinPermiso = await checkPermisoAgente(session, "verClientes", "Contactos");
+  if (sinPermiso) return sinPermiso;
 
   let body: {
     roles: RolContacto[];

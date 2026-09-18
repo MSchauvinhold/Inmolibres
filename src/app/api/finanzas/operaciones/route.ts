@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import type { TipoOperacionFinanciera, Moneda } from "@prisma/client";
 
@@ -21,10 +21,10 @@ function serializeOperacion<T extends {
 }
 
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
 
-  const inmobiliariaId = session.user.inmobiliariaId;
+  const { inmobiliariaId } = session;
   const { searchParams } = new URL(req.url);
   const limit = Number(searchParams.get("limit") ?? "50");
 
@@ -39,10 +39,12 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
+  // Mismo criterio que egresos y que el PUT/DELETE de operaciones: la caja es del ADMIN.
+  if (session.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
 
-  const inmobiliariaId = session.user.inmobiliariaId;
+  const { inmobiliariaId } = session;
 
   let body: {
     agenteId: string;
@@ -76,6 +78,37 @@ export async function POST(req: Request) {
   }
   if (body.fechaCierre && isNaN(new Date(body.fechaCierre).getTime())) {
     return NextResponse.json({ error: "Fecha de cierre inválida" }, { status: 400 });
+  }
+
+  // Todo lo que referencia la operación tiene que ser de la misma inmobiliaria:
+  // sin esto se podía imputar una operación a un agente, una propiedad o un
+  // cliente de otro tenant mandando el id a mano.
+  const agente = await db.usuario.findFirst({
+    where: { id: body.agenteId, inmobiliariaId, rol: { in: ["ADMIN", "AGENTE"] } },
+    select: { id: true },
+  });
+  if (!agente) {
+    return NextResponse.json({ error: "El agente seleccionado no es válido" }, { status: 400 });
+  }
+
+  if (body.propiedadId) {
+    const propiedad = await db.propiedad.findFirst({
+      where: { id: body.propiedadId, inmobiliariaId },
+      select: { id: true },
+    });
+    if (!propiedad) {
+      return NextResponse.json({ error: "La propiedad seleccionada no es válida" }, { status: 400 });
+    }
+  }
+
+  if (body.clienteId) {
+    const cliente = await db.cliente.findFirst({
+      where: { id: body.clienteId, inmobiliariaId },
+      select: { id: true },
+    });
+    if (!cliente) {
+      return NextResponse.json({ error: "El cliente seleccionado no es válido" }, { status: 400 });
+    }
   }
 
   try {

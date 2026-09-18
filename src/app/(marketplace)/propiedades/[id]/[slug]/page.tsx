@@ -19,8 +19,21 @@ import { Pill } from "@/components/ui/pill";
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
+import type { Prisma } from "@prisma/client";
 
 interface Params { id: string; slug: string; }
+
+/**
+ * La ficha pública muestra propiedades de inmobiliarias con la suscripción al día
+ * (o de particulares, sin inmobiliaria) — el mismo criterio que el listado, la
+ * búsqueda y el mapa.
+ */
+const SOLO_TENANTS_ACTIVOS = {
+  OR: [
+    { inmobiliaria: { estado: { in: ["ACTIVA", "PRUEBA"] as const } } },
+    { inmobiliariaId: null },
+  ],
+} satisfies Prisma.PropiedadWhereInput;
 
 /* ── Convierte una URL de YouTube/Vimeo a su URL de embed ────────── */
 function getVideoEmbedUrl(url: string | null): string | null {
@@ -43,8 +56,8 @@ function getVideoEmbedUrl(url: string | null): string | null {
 /* ── Metadata ──────────────────────────────────────────────────── */
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { id } = await params;
-  const prop = await db.propiedad.findUnique({
-    where: { id },
+  const prop = await db.propiedad.findFirst({
+    where: { id, publicada: true, ...SOLO_TENANTS_ACTIVOS },
     select: {
       titulo: true,
       descripcion: true,
@@ -82,8 +95,8 @@ function fmtARS(n: number): string {
 export default async function PropiedadDetailPage({ params }: { params: Promise<Params> }) {
   const { id } = await params;
 
-  const propiedad = await db.propiedad.findUnique({
-    where: { id, publicada: true },
+  const propiedad = await db.propiedad.findFirst({
+    where: { id, publicada: true, ...SOLO_TENANTS_ACTIVOS },
     include: {
       atributos: true,
       fotos: { orderBy: { orden: "asc" } },

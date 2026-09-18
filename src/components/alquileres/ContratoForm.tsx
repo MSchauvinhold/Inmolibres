@@ -63,7 +63,7 @@ export function ContratoForm({ propiedades }: Props) {
         {errors.propiedadId && <p className={errorCls}>{errors.propiedadId.message}</p>}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Nombre del inquilino *</label>
           <input {...register("inquilinoNombre")} className={inputCls} placeholder="Juan Pérez" />
@@ -76,8 +76,8 @@ export function ContratoForm({ propiedades }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="sm:col-span-2">
           <label className={labelCls}>Precio mensual *</label>
           <input {...register("precioMensual", { valueAsNumber: true })} type="number" className={inputCls} />
           {errors.precioMensual && <p className={errorCls}>{errors.precioMensual.message}</p>}
@@ -97,7 +97,7 @@ export function ContratoForm({ propiedades }: Props) {
         {errors.diaVencimientoPago && <p className={errorCls}>{errors.diaVencimientoPago.message}</p>}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Inicio del contrato *</label>
           <input {...register("fechaInicio")} type="date" className={inputCls} />

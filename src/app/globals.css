@@ -891,25 +891,51 @@
 /* Ficha de condiciones económicas: 4 → 2 columnas */
 .rg-cgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 
+/* Paneles de a 3 (estado de suscripciones, datos de la inmobiliaria): 3 → 2 → 1 */
+.rg-3col { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rg-3col--ancho { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr); }
+
+/* Gráfico + panel lateral del panel global: 2 → 1 */
+.rg-2col--c { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+
+/* Filas de campos de formulario: en un teléfono dos inputs lado a lado quedan
+   en ~160px, y tres en ~105px — ilegibles para precios, fechas y porcentajes. */
+.rg-fields { display: grid; }
+.rg-fields--2 { grid-template-columns: 1fr 1fr; }
+.rg-fields--3 { grid-template-columns: repeat(3, 1fr); }
+
 /* Fila de card de contrato en el listado: columnas → apilado */
 .rg-card-row { display: grid; gap: 24px; padding: 18px 22px; align-items: center; }
 .rg-card-row--alq { grid-template-columns: 2fr 1.4fr 1fr 1.2fr auto; }
 .rg-card-row--venta { grid-template-columns: 2fr 1.4fr 1fr auto; }
 
+/* Ojo con `1fr` a secas: el mínimo de una columna de grilla es `auto`, o sea el
+   min-content de lo que tenga adentro. Con textos largos (títulos de propiedad,
+   direcciones, botoneras) el track queda MÁS ANCHO que el contenedor y el
+   contenido se corta contra el borde en el teléfono. `minmax(0, 1fr)` deja que
+   la columna baje de su min-content y recién ahí el texto corta o envuelve. */
 @media (max-width: 900px) {
-  .rg-kpis { grid-template-columns: repeat(2, 1fr); }
-  .rg-2col--a, .rg-2col--b { grid-template-columns: 1fr; }
-  .rg-detail { grid-template-columns: 1fr; }
+  .rg-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rg-2col--a, .rg-2col--b, .rg-2col--c { grid-template-columns: minmax(0, 1fr); }
+  .rg-3col, .rg-3col--ancho { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rg-detail { grid-template-columns: minmax(0, 1fr); }
   .rg-detail > div:first-child { border-right: none !important; }
-  .rg-status { grid-template-columns: repeat(3, 1fr); }
-  .rg-cgrid { grid-template-columns: repeat(2, 1fr); }
-  .rg-card-row--alq, .rg-card-row--venta { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .rg-status { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .rg-cgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rg-card-row--alq, .rg-card-row--venta { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+}
+
+@media (max-width: 640px) {
+  .rg-fields--2 { grid-template-columns: minmax(0, 1fr); }
+  .rg-fields--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 480px) {
-  .rg-kpis { grid-template-columns: 1fr; }
-  .rg-status { grid-template-columns: repeat(2, 1fr); }
-  .rg-card-row--alq, .rg-card-row--venta { grid-template-columns: 1fr; gap: 10px; padding: 14px 16px; }
+  .rg-fields--3 { grid-template-columns: minmax(0, 1fr); }
+  .rg-kpis { grid-template-columns: minmax(0, 1fr); }
+  .rg-3col, .rg-3col--ancho { grid-template-columns: minmax(0, 1fr); }
+  .rg-status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rg-card-row--alq, .rg-card-row--venta { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px 16px; }
 }
 
 

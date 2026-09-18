@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { firmaSchema } from "@/lib/validations/configuracion";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,21 +18,26 @@ export async function PUT(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Solo el administrador puede modificar la firma" }, { status: 403 });
   }
 
-  let body: { firmaUrl?: string };
+  let body: unknown;
   try {
-    body = await request.json() as { firmaUrl?: string };
+    body = await request.json();
   } catch {
     return NextResponse.json({ error: "Body inválido" }, { status: 400 });
   }
 
-  if (typeof body.firmaUrl !== "string" || !body.firmaUrl.startsWith("http")) {
-    return NextResponse.json({ error: "URL de firma inválida" }, { status: 400 });
+  // La firma se renderiza como <img src> en el contrato: solo URL http(s).
+  const parsed = firmaSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Datos inválidos", details: parsed.error.flatten() },
+      { status: 400 }
+    );
   }
 
   try {
     await db.inmobiliaria.update({
       where: { id },
-      data: { firmaUrl: body.firmaUrl },
+      data: { firmaUrl: parsed.data.firmaUrl },
     });
     return NextResponse.json({ ok: true });
   } catch (e) {

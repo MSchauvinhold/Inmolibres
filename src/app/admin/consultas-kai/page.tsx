@@ -48,7 +48,7 @@ export default function ConsultasKaiPage() {
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-3">
             <Image src="/mascota-kai.svg" alt="Kai" width={32} height={32} style={{ objectFit: "contain" }} />

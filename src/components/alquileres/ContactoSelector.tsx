@@ -357,7 +357,7 @@ export function ContactoSelector({ label, required, selected, color = "#1B4332",
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div className="rg-fields rg-fields--2" style={{ gap: 10 }}>
                 <div>
                   <label className={lbl}>DNI / CUIT</label>
                   <input className={inp} style={inpS} value={form.dni} onChange={(e) => setForm((f) => ({ ...f, dni: e.target.value }))} placeholder="30.123.456" />

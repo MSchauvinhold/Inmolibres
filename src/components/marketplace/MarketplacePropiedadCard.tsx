@@ -140,7 +140,7 @@ export function MarketplacePropiedadCard({
       }}
     >
       <div
-        className="rounded-2xl overflow-hidden cursor-pointer"
+        className="relative rounded-2xl overflow-hidden cursor-pointer"
         style={{
           background: "white",
           boxShadow: hovered
@@ -152,8 +152,8 @@ export function MarketplacePropiedadCard({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        {/* Image */}
-        <Link href={href} className="block relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
+        {/* Image — no es un link propio: la cubre el link estirado del título */}
+        <div className="block relative overflow-hidden" style={{ aspectRatio: "16/9" }}>
           {/* relative: next/image con `fill` exige que su padre directo esté posicionado */}
           <div
             className="relative w-full h-full"
@@ -244,7 +244,7 @@ export function MarketplacePropiedadCard({
               </span>
             )}
           </div>
-        </Link>
+        </div>
 
         {/* Body */}
         <div className="p-4">
@@ -262,8 +262,10 @@ export function MarketplacePropiedadCard({
               : formatPrice(precio, moneda)}
           </p>
 
-          {/* Title */}
-          <Link href={href}>
+          {/* Title — link estirado: su ::after cubre toda la card, así la propiedad
+              se abre tocando en cualquier lado. Sigue siendo un <a> real (Ctrl+clic,
+              pestaña nueva, lectores de pantalla) sin anidar links. */}
+          <Link href={href} className="after:absolute after:inset-0 after:z-[1]">
             <h3
               className="mt-2 text-sm font-medium line-clamp-2 leading-snug"
               style={{
@@ -362,12 +364,13 @@ export function MarketplacePropiedadCard({
               href={waLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0"
+              className="relative z-[2] flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0"
               style={{
                 background: "#25D366",
                 color: "white",
                 fontFamily: "var(--font-jakarta)",
                 textDecoration: "none",
+                pointerEvents: hovered ? "auto" : "none",
               }}
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: hovered ? 1 : 0, y: hovered ? 0 : 6 }}

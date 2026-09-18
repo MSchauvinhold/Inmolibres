@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { requireInmobiliariaAuth, checkPermisoAgente, isNextResponse } from "@/lib/api-auth";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -8,6 +8,12 @@ export async function POST(req: NextRequest, { params }: Params) {
   const session = await requireInmobiliariaAuth();
   if (isNextResponse(session)) return session;
   const inmobiliariaId = session.inmobiliariaId;
+
+  // El permiso `verClientes` gatea /contactos en el sidebar y en la página; sin
+  // esto mismo acá, un AGENTE con el permiso desactivado igual llega por la API.
+  const sinPermiso = await checkPermisoAgente(session, "verClientes", "Contactos");
+  if (sinPermiso) return sinPermiso;
+
   const { id: contactoId } = await params;
 
   const contacto = await db.contacto.findFirst({ where: { id: contactoId, inmobiliariaId } });

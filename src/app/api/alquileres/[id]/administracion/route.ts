@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
 import { generarOperacionAdministracion } from "@/lib/operaciones";
+import { TZ_AR } from "@/lib/utils";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -51,7 +52,7 @@ export async function POST(_req: Request, { params }: Params) {
     );
   }
 
-  const mesLabel = ahora.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+  const mesLabel = ahora.toLocaleDateString("es-AR", { month: "long", year: "numeric", timeZone: TZ_AR });
   const etiqueta = `${mesLabel} — ${contrato.propiedad?.titulo ?? "Alquiler"} (${contrato.inquilinoNombre})`;
 
   try {

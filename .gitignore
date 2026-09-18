@@ -85,3 +85,6 @@ scripts/fix-contratos.ts
 scripts/fix-datos.ts
 .vercel
 .env*
+
+# Piezas de marketing (Instagram) — no forman parte del código
+/marketing/

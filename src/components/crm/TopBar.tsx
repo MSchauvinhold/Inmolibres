@@ -4,15 +4,18 @@ import { useState, useEffect } from "react";
 import { Search, Menu } from "lucide-react";
 import { NotificationBell } from "./NotificationBell";
 import { SearchModal } from "./SearchModal";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Sidebar } from "./Sidebar";
 import type { SessionUser } from "@/types";
+import type { PermisosAgente } from "@prisma/client";
 
 interface TopBarProps {
   user: SessionUser;
+  /** Los mismos permisos que recibe el sidebar de escritorio (ver layout del CRM). */
+  permisos?: PermisosAgente | null;
 }
 
-export function TopBar({ user }: TopBarProps) {
+export function TopBar({ user, permisos }: TopBarProps) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
@@ -58,7 +61,8 @@ export function TopBar({ user }: TopBarProps) {
               </button>
             </SheetTrigger>
             <SheetContent side="left" className="light-portal p-0 w-64">
-              <Sidebar user={user} className="h-full" />
+              <SheetTitle className="sr-only">Menú de navegación</SheetTitle>
+              <Sidebar user={user} permisos={permisos} className="h-full" />
             </SheetContent>
           </Sheet>
 

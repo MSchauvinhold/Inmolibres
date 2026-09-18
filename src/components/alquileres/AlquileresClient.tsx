@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { formatPrice, buildWhatsAppLink } from "@/lib/utils";
+import { formatPrice, buildWhatsAppLink, TZ_AR } from "@/lib/utils";
 import {
   Plus, FileText, Loader2, Printer, X,
   Phone, Trash2, ChevronRight, ScrollText,
@@ -416,7 +416,7 @@ function DocumentoFirmadoPreview({ url, fecha }: { url: string; fecha: string | 
           </span>
           {fecha && (
             <span style={{ fontSize: 11, color: "var(--success-600)", marginLeft: 6 }}>
-              · subido el {new Date(fecha).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+              · subido el {new Date(fecha).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric", timeZone: TZ_AR })}
             </span>
           )}
         </div>
@@ -467,7 +467,7 @@ function DocumentoPreview({
   const domicilio       = config?.domicilioLegal ?? "";
   const matricula       = config?.matriculaCorredora ?? "";
   const pie             = config?.piePaginaContrato ?? [razonSocial, inmobiliaria?.whatsapp && `Tel: ${inmobiliaria.whatsapp}`].filter(Boolean).join(" · ");
-  const hoyStr          = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+  const hoyStr          = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric", timeZone: TZ_AR });
   const meses           = duracionMeses(contrato.fechaInicio, contrato.fechaFin);
   const ctr             = `CTR-${contrato.id.slice(-4).toUpperCase()}`;
 
@@ -476,12 +476,14 @@ function DocumentoPreview({
       {/* Dark toolbar */}
       <div style={{
         background: "var(--antracita-900)", borderRadius: "10px 10px 0 0",
-        padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8,
       }}>
-        <span className="mono" style={{ fontSize: 11, color: "var(--crema-300)", letterSpacing: "0.04em" }}>
+        {/* El nombre del archivo se trunca: si no, empuja a Imprimir/Descargar
+            fuera de la card en el teléfono. */}
+        <span className="mono" style={{ fontSize: 11, color: "var(--crema-300)", letterSpacing: "0.04em", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {ctr}_alquiler_{contrato.propiedad.titulo.toLowerCase().replace(/\s+/g, "_").slice(0, 20)}.pdf
         </span>
-        <div style={{ display: "flex", gap: 4 }}>
+        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
           <button
             onClick={onPrint}
             style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "var(--crema-100)", fontSize: 11, cursor: "pointer" }}
@@ -874,7 +876,7 @@ function AjustesTab({ contrato, onSaved }: {
             </div>
 
             {/* Frecuencia + día */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="rg-fields rg-fields--2" style={{ gap: 12 }}>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-400)", marginBottom: 6 }}>
                   Frecuencia
@@ -1000,7 +1002,7 @@ function AdministracionPanel({ contrato }: { contrato: Contrato }) {
   const [registrado, setRegistrado] = useState(false);
 
   const fee = contrato.precioMensual * contrato.administracionPct / 100;
-  const mesActual = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+  const mesActual = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric", timeZone: TZ_AR });
 
   async function registrar() {
     setRegistrando(true);
@@ -1125,7 +1127,7 @@ function ContratoFirmadoPanel({
           </a>
           {contrato.fechaFirmado && (
             <p style={{ fontSize: 11, color: "var(--antracita-400)" }}>
-              Subido el {new Date(contrato.fechaFirmado).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+              Subido el {new Date(contrato.fechaFirmado).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric", timeZone: TZ_AR })}
             </p>
           )}
           <button
@@ -1283,7 +1285,7 @@ function AjustesHistorial({ contratoId, ajusteActivo }: { contratoId: string; aj
             {aplicados.map((a, i) => (
               <tr key={a.id} style={{ borderBottom: i < aplicados.length - 1 ? "1px solid var(--border)" : "none" }}>
                 <td style={{ padding: "10px 12px", color: "var(--antracita-700)" }}>
-                  {new Date(a.fechaAjuste).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                  {new Date(a.fechaAjuste).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric", timeZone: TZ_AR })}
                 </td>
                 <td className="mono" style={{ padding: "10px 12px", color: "var(--antracita-500)" }}>{formatPrice(a.precioAnterior, a.moneda)}</td>
                 <td className="mono" style={{ padding: "10px 12px", fontWeight: 600, color: "var(--antracita-900)" }}>{formatPrice(a.precioNuevo, a.moneda)}</td>
@@ -1314,7 +1316,7 @@ function PagosHistorial({
   inmobiliaria: WizardInmobiliaria | null;
 }) {
   const { id: contratoId, precioMensual: defaultMonto, moneda: defaultMoneda } = contrato;
-  const mesLabel = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+  const mesLabel = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric", timeZone: TZ_AR });
 
   const [pagos, setPagos]     = useState<PagoItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1417,7 +1419,7 @@ function PagosHistorial({
       {/* Inline form */}
       {showForm && (
         <div style={{ padding: 16, background: "var(--crema-50)", border: "1px solid var(--border)", borderRadius: 12, marginBottom: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+          <div className="rg-fields rg-fields--2" style={{ gap: 10, marginBottom: 10 }}>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={{ fontSize: 11, color: "var(--antracita-400)", fontWeight: 600, display: "block", marginBottom: 4 }}>Concepto *</label>
               {/* Concepto y monto vienen precargados (mes actual / canon): al enfocar se
@@ -1722,7 +1724,7 @@ function ContratoDetalleModal({
             </div>
 
             {/* Sub-tabs */}
-            <div style={{ display: "flex", borderBottom: "1px solid var(--border)", paddingLeft: 24 }}>
+            <div className="overflow-x-auto scrollbar-thin" style={{ display: "flex", borderBottom: "1px solid var(--border)", paddingLeft: 24 }}>
               {SUB_TABS.map(({ id, label, Icon, ...rest }) => {
                 const n = "n" in rest ? (rest as { n: number }).n : null;
                 const active = subTab === id;
@@ -1850,7 +1852,7 @@ function ContratoDetalleModal({
                         // translateX(-pct%): alineado a izquierda cerca de Inicio, centrado a mitad y a derecha cerca de Fin
                         <div className="mono" style={{ position: "absolute", left: `${pct}%`, bottom: 14, transform: `translateX(-${pct}%)`, fontSize: 9, fontWeight: 700, color: "var(--terracota-600)", whiteSpace: "nowrap", textAlign: "center" }}>
                           <div style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>Hoy</div>
-                          <div>{new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
+                          <div>{new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ_AR })}</div>
                         </div>
                       )}
                     </div>
@@ -1885,7 +1887,7 @@ function ContratoDetalleModal({
                     borderRadius: 8, marginBottom: 12,
                   }}>
                     <span style={{ fontSize: 12, color: contrato.estadoPago === "AL_DIA" ? "var(--success-500)" : "var(--danger-500)", fontWeight: 600 }}>
-                      {new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric" })} ·{" "}
+                      {new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric", timeZone: TZ_AR })} ·{" "}
                       {contrato.estadoPago === "AL_DIA" ? "Al día" : "Atrasado"}
                     </span>
                     <span className="mono" style={{ fontSize: 13, fontWeight: 600, color: contrato.estadoPago === "AL_DIA" ? "var(--success-500)" : "var(--danger-500)" }}>
@@ -1972,7 +1974,7 @@ function DocumentoVentaPreview({
   const domicilio       = config?.domicilioLegal ?? "";
   const matricula       = config?.matriculaCorredora ?? "";
   const pie             = config?.piePaginaContrato ?? [razonSocial, inmobiliaria?.whatsapp && `Tel: ${inmobiliaria.whatsapp}`].filter(Boolean).join(" · ");
-  const hoyStr          = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+  const hoyStr          = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric", timeZone: TZ_AR });
   const bcv             = `BCV-${venta.id.slice(-4).toUpperCase()}`;
 
   const parties = [
@@ -1983,11 +1985,13 @@ function DocumentoVentaPreview({
   return (
     <div>
       {/* Dark toolbar */}
-      <div style={{ background: "var(--antracita-900)", borderRadius: "10px 10px 0 0", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span className="mono" style={{ fontSize: 11, color: "var(--crema-300)", letterSpacing: "0.04em" }}>
+      <div style={{ background: "var(--antracita-900)", borderRadius: "10px 10px 0 0", padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        {/* El nombre del archivo se trunca: si no, empuja a Imprimir/Descargar
+            fuera de la card en el teléfono. */}
+        <span className="mono" style={{ fontSize: 11, color: "var(--crema-300)", letterSpacing: "0.04em", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {bcv}_compraventa_{venta.propiedadDireccion.toLowerCase().replace(/\s+/g, "_").slice(0, 20)}.pdf
         </span>
-        <div style={{ display: "flex", gap: 4 }}>
+        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
           {[{ Icon: Printer, l: "Imprimir" }, { Icon: Download, l: "Descargar" }].map(({ Icon, l }) => (
             <button key={l} onClick={onPrint} style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, color: "var(--crema-100)", fontSize: 11, cursor: "pointer" }}>
               <Icon size={11} /> {l}
@@ -2251,7 +2255,7 @@ function ContratoVentaDetalleModal({
             </div>
 
             {/* Sub-tabs */}
-            <div style={{ display: "flex", borderBottom: "1px solid var(--border)", paddingLeft: 24 }}>
+            <div className="overflow-x-auto scrollbar-thin" style={{ display: "flex", borderBottom: "1px solid var(--border)", paddingLeft: 24 }}>
               {SUB_TABS.map(({ id, label, Icon, ...rest }) => {
                 const n = "n" in rest ? (rest as { n: number }).n : null;
                 const active = subTab === id;
@@ -2667,7 +2671,7 @@ export function AlquileresClient({
 
       {/* Stats (solo alquileres) */}
       {tipoTab === "alquiler" && (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard label="Contratos activos" value={statsAlq.total} color="var(--brand-primary)" />
           <StatCard label="Al día" value={statsAlq.alDia} color="var(--success-500)" />
           <StatCard label="Vencen en 30 días" value={statsAlq.vencePronto} color={statsAlq.vencePronto > 0 ? "#F59E0B" : undefined} />
@@ -2677,7 +2681,7 @@ export function AlquileresClient({
 
       {/* Stats compraventas */}
       {tipoTab === "compraventa" && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <StatCard label="Boletos registrados" value={ventas.length} color="#D4A853" />
           {/* Por moneda, sin mezclar: antes sumaba solo USD y descartaba los boletos en pesos */}
           <StatCard
@@ -2694,7 +2698,7 @@ export function AlquileresClient({
 
       {/* ── Sub-filtros alquileres (underline tabs) ── */}
       {tipoTab === "alquiler" && (
-        <div style={{ display: "flex", borderBottom: "1px solid var(--border)", alignItems: "center" }}>
+        <div style={{ display: "flex", borderBottom: "1px solid var(--border)", alignItems: "center", flexWrap: "wrap" }}>
           {TABS_ALQ.map(({ key, label }) => (
             <button
               key={key}
@@ -2716,8 +2720,8 @@ export function AlquileresClient({
           ))}
           <div style={{ flex: 1 }} />
           {/* Buscador inline */}
-          <div style={{ paddingBottom: 8, display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{ position: "relative" }}>
+          <div style={{ paddingBottom: 8, display: "flex", gap: 8, alignItems: "center", flex: 1, minWidth: 200 }}>
+            <div style={{ position: "relative", flex: 1 }}>
               <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--antracita-300)", pointerEvents: "none" }} />
               <input
                 value={busqueda}
@@ -2729,7 +2733,8 @@ export function AlquileresClient({
                   borderRadius: 8,
                   fontSize: 12.5,
                   color: "var(--antracita-700)",
-                  width: 280,
+                  width: "100%",
+                  maxWidth: 280,
                   outline: "none",
                   background: "#fff",
                 }}

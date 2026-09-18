@@ -136,7 +136,7 @@ export default function LoginPage() {
 
         {/* Logo */}
         <div style={{ position: "relative" }}>
-          <Logo variant="lockup" size={24} onDark />
+          <Logo variant="lockup" size={24} onDark tone="sobreTerracota" />
         </div>
 
         {/* Main content */}

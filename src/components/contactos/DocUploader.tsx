@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { Upload, Loader2, X, FileText, Eye, Trash2, RefreshCw, Plus } from "lucide-react";
 import type { TipoDocumento } from "@prisma/client";
+import { TZ_AR } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ const EXTRA_TIPOS: TipoDocumento[] = [
 ];
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ_AR });
 }
 
 // ─── Single doc card ──────────────────────────────────────────────────────────

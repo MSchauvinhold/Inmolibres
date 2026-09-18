@@ -159,7 +159,7 @@ export function ReportesDashboard({
     const map = new Map<string, { mes: string; ventas: number; alquileres: number }>();
     for (const o of operacionesFiltradas) {
       const d = new Date(o.fechaCierre);
-      const key = d.toLocaleDateString("es-AR", { month: "short" });
+      const key = d.toLocaleDateString("es-AR", { month: "short", timeZone: "UTC" });
       if (!map.has(key)) map.set(key, { mes: key, ventas: 0, alquileres: 0 });
       const row = map.get(key)!;
       if (o.tipo === "VENTA") row.ventas++;
@@ -190,7 +190,7 @@ export function ReportesDashboard({
         titulo: "OPERACIONES CERRADAS",
         columnas: ["Fecha", "Tipo", "Agente", "Precio op.", "Moneda", "Comisión inmob.", "Comisión agente"],
         filas: operacionesFiltradas.map((o) => [
-          new Date(o.fechaCierre).toLocaleDateString("es-AR"),
+          new Date(o.fechaCierre).toLocaleDateString("es-AR", { timeZone: "UTC" }),
           o.tipo === "VENTA" ? "Venta" : "Alquiler",
           o.agenteNombre,
           o.precioOperacion, o.moneda, o.comisionInmob, o.comisionAgente,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { TZ_AR } from "@/lib/utils";
 import type { TipoOperacionFinanciera, Moneda } from "@prisma/client";
 
 function serializeOperacion<T extends {
@@ -22,14 +23,14 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (session.user.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
+  if (session.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
 
   const { id } = await params;
 
   const existente = await db.operacionCerrada.findFirst({
-    where: { id, inmobiliariaId: session.user.inmobiliariaId },
+    where: { id, inmobiliariaId: session.inmobiliariaId },
   });
   if (!existente) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
@@ -59,7 +60,7 @@ export async function PUT(
     return NextResponse.json({ error: "Fecha de cierre inválida" }, { status: 400 });
   }
 
-  const notaEdicion = `[Editado manualmente el ${new Date().toLocaleDateString("es-AR")}]`;
+  const notaEdicion = `[Editado manualmente el ${new Date().toLocaleDateString("es-AR", { timeZone: TZ_AR })}]`;
   const notasBase = (body.notas ?? existente.notas ?? "").replace(/^\[Editado manualmente[^\]]*\]\s*/, "");
 
   try {
@@ -95,14 +96,14 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.inmobiliariaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  if (session.user.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
+  const session = await requireInmobiliariaAuth();
+  if (isNextResponse(session)) return session;
+  if (session.rol !== "ADMIN") return NextResponse.json({ error: "Prohibido" }, { status: 403 });
 
   const { id } = await params;
 
   const existente = await db.operacionCerrada.findFirst({
-    where: { id, inmobiliariaId: session.user.inmobiliariaId },
+    where: { id, inmobiliariaId: session.inmobiliariaId },
   });
   if (!existente) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 

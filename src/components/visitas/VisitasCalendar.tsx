@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { formatHora } from "@/lib/utils";
 
 interface Visita {
   id: string;
@@ -160,7 +161,7 @@ export function VisitasCalendar({ visitas }: Props) {
             visitasDelDia
               .sort((a, b) => new Date(a.fechaHora).getTime() - new Date(b.fechaHora).getTime())
               .map((v) => {
-                const hora = new Date(v.fechaHora).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+                const hora = formatHora(v.fechaHora);
                 return (
                   <div key={v.id} className="flex items-start gap-3 p-3 rounded-xl bg-surface-raised">
                     <div className="text-center min-w-[36px] shrink-0">
