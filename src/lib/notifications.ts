@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import type { TipoNotificacion, Rol } from "@prisma/client";
-import { formatHora, formatFechaCalendario } from "@/lib/utils";
+import { formatDate, formatHora, formatFechaCalendario } from "@/lib/utils";
 
 type CreateNotificacionInput = {
   usuarioId: string;
@@ -77,6 +77,38 @@ export async function notifyAgente(
   return createNotificacion({ usuarioId: agenteId, tipo, titulo, mensaje, url });
 }
 
+// ─── Limpieza automática ─────────────────────────────────────────────────────
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Cuánto viven las notificaciones. Sin esto se acumulaban para siempre.
+ * - Leídas: 30 días.
+ * - Cualquiera (aunque no se haya leído): 90 días.
+ * - Avisos de visita próxima: 1 día — se crean como mucho 2 horas antes de la
+ *   visita, así que al día siguiente ya no sirven para nada.
+ */
+export const RETENCION_NOTIFICACIONES = {
+  leidasDias: 30,
+  maximoDias: 90,
+  visitaProximaDias: 1,
+} as const;
+
+/** Borra las notificaciones vencidas según `RETENCION_NOTIFICACIONES`. */
+export async function limpiarNotificacionesViejas(ahora = new Date()) {
+  const hace = (dias: number) => new Date(ahora.getTime() - dias * DIA_MS);
+  const { count } = await db.notificacion.deleteMany({
+    where: {
+      OR: [
+        { leida: true, createdAt: { lt: hace(RETENCION_NOTIFICACIONES.leidasDias) } },
+        { createdAt: { lt: hace(RETENCION_NOTIFICACIONES.maximoDias) } },
+        { tipo: "VISITA_PROXIMA", createdAt: { lt: hace(RETENCION_NOTIFICACIONES.visitaProximaDias) } },
+      ],
+    },
+  });
+  return count;
+}
+
 // ─── Pre-built notification messages ─────────────────────────────────────────
 
 export const NotifMessages = {
@@ -105,18 +137,17 @@ export const NotifMessages = {
   },
 
   visitaProxima(titulo: string, fechaHora: Date) {
-    // En hora argentina explícita: el cron corre en UTC y sin esto una visita a
-    // las 10:00 avisaba "a las 01:00 p. m.".
+    // Fecha y hora ABSOLUTAS: la notificación queda guardada, y un "en 1 min"
+    // calculado al crearla seguía diciendo lo mismo al día siguiente. El "hace X"
+    // ya lo muestra la campanita a partir de createdAt.
+    // En hora argentina explícita: el cron corre en UTC.
     const hora = formatHora(fechaHora);
-    // Calcular tiempo restante al momento de crear la notificación
-    const minutos = Math.round((fechaHora.getTime() - Date.now()) / 60_000);
-    const tiempoLabel =
-      minutos <= 0   ? "ahora mismo"
-      : minutos < 60 ? `en ${minutos} min`
-      :                `a las ${hora} hs`;
+    const diaSemana = formatDate(fechaHora, { weekday: "short", day: undefined, month: undefined, year: undefined });
+    const diaMes = formatDate(fechaHora, { day: "numeric", month: "numeric", year: undefined });
+    const dia = `${diaSemana} ${diaMes}`; // "vie 18/9"
     return {
-      titulo: `Visita ${tiempoLabel} — ${titulo}`,
-      mensaje: `Tenés una visita agendada en "${titulo}" a las ${hora} hs.`,
+      titulo: `Visita el ${dia} a las ${hora} — ${titulo}`,
+      mensaje: `Tenés una visita agendada en "${titulo}" el ${dia} a las ${hora}`,
       url: "/visitas",
     };
   },

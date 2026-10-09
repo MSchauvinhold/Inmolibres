@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import { formatRelativeTime } from "@/lib/utils";
 import { playNotificationSound } from "@/lib/notification-sound";
 
@@ -124,6 +124,36 @@ export function NotificationBell() {
     setNotifs((prev) => prev.map((n) => ({ ...n, leida: true })));
   };
 
+  // Borrado optimista: se saca de la lista al instante y, si el servidor falla,
+  // el próximo polling (30s) la vuelve a traer.
+  const borrarUna = async (n: Notificacion) => {
+    setNotifs((prev) => prev.filter((x) => x.id !== n.id));
+    if (!n.leida) {
+      setNoLeidas((prev) => Math.max(0, prev - 1));
+      prevCountRef.current = Math.max(0, (prevCountRef.current ?? 1) - 1);
+    }
+    try {
+      await fetch("/api/notificaciones", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [n.id] }),
+      });
+    } catch {/* se resincroniza con el polling */}
+  };
+
+  const borrarLeidas = async () => {
+    setNotifs((prev) => prev.filter((x) => !x.leida));
+    try {
+      await fetch("/api/notificaciones", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leidas: true }),
+      });
+    } catch {/* se resincroniza con el polling */}
+  };
+
+  const hayLeidas = notifs.some((n) => n.leida);
+
   return (
     <div className="relative" ref={ref}>
       <button
@@ -171,7 +201,7 @@ export function NotificationBell() {
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 w-80 rounded-2xl z-50 overflow-hidden"
+          className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-24px)] rounded-2xl z-50 overflow-hidden"
           style={{
             background: "var(--surface, #fff)",
             border: "1px solid var(--border, #E8DFD0)",
@@ -179,7 +209,7 @@ export function NotificationBell() {
           }}
         >
           <div
-            className="flex items-center justify-between px-4 py-3 border-b"
+            className="flex items-center justify-between gap-2 px-4 py-3 border-b"
             style={{ borderColor: "var(--border, #E8DFD0)" }}
           >
             <div className="flex items-center gap-2">
@@ -208,15 +238,26 @@ export function NotificationBell() {
                 </span>
               )}
             </div>
-            {noLeidas > 0 && (
-              <button
-                onClick={markAll}
-                className="text-xs font-medium hover:underline"
-                style={{ color: "var(--terracota-600, #A85737)" }}
-              >
-                Marcar todo como leído
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {noLeidas > 0 && (
+                <button
+                  onClick={markAll}
+                  className="text-xs font-medium hover:underline"
+                  style={{ color: "var(--terracota-600, #A85737)" }}
+                >
+                  Marcar leídas
+                </button>
+              )}
+              {hayLeidas && (
+                <button
+                  onClick={borrarLeidas}
+                  className="text-xs font-medium hover:underline"
+                  style={{ color: "var(--antracita-400, #5A524A)" }}
+                >
+                  Borrar leídas
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-80 overflow-y-auto scrollbar-thin">
@@ -225,15 +266,15 @@ export function NotificationBell() {
                 className="text-center text-sm py-8"
                 style={{ color: "var(--antracita-300, #6F665C)" }}
               >
-                Sin notificaciones pendientes
+                Sin notificaciones
               </p>
             ) : (
               notifs.slice(0, 20).map((n) => (
-                <a
+                // El botón de borrar va al lado del link, no adentro: un <button>
+                // dentro de un <a> es HTML inválido y el clic dispararía los dos.
+                <div
                   key={n.id}
-                  href={n.url ?? "#"}
-                  onClick={() => { setOpen(false); if (!n.leida) void markOne(n.id); }}
-                  className="block px-4 py-3 border-b last:border-0 transition-colors"
+                  className="group flex items-start border-b last:border-0 transition-colors"
                   style={{
                     borderColor: "var(--border, #E8DFD0)",
                     background: !n.leida ? "var(--terracota-50, #FBF1EC)" : "transparent",
@@ -247,41 +288,70 @@ export function NotificationBell() {
                       : "transparent")
                   }
                 >
-                  <div className="flex items-start gap-2">
-                    {!n.leida && (
-                      <span
-                        className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ background: "#DC2626" }}
-                      />
-                    )}
-                    <div className={!n.leida ? "" : "pl-3.5"}>
-                      <p
-                        className="text-sm font-medium leading-snug"
-                        style={{ color: "var(--antracita-900, #14110E)" }}
-                      >
-                        {n.titulo}
-                      </p>
-                      <p
-                        className="text-xs mt-0.5 line-clamp-2"
-                        style={{ color: "var(--antracita-500, #3A332C)" }}
-                      >
-                        {n.mensaje}
-                      </p>
-                      <p
-                        className="text-[10px] mt-1"
-                        style={{
-                          fontFamily: "var(--font-jetbrains-mono), monospace",
-                          color: "var(--antracita-300, #6F665C)",
-                        }}
-                      >
-                        {formatRelativeTime(n.createdAt)}
-                      </p>
+                  <a
+                    href={n.url ?? "#"}
+                    onClick={() => { setOpen(false); if (!n.leida) void markOne(n.id); }}
+                    className="flex-1 min-w-0 block pl-4 pr-1 py-3"
+                  >
+                    <div className="flex items-start gap-2">
+                      {!n.leida && (
+                        <span
+                          className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ background: "#DC2626" }}
+                        />
+                      )}
+                      <div className={!n.leida ? "min-w-0" : "min-w-0 pl-3.5"}>
+                        <p
+                          className="text-sm font-medium leading-snug"
+                          style={{ color: "var(--antracita-900, #14110E)" }}
+                        >
+                          {n.titulo}
+                        </p>
+                        <p
+                          className="text-xs mt-0.5 line-clamp-2"
+                          style={{ color: "var(--antracita-500, #3A332C)" }}
+                        >
+                          {n.mensaje}
+                        </p>
+                        <p
+                          className="text-[10px] mt-1"
+                          style={{
+                            fontFamily: "var(--font-jetbrains-mono), monospace",
+                            color: "var(--antracita-300, #6F665C)",
+                          }}
+                        >
+                          {formatRelativeTime(n.createdAt)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </a>
+                  </a>
+                  {/* En dispositivos táctiles (sin hover) se ve siempre; con mouse
+                      aparece al pasar por la fila. Se decide por capacidad de hover,
+                      no por ancho: una tablet también es táctil. */}
+                  <button
+                    onClick={() => void borrarUna(n)}
+                    aria-label="Eliminar notificación"
+                    title="Eliminar"
+                    className="shrink-0 mt-2 mr-2 p-1.5 rounded-lg transition-opacity opacity-60 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100"
+                    style={{ color: "var(--antracita-500, #3A332C)" }}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ))
             )}
           </div>
+
+          <p
+            className="px-4 py-2 border-t text-[10.5px]"
+            style={{
+              borderColor: "var(--border, #E8DFD0)",
+              color: "var(--antracita-300, #6F665C)",
+              background: "var(--crema-50, #FBF8F2)",
+            }}
+          >
+            Las leídas se borran solas a los 30 días; los avisos de visita, al día siguiente.
+          </p>
         </div>
       )}
     </div>

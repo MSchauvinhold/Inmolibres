@@ -63,6 +63,12 @@ design_handoff_inmolibres_v2/
 scripts/inspect-*.mjs
 scripts/*.local.mjs
 scripts/*.local.ts
+scripts/*.mjs
+scripts/debug-slides/
+
+# shims de entorno local
+powershell.cmd
+
 
 # presentación / capturas de demo (no producción)
 presentacion-inmolibres.html

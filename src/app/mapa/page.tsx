@@ -8,6 +8,12 @@ export const metadata: Metadata = {
   title: "Mapa de propiedades",
 };
 
+// Sin esto Next la genera UNA vez en el build (no usa nada dinámico) y el mapa
+// mostraba las propiedades de ese momento hasta el próximo deploy: marcadores de
+// propiedades ya borradas o despublicadas, distintos de /buscar. Además, consultar
+// la base al compilar hacía que un corte de Neon tumbara el build.
+export const dynamic = "force-dynamic";
+
 export default async function MapaPage() {
   const propiedades = await db.propiedad.findMany({
     where: {

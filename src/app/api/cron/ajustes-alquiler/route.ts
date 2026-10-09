@@ -3,10 +3,7 @@ import { db } from "@/lib/db";
 import { obtenerIndiceActual, obtenerIndiceEnFecha } from "@/lib/indices";
 import { formatPrice } from "@/lib/utils";
 import { logSystemEvent } from "@/lib/system-log";
-
-function diferenciaEnMeses(desde: Date, hasta: Date): number {
-  return (hasta.getFullYear() - desde.getFullYear()) * 12 + (hasta.getMonth() - desde.getMonth());
-}
+import { diferenciaEnMesesUtc, proximaFechaAjuste } from "@/lib/ajustes";
 
 // Corre diariamente (0 10 * * *). El código decide qué contratos ajustar HOY.
 export async function GET(request: NextRequest) {
@@ -16,7 +13,8 @@ export async function GET(request: NextRequest) {
   }
 
   const hoy = new Date();
-  const diaHoy = hoy.getDate();
+  const diaHoy = hoy.getUTCDate();
+  let avisosAnticipados = 0;
   const resultados: { contratoId: string; precioAnterior: number; precioNuevo: number; porcentaje: number }[] = [];
 
   // Cache de índices por tipo (1 sola llamada a cada API por ejecución)
@@ -57,7 +55,28 @@ export async function GET(request: NextRequest) {
 
       // ¿Pasaron los meses configurados desde el inicio o el último ajuste?
       const base = c.fechaUltimoAjuste ?? c.fechaInicio;
-      const meses = diferenciaEnMeses(new Date(base), hoy);
+      const meses = diferenciaEnMesesUtc(new Date(base), hoy);
+
+      // Aviso con un mes de anticipación (hoy es el día de ajuste del mes anterior), para
+      // que la inmobiliaria le avise al inquilino. En ajustes mensuales no aplica: el
+      // aviso caería el mismo día que el ajuste anterior.
+      if (c.ajusteMeses >= 2 && meses === c.ajusteMeses - 1 && c.inmobiliaria) {
+        const fecha = proximaFechaAjuste(c);
+        if (fecha <= c.fechaFin) {
+          const fechaTxt = fecha.toLocaleDateString("es-AR", { day: "numeric", month: "long", timeZone: "UTC" });
+          await db.notificacion.createMany({
+            data: c.inmobiliaria.usuarios.map((u) => ({
+              usuarioId: u.id,
+              tipo: "AJUSTE_ALQUILER_PENDIENTE" as const,
+              titulo: "Ajuste de alquiler el mes que viene",
+              mensaje: `El ${fechaTxt} corresponde ajustar el alquiler de ${c.propiedad.titulo} por ${c.ajusteIndice}. Avisale al inquilino (${c.inquilinoNombre}).`,
+              url: "/alquileres",
+            })),
+          });
+          avisosAnticipados++;
+        }
+      }
+
       if (meses < c.ajusteMeses) continue;
 
       const tipo = (c.ajusteIndice === "IPC" ? "IPC" : "ICL") as "ICL" | "IPC";
@@ -131,8 +150,8 @@ export async function GET(request: NextRequest) {
   await logSystemEvent(
     "INFO",
     "cron/ajustes-alquiler",
-    `Corrida OK: ${resultados.length} ajuste(s) generado(s) sobre ${contratos.length} contrato(s) evaluados.`
+    `Corrida OK: ${resultados.length} ajuste(s) generado(s) y ${avisosAnticipados} aviso(s) anticipado(s) sobre ${contratos.length} contrato(s) evaluados.`
   );
 
-  return NextResponse.json({ ok: true, procesados: resultados.length, resultados });
+  return NextResponse.json({ ok: true, procesados: resultados.length, avisosAnticipados, resultados });
 }

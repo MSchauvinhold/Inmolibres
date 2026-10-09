@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { SignOutLink } from "@/components/auth/SignOutLink";
 
+export const metadata = { title: "Cuenta suspendida" };
+
 export default async function SuspendidoPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");

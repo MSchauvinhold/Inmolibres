@@ -3,8 +3,7 @@ import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { requirePermisoAgente } from "@/lib/permisos";
-import { TasacionForm } from "@/components/tasaciones/TasacionForm";
-import { TasacionListClient } from "@/components/tasaciones/TasacionListClient";
+import { TasacionesPanel } from "@/components/tasaciones/TasacionesPanel";
 
 export const metadata = { title: "Tasaciones" };
 
@@ -44,6 +43,7 @@ export default async function TasacionesPage() {
     id: t.id,
     clienteNombre: t.clienteNombre,
     clienteTelefono: t.clienteTelefono,
+    clienteId: t.clienteId,
     direccion: t.direccion,
     tipo: t.tipo,
     superficie: t.superficie,
@@ -60,7 +60,7 @@ export default async function TasacionesPage() {
   const pendientes = tasaciones.filter((t) => t.estado === "PENDIENTE").length;
 
   return (
-    <div className="w-full max-w-[1060px] mx-auto" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="w-full max-w-[1280px] mx-auto" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
@@ -85,22 +85,10 @@ export default async function TasacionesPage() {
         </a>
       </div>
 
-      {/* Grid content */}
-      <div className="rg-2col rg-2col--a" style={{ gap: 18, alignItems: "start" }}>
-        <div>
-          <TasacionListClient tasaciones={tasacionesSerialized} />
-        </div>
-
-        <div id="nueva" className="il-card" style={{ padding: 18, background: "var(--crema-100, #F0E9DC)" }}>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 16 }}>
-            <Plus size={14} style={{ color: "var(--terracota-500)" }} />
-            <h2 className="display" style={{ fontSize: 16, margin: 0, color: "var(--antracita-900)" }}>
-              Nueva tasación
-            </h2>
-          </div>
-          <TasacionForm clientes={clientes.map((c) => ({ id: c.id, label: c.nombre }))} />
-        </div>
-      </div>
+      <TasacionesPanel
+        tasaciones={tasacionesSerialized}
+        clientes={clientes.map((c) => ({ id: c.id, label: c.nombre }))}
+      />
     </div>
   );
 }

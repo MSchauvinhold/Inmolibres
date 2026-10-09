@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { clienteSchema } from "@/lib/validations/client";
 import { buildPaginationMeta, telefonosCoinciden } from "@/lib/utils";
-import { requireCrmAuth, isNextResponse } from "@/lib/api-auth";
+import { requireCrmAuth, checkPermisoAgente, isNextResponse } from "@/lib/api-auth";
 import type { Prisma, EstadoPipeline } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   const session = await requireCrmAuth();
   if (isNextResponse(session)) return session;
   const { userId, inmobiliariaId, rol } = session;
+
+  const sinPermiso = await checkPermisoAgente(session, "verClientes", "Clientes");
+  if (sinPermiso) return sinPermiso;
 
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
@@ -74,6 +77,9 @@ export async function POST(request: NextRequest) {
   const { userId, inmobiliariaId, rol } = session;
   const isParticular = rol === "PARTICULAR";
 
+  const sinPermiso = await checkPermisoAgente(session, "editarClientes", "Clientes");
+  if (sinPermiso) return sinPermiso;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -108,12 +114,15 @@ export async function POST(request: NextRequest) {
     // ficha del prospecto cruza sus consultas por teléfono.
     const existentes = await db.cliente.findMany({
       where: isParticular ? { agenteId: userId, inmobiliariaId: null } : { inmobiliariaId: inmobiliariaId! },
-      select: { id: true, nombre: true, telefono: true },
+      select: { id: true, nombre: true, telefono: true, archivadoAt: true },
     });
     const duplicado = existentes.find((c) => telefonosCoinciden(c.telefono, clienteData.telefono));
     if (duplicado) {
       return NextResponse.json(
-        { error: `Ya existe un prospecto con ese teléfono: ${duplicado.nombre}`, existenteId: duplicado.id },
+        {
+          error: `Ya existe un prospecto con ese teléfono: ${duplicado.nombre}${duplicado.archivadoAt ? " (archivado)" : ""}`,
+          existenteId: duplicado.id,
+        },
         { status: 409 }
       );
     }

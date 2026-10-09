@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { MapPin, Bed, Bath, Square, Car, MessageCircle } from "lucide-react";
-import { formatPrice, buildWhatsAppLink } from "@/lib/utils";
+import { formatPrice, buildWhatsAppLink, propiedadAceptaConsultas } from "@/lib/utils";
 import { PropertyIllustration } from "@/components/ui/property-illustration";
 import { EstadoRibbon } from "@/components/ui/estado-ribbon";
 import type { EstadoPropiedad, Moneda, TipoOperacion, TipoPropiedad } from "@prisma/client";
@@ -91,7 +91,7 @@ export function MarketplacePropiedadCard({
   );
 
   const waMsg = `Hola, vi "${titulo}" en InmoLibres y me interesa más información.`;
-  const waLink = inmobiliaria ? buildWhatsAppLink(inmobiliaria.whatsapp, waMsg) : null;
+  const waLink = inmobiliaria && propiedadAceptaConsultas(estado) ? buildWhatsAppLink(inmobiliaria.whatsapp, waMsg) : null;
 
   const opStyle = OPERACION_STYLE[operacion];
 
@@ -101,11 +101,13 @@ export function MarketplacePropiedadCard({
 
   const supLabel = (() => {
     if (!atributos) return null;
+    // Los m² van primero: las medidas del lote (ancho×largo) tenían prioridad y
+    // una casa con superficie cargada mostraba "10×20m" en vez de sus m².
+    if (atributos.superficieCubierta != null) return `${atributos.superficieCubierta}m²`;
+    if (atributos.superficieTotal != null) return `${atributos.superficieTotal}m²`;
     if (atributos.anchoMetros && atributos.largoMetros) {
       return `${atributos.anchoMetros}×${atributos.largoMetros}m`;
     }
-    if (atributos.superficieCubierta != null) return `${atributos.superficieCubierta}m²`;
-    if (atributos.superficieTotal != null) return `${atributos.superficieTotal}m²`;
     return null;
   })();
 
@@ -259,6 +261,9 @@ export function MarketplacePropiedadCard({
           >
             {operacion === "ALQUILER_TEMPORARIO" && atributos?.precioPorDia != null
               ? <>{formatPrice(atributos.precioPorDia, moneda)}<span className="text-xs font-normal" style={{ color: "var(--antracite-light)" }}> /día</span></>
+              : operacion === "ALQUILER"
+              // Un alquiler es mensual: sin el "/mes" el precio se confundía con el de venta
+              ? <>{formatPrice(precio, moneda)}<span className="text-xs font-normal" style={{ color: "var(--antracite-light)" }}> /mes</span></>
               : formatPrice(precio, moneda)}
           </p>
 

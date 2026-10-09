@@ -35,9 +35,10 @@ async function main() {
   await page.pdf({
     path: pdfFile,
     format: "A4",
+    landscape: true,
     printBackground: true,     // preserva fondos oscuros
     margin: { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" },
-    preferCSSPageSize: false,
+    preferCSSPageSize: true,
   });
 
   await browser.close();

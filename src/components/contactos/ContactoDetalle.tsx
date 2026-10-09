@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Edit2, Save, X, Plus, Shield, Phone,
   Mail, MapPin, Calendar, Briefcase, FileText,
-  Check, Loader2, Home, Users, ShoppingCart, ScrollText,
+  Check, Loader2, Home, Users, ShoppingCart, ScrollText, Wrench,
 } from "lucide-react";
 import { DocUploader, type DocItem } from "./DocUploader";
 import type { RolContacto, TipoDocumento } from "@prisma/client";
@@ -21,6 +21,8 @@ interface GaranteData {
   domicilio: string | null;
   telefono: string | null;
   relacionConContacto: string | null;
+  /** Si el garante también existe como contacto propio (lo vincula el asistente de contratos) */
+  contactoGaranteId: string | null;
   documentos: DocItem[];
 }
 
@@ -62,6 +64,8 @@ const ROL_CFG: Record<RolContacto, { label: string; bg: string; text: string; ic
   PROPIETARIO: { label: "Propietario", bg: "#E8F5E9", text: "#1B5E20", icon: Home },
   INQUILINO:   { label: "Inquilino",   bg: "#E3F2FD", text: "#0D47A1", icon: Users },
   COMPRADOR:   { label: "Comprador",   bg: "#FFF8E1", text: "#E65100", icon: ShoppingCart },
+  GARANTE:     { label: "Garante",     bg: "#F3E5F5", text: "#4A148C", icon: Shield },
+  PROVEEDOR:   { label: "Proveedor",   bg: "#ECEFF1", text: "#37474F", icon: Wrench },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -139,6 +143,8 @@ function GaranteSection({
         domicilio: form.domicilio || null,
         telefono: form.telefono || null,
         relacionConContacto: form.relacionConContacto || null,
+        // Se editó a mano: si estaba vinculado a un contacto, ese vínculo se conserva
+        contactoGaranteId: garante?.contactoGaranteId ?? null,
         documentos: garante?.documentos ?? [],
       });
       setExpanded(false);
@@ -175,6 +181,15 @@ function GaranteSection({
           {garante.dni && <DataRow icon={FileText} label="DNI" value={garante.dni} />}
           {garante.telefono && <DataRow icon={Phone} label="Teléfono" value={garante.telefono} />}
           {garante.domicilio && <DataRow icon={MapPin} label="Domicilio" value={garante.domicilio} />}
+          {garante.contactoGaranteId && (
+            <a
+              href={`/contactos/${garante.contactoGaranteId}`}
+              className="inline-flex items-center gap-1 text-xs font-semibold"
+              style={{ color: "var(--terracota-600)" }}
+            >
+              Ver su ficha de contacto →
+            </a>
+          )}
         </div>
       ) : expanded ? (
         <div className="space-y-4">
@@ -276,7 +291,7 @@ function EditForm({
       <div>
         <p className={lbl}>Roles</p>
         <div className="flex gap-2 flex-wrap">
-          {(["PROPIETARIO", "INQUILINO", "COMPRADOR"] as RolContacto[]).map((r) => {
+          {(["PROPIETARIO", "INQUILINO", "COMPRADOR", "GARANTE", "PROVEEDOR"] as RolContacto[]).map((r) => {
             const cfg = ROL_CFG[r]; const active = form.roles.includes(r);
             return (
               <button key={r} type="button" onClick={() => toggleRol(r)}

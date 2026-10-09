@@ -1,10 +1,17 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import type { Rol, EstadoInmobiliaria } from "@prisma/client";
 import { authConfig } from "@/lib/auth.config";
 import { isRateLimited, getClientIp } from "@/lib/rate-limit";
+
+// Código distinto al de credenciales inválidas: sin esto, un usuario que supera
+// el límite de intentos y después escribe la contraseña correcta ve el mismo
+// "Email o contraseña incorrectos" y piensa que se equivocó al tipearla.
+export class RateLimitedSignin extends CredentialsSignin {
+  code = "rate_limited";
+}
 
 // ─── Module Augmentation ──────────────────────────────────────────────────────
 
@@ -69,7 +76,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           isRateLimited(`login:${ip}:${emailKey}`, { limit: 8, windowMs: VENTANA }) ||
           isRateLimited(`login-ip:${ip}`, { limit: 30, windowMs: VENTANA })
         ) {
-          return null;
+          throw new RateLimitedSignin();
         }
 
         const usuario = await db.usuario.findUnique({

@@ -212,8 +212,8 @@ export default function AdminInmobiliariasPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               ["nombre",   "Nombre",   "Inmobiliaria XYZ"],
-              ["whatsapp", "WhatsApp", "+54 3772..."],
-              ["email",    "Email",    "contacto@inmo.com"],
+              ["whatsapp", "WhatsApp", "Número de teléfono"],
+              ["email",    "Email",    "tu_correo@gmail.com"],
             ].map(([k, l, ph]) => (
               <div key={k}>
                 <label className={lbl}>{l} *</label>

@@ -15,7 +15,7 @@ export default async function ConsultasPage() {
   const isParticular = session.user.rol === "PARTICULAR";
   const inmobiliariaId = session.user.inmobiliariaId;
   if (!isParticular && !inmobiliariaId) redirect("/login");
-  await requirePermisoAgente(session.user.id, session.user.rol, "verConsultas", "Mensajes");
+  await requirePermisoAgente(session.user.id, session.user.rol, "verConsultas", "Consultas");
 
   const userId = session.user.id;
 

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Lock, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
-export const metadata = { title: "Sin acceso — InmoLibres" };
+export const metadata = { title: "Sin acceso" };
 
 interface SP { modulo?: string }
 

@@ -100,7 +100,7 @@ export default async function VisitasPage({
             Visitas
           </h1>
           <p style={{ fontSize: 12, color: "var(--antracita-400)", marginTop: 2 }}>
-            {vista === "lista" ? "Últimos 7 días + próximas" : vista === "semana" ? "Semana actual" : "Vista mensual"} · {visitas.length} visita{visitas.length !== 1 ? "s" : ""}
+            {vista === "lista" ? "Próximas + últimos 7 días" : vista === "semana" ? "Semana actual" : "Vista mensual"} · {visitas.length} visita{visitas.length !== 1 ? "s" : ""}
           </p>
         </div>
 
@@ -131,7 +131,10 @@ export default async function VisitasPage({
               <VisitasCalendar visitas={visitasSerialized} />
             </div>
           ) : (
-            <VisitaListClient visitas={visitasSerialized} />
+            <VisitaListClient
+              visitas={visitasSerialized}
+              puedeEliminar={session.user.rol === "ADMIN" || isParticular}
+            />
           )}
         </div>
 

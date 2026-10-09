@@ -107,7 +107,7 @@ export default function ForgotPasswordPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tu@inmobiliaria.com"
+                    placeholder="tu_correo@gmail.com"
                     required
                     autoComplete="email"
                     style={{

@@ -1116,7 +1116,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--crema-100, #F0E9DC)" }}>
-                    {["Fecha", "Tipo", "Agente", "Precio op.", "Comis. Inmob.", "Comis. Agente", "Moneda"].map((h, idx) => (
+                    {["Fecha", "Tipo", "Agente", "Precio op.", "Inmob. (c/IVA)", "Comis. Agente", "IVA", "Moneda"].map((h, idx) => (
                       <th key={h} style={{
                         textAlign: idx > 2 ? "right" : "left",
                         padding: "11px 20px",
@@ -1166,6 +1166,11 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
                       <td className="mono" style={{ padding: "12px 20px", textAlign: "right", color: "var(--antracita-400)" }}>
                         {formatMonto(op.comisionAgente, op.moneda)}
                       </td>
+                      {/* Sin esta columna no se entendía por qué inmobiliaria + agente
+                          superaban el precio de la operación. */}
+                      <td className="mono" style={{ padding: "12px 20px", textAlign: "right", color: "var(--antracita-300)" }}>
+                        {op.ivaComision > 0 ? formatMonto(op.ivaComision, op.moneda) : "—"}
+                      </td>
                       <td style={{ padding: "12px 20px", textAlign: "right" }}>
                         <Pill tone="outline" style={{ fontSize: 10.5 }}>{op.moneda}</Pill>
                       </td>
@@ -1173,7 +1178,7 @@ export function FinanzasDashboard({ data, agentes, isAdmin, userId, adminMensual
                   ))}
                   {ops.length === 0 && (
                     <tr>
-                      <td colSpan={7} style={{ padding: "32px 20px", textAlign: "center", color: "var(--antracita-300)", fontSize: 13 }}>
+                      <td colSpan={8} style={{ padding: "32px 20px", textAlign: "center", color: "var(--antracita-300)", fontSize: 13 }}>
                         Sin operaciones registradas
                       </td>
                     </tr>
@@ -1305,7 +1310,12 @@ function OperacionDetailSheet({ op, onClose, isAdmin, onEdit, onDelete, deleting
   const comVend = op.precioOperacion * (op.comisionVendedorPct / 100);
   const comComp = op.precioOperacion * (op.comisionCompradorPct / 100);
   const neto = op.comisionInmob - op.gastos;
-  const pctInmob = op.comisionTotal > 0 ? Math.round((op.comisionInmob / op.comisionTotal) * 100) : 70;
+  // El IVA no se reparte (lo remite la inmobiliaria), así que los porcentajes van
+  // sobre la comisión sin IVA. Calculados sobre el total con IVA daban 75/25
+  // cuando la configuración decía 70/30.
+  const baseReparto = op.comisionTotal - op.ivaComision;
+  const inmobSinIva = op.comisionInmob - op.ivaComision;
+  const pctInmob = baseReparto > 0 ? Math.round((inmobSinIva / baseReparto) * 100) : 70;
   const pctAgente = 100 - pctInmob;
 
   return (
@@ -1339,8 +1349,17 @@ function OperacionDetailSheet({ op, onClose, isAdmin, onEdit, onDelete, deleting
 
           <div style={{ borderTop: "1px solid var(--border)", paddingTop: 18, display: "flex", flexDirection: "column", gap: 6 }}>
             <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--antracita-300)", marginBottom: 4 }}>Distribución</p>
-            <DetailRow label={`Parte inmobiliaria (${pctInmob}%)`} value={formatMonto(op.comisionInmob, op.moneda)} />
+            <DetailRow label={`Parte inmobiliaria (${pctInmob}%)`} value={formatMonto(inmobSinIva, op.moneda)} />
             <DetailRow label={`Parte agente (${pctAgente}%)`} value={formatMonto(op.comisionAgente, op.moneda)} />
+            {op.ivaComision > 0 && (
+              <>
+                <DetailRow label="IVA a remitir" value={formatMonto(op.ivaComision, op.moneda)} />
+                <DetailRow label="Entra a la inmobiliaria (con IVA)" value={formatMonto(op.comisionInmob, op.moneda)} bold />
+                <p style={{ fontSize: 11, color: "var(--antracita-400)", margin: "2px 0 0", lineHeight: 1.45 }}>
+                  El IVA entra con la comisión pero no es ingreso: se remite a AFIP.
+                </p>
+              </>
+            )}
           </div>
 
           {op.gastos > 0 && (

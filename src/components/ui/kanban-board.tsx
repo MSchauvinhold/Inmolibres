@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 // Estructura visual compartida de los Kanban del CRM (Prospectos, Contactos):
 // columnas con barra de color, contador, tarjetas il-card y el select "Mover a…".
 // El contenido de cada tarjeta lo define la pantalla con renderCard.
+// Cada columna scrollea por su cuenta: con muchos registros el tablero no se estira hacia abajo.
 
 export type KanbanTone = "info" | "neutral" | "warning" | "accent" | "success" | "danger";
 
@@ -34,10 +35,12 @@ interface Props<T, K extends string> {
   /** Si no se pasa, las tarjetas no se pueden mover (columnas calculadas) */
   onMover?: (item: T, destino: K) => void;
   moviendoId?: string | null;
+  /** Acción opcional en el encabezado de una columna (ej: "Archivar todos") */
+  accionColumna?: (key: K, grupo: T[]) => ReactNode;
 }
 
 export function KanbanBoard<T, K extends string>({
-  columnas, items, getId, getColumna, renderCard, vacio, onMover, moviendoId,
+  columnas, items, getId, getColumna, renderCard, vacio, onMover, moviendoId, accionColumna,
 }: Props<T, K>) {
   return (
     <div style={{ overflowX: "auto", paddingBottom: 12 }}>
@@ -62,21 +65,36 @@ export function KanbanBoard<T, K extends string>({
                 display: "flex",
                 flexDirection: "column",
                 gap: 10,
+                minWidth: 0,
                 border: "1px solid var(--border)",
                 borderTop: `3px solid ${TONE_BAR[col.tone]}`,
               }}
             >
               {/* Column header */}
-              <div style={{ padding: "4px 6px" }}>
+              <div style={{ padding: "4px 6px", display: "flex", alignItems: "center", gap: 6, minHeight: 22 }}>
                 <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--antracita-900)" }}>
                   {col.label}
                 </span>
-                <span className="mono" style={{ fontSize: 11, color: "var(--antracita-300)", marginLeft: 6 }}>
+                <span className="mono" style={{ fontSize: 11, color: "var(--antracita-300)" }}>
                   {grupo.length}
                 </span>
+                {accionColumna && <span style={{ marginLeft: "auto" }}>{accionColumna(col.key, grupo)}</span>}
               </div>
 
-              {/* Cards */}
+              {/* Cards — scroll propio por columna */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  maxHeight: "calc(100vh - 290px)",
+                  minHeight: 380,
+                  overflowY: "auto",
+                  // espacio para la etiqueta que asoma debajo de la última tarjeta y la sombra
+                  padding: "2px 2px 12px",
+                  margin: "-2px -2px 0",
+                }}
+              >
               {grupo.map((item) => {
                 const id = getId(item);
                 return (
@@ -136,6 +154,7 @@ export function KanbanBoard<T, K extends string>({
                   {vacio}
                 </div>
               )}
+              </div>
             </div>
           );
         })}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { visitaSchema, actualizarVisitaSchema } from "@/lib/validations/visit";
 import { notifyAgente, NotifMessages } from "@/lib/notifications";
@@ -208,5 +209,45 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ data: visita });
   } catch {
     return NextResponse.json({ error: "Error al actualizar visita" }, { status: 500 });
+  }
+}
+
+// Borrado de visitas que ya pasaron (una o varias) desde la lista. Las próximas no se
+// borran: esas se cancelan. Solo el ADMIN, o el particular con las suyas.
+const eliminarVisitasSchema = z.object({ ids: z.array(z.string().uuid()).min(1).max(200) });
+
+export async function DELETE(request: NextRequest) {
+  const session = await requireCrmAuth();
+  if (isNextResponse(session)) return session;
+  const { userId, inmobiliariaId, rol } = session;
+
+  if (rol !== "ADMIN" && rol !== "PARTICULAR") {
+    return NextResponse.json({ error: "Solo el administrador puede eliminar visitas" }, { status: 403 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Body inválido" }, { status: 400 });
+  }
+  const parsed = eliminarVisitasSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+  }
+
+  const alcance: Prisma.VisitaWhereInput =
+    rol === "PARTICULAR" ? { agenteId: userId, inmobiliariaId: null } : { inmobiliariaId: inmobiliariaId! };
+
+  try {
+    const res = await db.visita.deleteMany({
+      where: { ...alcance, id: { in: parsed.data.ids }, fechaHora: { lt: new Date() } },
+    });
+    if (res.count === 0) {
+      return NextResponse.json({ error: "Solo se pueden eliminar visitas que ya pasaron" }, { status: 400 });
+    }
+    return NextResponse.json({ data: { count: res.count } });
+  } catch {
+    return NextResponse.json({ error: "Error al eliminar visitas" }, { status: 500 });
   }
 }

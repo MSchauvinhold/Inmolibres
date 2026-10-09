@@ -94,19 +94,19 @@ export function ConsultaForm({ propiedadId, propiedadTitulo }: Props) {
 
       <div>
         <label className={labelCls} style={labelStyle}>Tu nombre *</label>
-        <input {...register("nombreVisitante")} className={inputCls} style={inputStyle} placeholder="Juan Pérez" />
+        <input {...register("nombreVisitante")} className={inputCls} style={inputStyle} placeholder="Nombre y apellido" />
         {errors.nombreVisitante && <p className={errorCls} style={errorStyle}>{errors.nombreVisitante.message}</p>}
       </div>
 
       <div>
         <label className={labelCls} style={labelStyle}>Teléfono *</label>
-        <input {...register("telefono")} className={inputCls} style={inputStyle} placeholder="+54 3772 000000" />
+        <input {...register("telefono")} className={inputCls} style={inputStyle} placeholder="Número de teléfono" />
         {errors.telefono && <p className={errorCls} style={errorStyle}>{errors.telefono.message}</p>}
       </div>
 
       <div>
         <label className={labelCls} style={labelStyle}>Email <span style={{ color: "var(--antracite-light)" }}>(opcional)</span></label>
-        <input {...register("email")} type="email" className={inputCls} style={inputStyle} placeholder="juan@ejemplo.com" />
+        <input {...register("email")} type="email" className={inputCls} style={inputStyle} placeholder="tu_correo@gmail.com" />
         {errors.email && <p className={errorCls} style={errorStyle}>{errors.email.message}</p>}
       </div>
 

@@ -350,7 +350,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                   value={whatsappVal}
                   onChange={(e) => setWhatsappVal(e.target.value)}
                   className={inp}
-                  placeholder="+54 3772 ..."
+                  placeholder="Número de teléfono"
                 />
                 <button onClick={saveWhatsApp} disabled={savingWa} className="btn-primary text-sm flex items-center gap-1">
                   {savingWa && <Loader2 className="w-3 h-3 animate-spin" />}Guardar
@@ -909,7 +909,7 @@ export function ConfiguracionClient({ inmobiliaria: initial, isAdmin, diasRestan
                   <input
                     type="email" value={agentForm.email}
                     onChange={(e) => setAgentForm((p) => ({ ...p, email: e.target.value }))}
-                    className={inp} placeholder="agente@email.com" required
+                    className={inp} placeholder="correo@gmail.com" required
                   />
                 </div>
                 <div className="sm:col-span-2">

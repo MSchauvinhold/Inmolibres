@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { clienteSchema, actualizarPipelineSchema } from "@/lib/validations/client";
-import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { requireInmobiliariaAuth, checkPermisoAgente, isNextResponse } from "@/lib/api-auth";
 import { Prisma } from "@prisma/client";
 
 type Params = { params: Promise<{ id: string }> };
@@ -11,6 +11,9 @@ export async function GET(request: NextRequest, { params }: Params) {
   const session = await requireInmobiliariaAuth();
   if (isNextResponse(session)) return session;
   const { userId, inmobiliariaId, rol } = session;
+
+  const sinPermiso = await checkPermisoAgente(session, "verClientes", "Clientes");
+  if (sinPermiso) return sinPermiso;
 
   try {
     const cliente = await db.cliente.findUnique({
@@ -56,6 +59,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
   const session = await requireInmobiliariaAuth();
   if (isNextResponse(session)) return session;
   const { userId, inmobiliariaId, rol } = session;
+
+  const sinPermiso = await checkPermisoAgente(session, "editarClientes", "Clientes");
+  if (sinPermiso) return sinPermiso;
 
   let body: unknown;
   try {
@@ -121,6 +127,8 @@ export async function PUT(request: NextRequest, { params }: Params) {
             email: email === "" ? null : email,
             agenteId: agenteId === "" ? null : (agenteId ?? null),
             ultimaActividad: new Date(),
+            // Un archivado que deja de estar cerrado vuelve al tablero
+            ...(clienteData.estadoPipeline !== "CERRADO" ? { archivadoAt: null } : {}),
           },
         });
 
@@ -143,6 +151,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
         estadoPipeline: pipelineParsed.data!.estadoPipeline,
         notas: pipelineParsed.data!.notas,
         ultimaActividad: new Date(),
+        ...(pipelineParsed.data!.estadoPipeline !== "CERRADO" ? { archivadoAt: null } : {}),
       },
     });
 
@@ -157,6 +166,9 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const session = await requireInmobiliariaAuth();
   if (isNextResponse(session)) return session;
   const { inmobiliariaId, rol } = session;
+
+  const sinPermiso = await checkPermisoAgente(session, "editarClientes", "Clientes");
+  if (sinPermiso) return sinPermiso;
 
   if (rol !== "ADMIN") {
     return NextResponse.json({ error: "Solo el administrador puede eliminar clientes" }, { status: 403 });

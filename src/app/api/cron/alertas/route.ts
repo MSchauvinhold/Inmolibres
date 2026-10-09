@@ -4,8 +4,10 @@ import {
   notifyInmobiliaria,
   notifyAgente,
   NotifMessages,
+  limpiarNotificacionesViejas,
 } from "@/lib/notifications";
 import { logSystemEvent } from "@/lib/system-log";
+import { inicioMesArComoFechaDb } from "@/lib/utils";
 
 // Vercel sends GET to cron paths with Authorization: Bearer <CRON_SECRET>
 export async function GET(request: NextRequest) {
@@ -24,6 +26,7 @@ export async function GET(request: NextRequest) {
     contratosPorVencer: 0,
     pagosAtrasados: 0,
     leadsFrios: 0,
+    notificacionesBorradas: 0,
   };
 
   const now = new Date();
@@ -224,7 +227,9 @@ export async function GET(request: NextRequest) {
 
   // ─── 8. Pagos atrasados ────────────────────────────────────────────────────────
   // A payment is late when: contrato is active, estadoPago is AL_DIA,
-  // and today's day-of-month is past the diaVencimientoPago
+  // today's day-of-month is past the diaVencimientoPago and no payment was
+  // registered this month. Sin este último chequeo, un contrato que ya había pagado
+  // en el mes pasaba a "Atrasado" igual apenas se cruzaba el día de vencimiento.
   const diaHoy = hoy.getDate();
 
   const contratosAtrasados = await db.contratoAlquiler.findMany({
@@ -233,6 +238,7 @@ export async function GET(request: NextRequest) {
       fechaInicio: { lte: hoy },
       fechaFin: { gte: hoy },
       diaVencimientoPago: { lt: diaHoy },
+      pagos: { none: { fecha: { gte: inicioMesArComoFechaDb(now) } } },
     },
     include: {
       propiedad: { select: { titulo: true } },
@@ -292,13 +298,21 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ─── 10. Limpieza de notificaciones viejas ──────────────────────────────────
+  try {
+    results.notificacionesBorradas = await limpiarNotificacionesViejas(now);
+  } catch (e) {
+    await logSystemEvent("ERROR", "cron/alertas", "Falló la limpieza de notificaciones", e);
+  }
+
   // Log de "corrida OK" siempre, para que el panel de Monitoreo distinga
   // "no había nada que alertar" de "el cron dejó de correr".
-  const totalAlertas = Object.values(results).reduce((a, b) => a + b, 0);
+  const { notificacionesBorradas, ...alertas } = results;
+  const totalAlertas = Object.values(alertas).reduce((a, b) => a + b, 0);
   await logSystemEvent(
     "INFO",
     "cron/alertas",
-    `Corrida OK: ${totalAlertas} alerta(s) generada(s).`,
+    `Corrida OK: ${totalAlertas} alerta(s) generada(s), ${notificacionesBorradas} notificación(es) vieja(s) borrada(s).`,
     results
   );
 

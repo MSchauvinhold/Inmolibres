@@ -3,7 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { ParticularEditarClient } from "@/components/particular/ParticularEditarClient";
 
-export const metadata = { title: "Editar propiedad — InmoLibres" };
+export const metadata = { title: "Editar propiedad" };
 
 interface Params { id: string }
 

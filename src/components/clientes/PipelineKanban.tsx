@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
+import { Archive, Trash2 } from "lucide-react";
 import { buildWhatsAppLink, formatRelativeTime } from "@/lib/utils";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { KanbanBoard, KanbanCardBadge, type KanbanColumna } from "@/components/ui/kanban-board";
@@ -36,7 +38,8 @@ const COLUMNAS: KanbanColumna<EstadoPipeline>[] = [
   { key: "NUEVO",           label: "Nuevo",           tone: "info" },
   { key: "CONTACTADO",      label: "Contactado",      tone: "neutral" },
   { key: "VISITA_AGENDADA", label: "Visita agendada", tone: "warning" },
-  { key: "SEGUNDA_VISITA",  label: "Propuesta",       tone: "accent" },
+  // Mismo nombre que en el formulario de alta y en ESTADO_PIPELINE_LABELS
+  { key: "SEGUNDA_VISITA",  label: "Segunda visita",  tone: "accent" },
   { key: "CERRADO",         label: "Cerrado",         tone: "success" },
   { key: "PERDIDO",         label: "Perdido",         tone: "danger" },
 ];
@@ -64,14 +67,100 @@ interface Props {
   onUpdate?: () => void;
   /** Contactos es módulo Pro de inmobiliaria: sin esto no se muestra "→ Contacto" */
   puedeConvertirEnContacto?: boolean;
+  /** ADMIN (o particular con los suyos): puede eliminar prospectos perdidos */
+  puedeEliminar?: boolean;
 }
 
-export function PipelineKanban({ clientes, onUpdate, puedeConvertirEnContacto = false }: Props) {
+type AccionLote = "archivar" | "desarchivar" | "eliminar";
+
+async function postLote(accion: AccionLote, ids: string[]): Promise<string[]> {
+  const res = await fetch("/api/clientes/lote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accion, ids }),
+  });
+  const json = (await res.json().catch(() => ({}))) as { data?: { ids: string[] }; error?: string };
+  if (!res.ok || !json.data) throw new Error(json.error ?? "Error al procesar los prospectos");
+  return json.data.ids;
+}
+
+const btnColumna: CSSProperties = {
+  border: "none",
+  background: "transparent",
+  padding: "2px 4px",
+  fontSize: 10.5,
+  fontWeight: 600,
+  cursor: "pointer",
+  borderRadius: 5,
+};
+
+const btnIcono: CSSProperties = {
+  position: "absolute",
+  top: 6,
+  right: 6,
+  width: 24,
+  height: 24,
+  display: "grid",
+  placeItems: "center",
+  border: "none",
+  borderRadius: 6,
+  background: "transparent",
+  color: "var(--antracita-300)",
+  cursor: "pointer",
+};
+
+export function PipelineKanban({ clientes, onUpdate, puedeConvertirEnContacto = false, puedeEliminar = false }: Props) {
   const router = useRouter();
   const [items, setItems] = useState(clientes);
   const [moving, setMoving] = useState<string | null>(null);
   const [convirtiendo, setConvirtiendo] = useState<{ cliente: Cliente; roles: RolContacto[] } | null>(null);
   const [savingContacto, setSavingContacto] = useState(false);
+  const [aEliminar, setAEliminar] = useState<Cliente[] | null>(null);
+  const [eliminando, setEliminando] = useState(false);
+
+  // Archivar es reversible: se hace directo y el toast ofrece deshacer.
+  async function archivar(grupo: Cliente[]) {
+    const ids = grupo.map((c) => c.id);
+    try {
+      const hechos = await postLote("archivar", ids);
+      setItems((prev) => prev.filter((c) => !hechos.includes(c.id)));
+      toast.success(
+        hechos.length === 1 ? `${grupo[0].nombre} archivado` : `${hechos.length} prospectos archivados`,
+        {
+          action: {
+            label: "Deshacer",
+            onClick: async () => {
+              try {
+                await postLote("desarchivar", hechos);
+                router.refresh();
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "No se pudo deshacer");
+              }
+            },
+          },
+        }
+      );
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al archivar");
+    }
+  }
+
+  async function eliminar() {
+    if (!aEliminar) return;
+    setEliminando(true);
+    try {
+      const hechos = await postLote("eliminar", aEliminar.map((c) => c.id));
+      setItems((prev) => prev.filter((c) => !hechos.includes(c.id)));
+      toast.success(hechos.length === 1 ? "Prospecto eliminado" : `${hechos.length} prospectos eliminados`);
+      setAEliminar(null);
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al eliminar");
+    } finally {
+      setEliminando(false);
+    }
+  }
 
   // Mismo patrón que Consulta → Prospecto (ConsultasClient): se reusa el POST existente
   // del módulo destino y se navega al registro creado. Si ya hay un contacto con ese
@@ -188,6 +277,24 @@ export function PipelineKanban({ clientes, onUpdate, puedeConvertirEnContacto = 
         vacio="Sin prospectos"
         onMover={(c, destino) => moverCliente(c.id, destino)}
         moviendoId={moving}
+        accionColumna={(key, grupo) => {
+          if (grupo.length === 0) return null;
+          if (key === "CERRADO") {
+            return (
+              <button type="button" onClick={() => archivar(grupo)} style={{ ...btnColumna, color: "var(--antracita-500)" }} title="Sacar del tablero los cerrados (no se borran)">
+                Archivar todos
+              </button>
+            );
+          }
+          if (key === "PERDIDO" && puedeEliminar) {
+            return (
+              <button type="button" onClick={() => setAEliminar(grupo)} style={{ ...btnColumna, color: "var(--danger-600, #DC2626)" }}>
+                Eliminar todos
+              </button>
+            );
+          }
+          return null;
+        }}
         renderCard={(cliente) => {
           const frio = esLeadFrio(cliente);
           const avatarBg =
@@ -204,21 +311,36 @@ export function PipelineKanban({ clientes, onUpdate, puedeConvertirEnContacto = 
                 </span>
               )}
 
+              {cliente.estadoPipeline === "CERRADO" && (
+                <button type="button" style={btnIcono} onClick={() => archivar([cliente])} title="Archivar" aria-label={`Archivar a ${cliente.nombre}`}>
+                  <Archive size={13} />
+                </button>
+              )}
+              {cliente.estadoPipeline === "PERDIDO" && puedeEliminar && (
+                <button type="button" style={btnIcono} onClick={() => setAEliminar([cliente])} title="Eliminar" aria-label={`Eliminar a ${cliente.nombre}`}>
+                  <Trash2 size={13} />
+                </button>
+              )}
+
               {/* Avatar + name */}
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, paddingRight: cliente.estadoPipeline === "CERRADO" || cliente.estadoPipeline === "PERDIDO" ? 20 : 0 }}>
                 <AvatarInitials name={cliente.nombre} size={26} bg={avatarBg} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
+                  {/* Antes la ficha solo se abría escribiendo la URL a mano */}
+                  <Link
+                    href={`/clientes/${cliente.id}`}
                     style={{
                       fontSize: 12.5, fontWeight: 600,
                       color: "var(--antracita-900)",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
+                      display: "block",
+                      textDecoration: "none",
                     }}
                   >
                     {cliente.nombre}
-                  </div>
+                  </Link>
                   <div
                     className="mono"
                     style={{ fontSize: 10, color: "var(--antracita-300)" }}
@@ -267,12 +389,15 @@ export function PipelineKanban({ clientes, onUpdate, puedeConvertirEnContacto = 
                   borderTop: "1px solid var(--border)",
                   marginTop: 4,
                   gap: 4,
+                  // La fila no tenía dónde cortar: con el botón "→ Contacto" el grupo
+                  // de la derecha se salía de la tarjeta en columnas angostas.
+                  flexWrap: "wrap",
                 }}
               >
-                <span style={{ fontSize: 10, color: "var(--antracita-400)" }}>
+                <span style={{ fontSize: 10, color: "var(--antracita-400)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {cliente.agente?.nombre ?? "Sin asignar"}
                 </span>
-                <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 5, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
                   <span style={{ fontSize: 9.5, color: "var(--antracita-400)" }}>
                     {formatRelativeTime(cliente.ultimaActividad)}
                   </span>
@@ -322,6 +447,27 @@ export function PipelineKanban({ clientes, onUpdate, puedeConvertirEnContacto = 
             </>
           );
         }}
+      />
+
+      <ConfirmDialog
+        open={aEliminar !== null}
+        onOpenChange={(o) => { if (!o) setAEliminar(null); }}
+        title={aEliminar && aEliminar.length > 1 ? `Eliminar ${aEliminar.length} prospectos perdidos` : "Eliminar prospecto"}
+        confirmLabel="Eliminar"
+        destructive
+        loading={eliminando}
+        onConfirm={eliminar}
+        description={aEliminar && (
+          <>
+            <p>
+              {aEliminar.length === 1
+                ? <>Se elimina <strong>{aEliminar[0].nombre}</strong></>
+                : <>Se eliminan <strong>{aEliminar.length} prospectos</strong></>}{" "}
+              junto con sus visitas y documentos. Esta acción no se puede deshacer.
+            </p>
+            <p style={{ fontSize: 11.5 }}>Las tasaciones vinculadas se conservan.</p>
+          </>
+        )}
       />
 
       <ConfirmDialog

@@ -691,7 +691,7 @@ export function MascotaKai() {
                       <input
                         value={contactoNombre}
                         onChange={(e) => setContactoNombre(e.target.value)}
-                        placeholder="Ej: María González"
+                        placeholder="Nombre y apellido"
                         required
                         style={{
                           border: "1px solid #DDD5C8", borderRadius: 8,
@@ -708,7 +708,7 @@ export function MascotaKai() {
                       <input
                         value={contactoTel}
                         onChange={(e) => setContactoTel(e.target.value)}
-                        placeholder="Ej: +54 3772 123456"
+                        placeholder="Número de teléfono"
                         required
                         style={{
                           border: "1px solid #DDD5C8", borderRadius: 8,

@@ -14,7 +14,7 @@ async function getContratoOwnedBy(id: string, inmobiliariaId: string) {
     where: { id },
     select: {
       inmobiliariaId: true, propiedadId: true,
-      ajusteActivo: true, indiceUltimoAjuste: true,
+      ajusteActivo: true, ajusteIndice: true, indiceUltimoAjuste: true,
       fechaInicio: true, fechaUltimoAjuste: true,
     },
   });
@@ -41,6 +41,12 @@ export async function GET(request: NextRequest, { params }: Params) {
         pagos: {
           orderBy: { fecha: "desc" },
         },
+        personas: {
+          select: {
+            rol: true,
+            contacto: { select: { id: true, nombre: true, dni: true, telefono: true, domicilio: true } },
+          },
+        },
       },
     });
 
@@ -52,7 +58,13 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    return NextResponse.json({ data: contrato });
+    const { personas, ...resto } = contrato;
+    return NextResponse.json({
+      data: {
+        ...resto,
+        personas: personas.map((p) => ({ rol: p.rol, ...p.contacto })),
+      },
+    });
   } catch {
     return NextResponse.json({ error: "Error al obtener contrato" }, { status: 500 });
   }
@@ -96,14 +108,22 @@ export async function PUT(request: NextRequest, { params }: Params) {
     // Si acá se está activando el ajuste (o cambiando de índice) y todavía no hay base
     // registrada, hay que fijarla ahora — usando el valor del índice al inicio del
     // contrato, no el de hoy. Sin esto el ajuste queda sin base y nunca calcula nada.
-    let indiceBaseUpdate: { indiceUltimoAjuste?: number } = {};
+    let indiceBaseUpdate: { indiceUltimoAjuste?: number | null } = {};
     const activandoAjuste = ajusteActivo === true && !existing.ajusteActivo;
-    const cambiandoIndice = ajusteIndice !== undefined && ajusteActivo !== false;
-    if ((activandoAjuste || cambiandoIndice) && existing.indiceUltimoAjuste == null) {
-      const tipo = (ajusteIndice ?? "ICL") as "ICL" | "IPC";
+    // Cambio REAL de índice (ICL ↔ IPC). Antes la base solo se fijaba si estaba vacía:
+    // al pasar de ICL a IPC quedaba la base en valores ICL y el ajuste por IPC se
+    // calculaba contra ella (o seguía mostrando un pendiente calculado con ICL).
+    const cambiandoIndice = ajusteIndice !== undefined && ajusteIndice !== existing.ajusteIndice;
+    if (cambiandoIndice || (activandoAjuste && existing.indiceUltimoAjuste == null)) {
+      const tipo = (ajusteIndice ?? existing.ajusteIndice ?? "ICL") as "ICL" | "IPC";
       const desde = existing.fechaUltimoAjuste ?? existing.fechaInicio;
       const idx = await obtenerIndiceEnFecha(tipo, new Date(desde));
-      if (idx) indiceBaseUpdate = { indiceUltimoAjuste: idx.valor };
+      // Si el índice no responde se deja vacía: el cron la reconstruye con el índice correcto
+      indiceBaseUpdate = { indiceUltimoAjuste: idx ? idx.valor : null };
+    }
+    if (cambiandoIndice) {
+      // Los pendientes se calcularon con el índice anterior: no sirven más
+      await db.ajusteAlquiler.deleteMany({ where: { contratoId: id, aplicado: false } });
     }
 
     const contrato = await db.contratoAlquiler.update({

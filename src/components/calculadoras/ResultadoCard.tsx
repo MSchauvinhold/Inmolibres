@@ -49,10 +49,13 @@ function useAnimatedNumber(target: number, duration = 380) {
 export function ResultadoCard({ label, valor, moneda, destacado, descripcion, size = "md" }: Props) {
   const animated = useAnimatedNumber(valor);
 
+  // Un importe de 8 dígitos ("$ 18.654.250") no entraba en la tarjeta y se cortaba
+  // contra el borde: ahora arranca más chico en pantallas angostas y, si aún así
+  // no entra, corta la línea en vez de desbordar.
   const sizeMap = {
-    sm: "text-xl",
-    md: "text-2xl",
-    lg: "text-3xl",
+    sm: "text-lg sm:text-xl",
+    md: "text-xl sm:text-2xl",
+    lg: "text-2xl sm:text-3xl",
   };
 
   if (destacado) {
@@ -66,7 +69,7 @@ export function ResultadoCard({ label, valor, moneda, destacado, descripcion, si
         </p>
         <p
           className={`${sizeMap[size]} font-bold tabular-nums text-white leading-none`}
-          style={{ fontFamily: "var(--font-mono, monospace)" }}
+          style={{ fontFamily: "var(--font-mono, monospace)", overflowWrap: "anywhere" }}
         >
           {fmt(animated, moneda)}
         </p>
@@ -91,7 +94,7 @@ export function ResultadoCard({ label, valor, moneda, destacado, descripcion, si
       </p>
       <p
         className={`${sizeMap[size]} font-bold tabular-nums text-text-primary leading-none`}
-        style={{ fontFamily: "var(--font-mono, monospace)", color: "var(--brand-accent)" }}
+        style={{ fontFamily: "var(--font-mono, monospace)", color: "var(--brand-accent)", overflowWrap: "anywhere" }}
       >
         {fmt(animated, moneda)}
       </p>

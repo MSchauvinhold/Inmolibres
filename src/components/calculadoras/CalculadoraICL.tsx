@@ -7,6 +7,12 @@ import { calcularAjusteICL, fmt, fmtNum } from "@/lib/calculadoras";
 import { ResultadoCard } from "./ResultadoCard";
 import { TZ_AR } from "@/lib/utils";
 
+/** "2026-09-24" → "24/09/2026". La fecha del índice viene como fecha de calendario. */
+function fechaCorta(iso: string | null): string {
+  const [a, m, d] = (iso ?? "").split("-");
+  return d ? `${d}/${m}/${a}` : (iso ?? "");
+}
+
 const inputCls = "w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-all focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary";
 const inputStyle = { background: "var(--surface)", borderColor: "var(--border)", color: "var(--text-primary)" };
 const labelCls = "block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1.5";
@@ -164,12 +170,12 @@ export function CalculadoraICL() {
             ) : (
               <>
                 {icl?.valor && (
-                  <p>ICL actual: <strong>{fmtNum(icl.valor)}</strong> ({icl.fecha})</p>
+                  <p>ICL actual: <strong>{fmtNum(icl.valor)}</strong> ({fechaCorta(icl.fecha)})</p>
                 )}
                 {ipc?.valor && (
                   // ipc.valor es el número índice acumulado del INDEC (base 2016=100),
                   // no un porcentaje: nunca se le agrega "%" ni se lo llama "mensual".
-                  <p>IPC actual: <strong>{fmtNum(ipc.valor)}</strong> ({ipc.fecha})</p>
+                  <p>IPC actual: <strong>{fmtNum(ipc.valor)}</strong> ({fechaCorta(ipc.fecha)})</p>
                 )}
               </>
             )}

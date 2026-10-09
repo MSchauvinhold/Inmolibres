@@ -149,6 +149,7 @@ export default async function EditarPropiedadPage({ params }: { params: Promise<
               id: t.id,
               clienteNombre: t.clienteNombre,
               clienteTelefono: t.clienteTelefono,
+              clienteId: t.clienteId,
               direccion: t.direccion,
               tipo: t.tipo,
               superficie: t.superficie,
@@ -160,6 +161,7 @@ export default async function EditarPropiedadPage({ params }: { params: Promise<
               agente: t.agente,
               createdAt: t.createdAt.toISOString(),
             }))}
+            clientes={clientes.map((c) => ({ id: c.id, label: c.nombre }))}
           />
           <details style={{ marginTop: 14 }}>
             <summary className="il-btn il-btn--ghost" style={{ height: 34, fontSize: 12.5, gap: 6, display: "inline-flex", listStyle: "none", cursor: "pointer" }}>

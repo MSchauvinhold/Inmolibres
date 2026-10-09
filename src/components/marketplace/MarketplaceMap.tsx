@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { createPriceMarkerIcon, tipoDeOperacion, PRICE_MARKER_STYLES } from "@/lib/map-markers";
+import { propiedadAceptaConsultas } from "@/lib/utils";
 
 export interface MapProperty {
   id: string;
@@ -58,7 +59,8 @@ function buildPopupHtml(prop: MapProperty): string {
     ? `<img src="${prop.fotoUrl}" alt="" style="width:240px;height:130px;object-fit:cover;display:block;" />`
     : `<div style="width:240px;height:80px;background:#f0ede8;display:flex;align-items:center;justify-content:center;"><span style="color:#9c9590;font-size:12px;font-family:system-ui;">Sin foto</span></div>`;
 
-  const wpNum = prop.whatsapp ? sanitizeWhatsapp(prop.whatsapp) : null;
+  // Alquilada o vendida: el marcador se ve, pero sin botón de contacto
+  const wpNum = prop.whatsapp && propiedadAceptaConsultas(prop.estado) ? sanitizeWhatsapp(prop.whatsapp) : null;
   const wpLink = wpNum
     ? `<a href="https://wa.me/${wpNum}?text=Hola!%20Me%20interesa%20la%20propiedad%20%22${encodeURIComponent(prop.titulo)}%22" target="_blank" rel="noopener noreferrer" style="flex:1;text-align:center;font-size:11px;font-weight:700;padding:7px 6px;background:#25D366;color:white;border-radius:8px;text-decoration:none;display:block;">WhatsApp</a>`
     : "";

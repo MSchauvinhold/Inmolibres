@@ -4,7 +4,7 @@ import { toPlanKey, LIMITES_PLAN, type PlanKey } from "@/lib/planes";
 import { Check, X, MessageCircle, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
-export const metadata = { title: "Planes — InmoLibres" };
+export const metadata = { title: "Planes" };
 
 const PLANES_CONFIG: {
   key: PlanKey;

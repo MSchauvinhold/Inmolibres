@@ -147,6 +147,8 @@ enum RolContacto {
   PROPIETARIO
   INQUILINO
   COMPRADOR
+  GARANTE
+  PROVEEDOR
 
   @@map("rol_contacto")
 }
@@ -330,6 +332,8 @@ model Cliente {
   agenteId       String?        @map("agente_id")
   notas          String?
   ultimaActividad DateTime      @default(now()) @map("ultima_actividad") @db.Timestamptz(6)
+  /// Prospectos cerrados que se sacan del tablero sin borrarlos (siguen contando en reportes)
+  archivadoAt    DateTime?      @map("archivado_at") @db.Timestamptz(6)
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
 
   inmobiliaria Inmobiliaria?      @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -393,6 +397,8 @@ model ContratoAlquiler {
   fechaInicio        DateTime   @map("fecha_inicio") @db.Date
   fechaFin           DateTime   @map("fecha_fin") @db.Date
   notas              String?
+  /// Depósito en garantía, en la misma moneda que el canon (el asistente lo pide y antes se perdía)
+  deposito           Decimal?   @map("deposito") @db.Decimal(15, 2)
   createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
 
   // Firma del contrato
@@ -750,7 +756,10 @@ model Contacto {
 
   inmobiliaria Inmobiliaria        @relation(fields: [inmobiliariaId], references: [id], onDelete: Cascade)
   documentos   DocumentoContacto[]
-  garante      Garante?
+  /// Su garante (ficha propia dentro del contacto)
+  garante      Garante?            @relation("GaranteDeContacto")
+  /// Fichas de garante en las que este contacto ES el garante
+  garantiza    Garante[]           @relation("ContactoComoGarante")
   contratos    ContratoPersona[]
 
   @@index([inmobiliariaId], map: "idx_contactos_inmobiliaria")
@@ -769,9 +778,15 @@ model Garante {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt      @map("updated_at")
 
-  contacto   Contacto            @relation(fields: [contactoId], references: [id], onDelete: Cascade)
-  documentos DocumentoContacto[]
+  /// Contacto que ES el garante, cuando también existe como contacto propio
+  /// (lo crea el asistente de contratos). Evita tener el mismo garante dos veces.
+  contactoGaranteId   String?   @map("contacto_garante_id")
 
+  contacto        Contacto            @relation("GaranteDeContacto", fields: [contactoId], references: [id], onDelete: Cascade)
+  contactoGarante Contacto?           @relation("ContactoComoGarante", fields: [contactoGaranteId], references: [id], onDelete: SetNull)
+  documentos      DocumentoContacto[]
+
+  @@index([contactoGaranteId])
   @@map("garantes")
 }
 
@@ -842,6 +857,8 @@ model Tasacion {
   moneda          Moneda         @default(USD)
   estado          EstadoTasacion @default(PENDIENTE)
   fechaTasacion   DateTime?      @map("fecha_tasacion") @db.Date
+  /// Visita a la propiedad para tasarla (día y hora). Aparece en el calendario de Visitas.
+  visitaAt        DateTime?      @map("visita_at") @db.Timestamptz(6)
   notas           String?
 
   createdAt DateTime @default(now()) @map("created_at")

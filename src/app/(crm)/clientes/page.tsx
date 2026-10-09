@@ -2,17 +2,19 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Archive, Plus } from "lucide-react";
 import { PipelineKanban } from "@/components/clientes/PipelineKanban";
+import { ProspectosArchivados } from "@/components/clientes/ProspectosArchivados";
 import { requirePermisoAgente } from "@/lib/permisos";
 import { toPlanKey } from "@/lib/planes";
-import type { EstadoPipeline } from "@prisma/client";
+import type { EstadoPipeline, Prisma } from "@prisma/client";
 
 export const metadata = { title: "Prospectos" };
 
 interface SearchParams {
   estado?: string;
   agenteId?: string;
+  archivados?: string;
 }
 
 export default async function ClientesPage({
@@ -32,20 +34,24 @@ export default async function ClientesPage({
   const userId = session.user.id;
   const sp = await searchParams;
 
-  const where = isParticular
-    ? {
-        agenteId: userId,
-        inmobiliariaId: null,
-        ...(sp.estado ? { estadoPipeline: sp.estado as EstadoPipeline } : {}),
-      }
+  const verArchivados = sp.archivados === "1";
+
+  const alcance: Prisma.ClienteWhereInput = isParticular
+    ? { agenteId: userId, inmobiliariaId: null }
     : {
         inmobiliariaId: inmobiliariaId!,
         ...(isAgente ? { agenteId: userId } : {}),
-        ...(sp.estado ? { estadoPipeline: sp.estado as EstadoPipeline } : {}),
-        ...(sp.agenteId ? { agenteId: sp.agenteId } : {}),
+        ...(sp.agenteId && !isAgente ? { agenteId: sp.agenteId } : {}),
       };
 
-  const [clientes, agentes] = await Promise.all([
+  // Los cerrados archivados no se muestran en el tablero; tienen su propia vista.
+  const where: Prisma.ClienteWhereInput = {
+    ...alcance,
+    archivadoAt: verArchivados ? { not: null } : null,
+    ...(sp.estado && !verArchivados ? { estadoPipeline: sp.estado as EstadoPipeline } : {}),
+  };
+
+  const [clientes, agentes, archivadosCount] = await Promise.all([
     db.cliente.findMany({
       where,
       orderBy: { ultimaActividad: "desc" },
@@ -62,12 +68,14 @@ export default async function ClientesPage({
           select: { id: true, nombre: true },
           orderBy: { nombre: "asc" },
         }),
+    db.cliente.count({ where: { ...alcance, archivadoAt: { not: null } } }),
   ]);
 
   const serialized = clientes.map(({ propiedades, ...c }) => ({
     ...c,
     ultimaActividad: c.ultimaActividad.toISOString(),
     createdAt: c.createdAt.toISOString(),
+    archivadoAt: c.archivadoAt?.toISOString() ?? null,
     operacionesInteres: [...new Set(propiedades.map((p) => p.propiedad.operacion))],
   }));
 
@@ -99,12 +107,24 @@ export default async function ClientesPage({
             Prospectos
           </h1>
           <p style={{ fontSize: 12, color: "var(--antracita-400)", marginTop: 2 }}>
-            {leadsTotal} leads totales · {leadsNuevos} nuevos
+            {verArchivados
+              ? `${leadsTotal} archivado${leadsTotal === 1 ? "" : "s"}`
+              : `${leadsTotal} leads en el tablero · ${leadsNuevos} nuevos`}
           </p>
         </div>
 
         <div className="flex gap-2 flex-wrap items-start">
+          <Link
+            href={verArchivados ? "/clientes" : "/clientes?archivados=1"}
+            className="il-btn il-btn--ghost"
+            style={{ height: 36, fontSize: 13, gap: 6, textDecoration: "none" }}
+          >
+            <Archive size={14} />
+            {verArchivados ? "Volver al tablero" : `Archivados (${archivadosCount})`}
+          </Link>
+
           {/* Filter chips as a subtle form */}
+          {!verArchivados && (
           <form className="flex gap-2 items-center">
             {!isAgente && agentes.length > 0 && (
               <select
@@ -145,7 +165,7 @@ export default async function ClientesPage({
               <option value="NUEVO">Nuevo</option>
               <option value="CONTACTADO">Contactado</option>
               <option value="VISITA_AGENDADA">Visita agendada</option>
-              <option value="SEGUNDA_VISITA">Propuesta</option>
+              <option value="SEGUNDA_VISITA">Segunda visita</option>
               <option value="CERRADO">Cerrado</option>
               <option value="PERDIDO">Perdido</option>
             </select>
@@ -162,6 +182,7 @@ export default async function ClientesPage({
               </Link>
             )}
           </form>
+          )}
 
           <Link
             href="/clientes/nueva"
@@ -174,11 +195,16 @@ export default async function ClientesPage({
         </div>
       </div>
 
-      {/* Contactos es módulo Pro y de inmobiliaria (mismo gating que /contactos) */}
-      <PipelineKanban
-        clientes={serialized}
-        puedeConvertirEnContacto={!isParticular && toPlanKey(session.user.plan) === "PRO"}
-      />
+      {verArchivados ? (
+        <ProspectosArchivados clientes={serialized} />
+      ) : (
+        /* Contactos es módulo Pro y de inmobiliaria (mismo gating que /contactos) */
+        <PipelineKanban
+          clientes={serialized}
+          puedeConvertirEnContacto={!isParticular && toPlanKey(session.user.plan) === "PRO"}
+          puedeEliminar={session.user.rol === "ADMIN" || isParticular}
+        />
+      )}
     </div>
   );
 }

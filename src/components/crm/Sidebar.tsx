@@ -72,7 +72,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Comunicación",
     items: [
-      { href: "/consultas",   label: "Mensajes",    icon: MessageSquare,   permKey: "verConsultas",   modulo: "consultas" },
+      // El menú decía "Mensajes" y la página "Consultas": no se encontraba el ítem activo
+      { href: "/consultas",   label: "Consultas",   icon: MessageSquare,   permKey: "verConsultas",   modulo: "consultas" },
     ],
   },
   {

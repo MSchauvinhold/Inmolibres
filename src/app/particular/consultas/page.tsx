@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { MessageSquare, Phone } from "lucide-react";
 import { buildWhatsAppLink, formatRelativeTime } from "@/lib/utils";
 
-export const metadata = { title: "Consultas — InmoLibres" };
+export const metadata = { title: "Consultas" };
 
 export default async function ParticularConsultasPage() {
   const session = await auth();

@@ -10,6 +10,7 @@ import {
   TIPO_OPERACION_LABELS,
   ESTADO_PROPIEDAD_LABELS,
   buildWhatsAppLink,
+  propiedadAceptaConsultas,
 } from "@/lib/utils";
 import { ConsultaForm } from "@/components/marketplace/ConsultaForm";
 import { PropiedadMap } from "@/components/maps/PropiedadMap";
@@ -127,7 +128,8 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
 
   /* ── WhatsApp ── */
   const waMsg  = `Hola, vi "${propiedad.titulo}" en InmoLibres y me interesa más información.`;
-  const waLink = propiedad.inmobiliaria
+  const aceptaConsultas = propiedadAceptaConsultas(propiedad.estado);
+  const waLink = propiedad.inmobiliaria && aceptaConsultas
     ? buildWhatsAppLink(propiedad.inmobiliaria.whatsapp, waMsg)
     : null;
 
@@ -257,13 +259,14 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
         </span>
       </nav>
 
-      {/* ── Mobile sticky CTA ── */}
+      {/* ── Mobile sticky CTA — solo si hay a quién escribirle ── */}
+      {waLink && (
       <div
         className="lg:hidden fixed bottom-0 left-0 right-0 z-40 px-4 py-3 border-t"
         style={{ background: "white", borderColor: "var(--border)" }}
       >
         <a
-          href={waLink ?? undefined}
+          href={waLink}
           target="_blank"
           rel="noopener noreferrer"
           className="btn-terra w-full justify-center gap-2.5 py-3.5 rounded-xl text-sm font-semibold"
@@ -273,6 +276,7 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
           Consultar por WhatsApp
         </a>
       </div>
+      )}
 
       {/* ── 2-column grid ── */}
       <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-10 lg:gap-x-10">
@@ -595,7 +599,15 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
               )}
             </div>
 
-            {/* Formulario de consulta */}
+            {/* Formulario de consulta — no para alquiladas/vendidas */}
+            {!aceptaConsultas ? (
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 18 }}>
+                <p style={{ fontSize: 13.5, color: "var(--antracita-700)", margin: 0, lineHeight: 1.5 }}>
+                  Esta propiedad ya fue {propiedad.estado === "VENDIDA" ? "vendida" : "alquilada"} y no recibe consultas.
+                  {similares.length > 0 ? " Mirá las propiedades similares más abajo." : ""}
+                </p>
+              </div>
+            ) : (
             <div style={{ borderTop: "1px solid var(--border)", paddingTop: 18 }}>
               <p
                 style={{
@@ -614,6 +626,7 @@ export default async function PropiedadDetailPage({ params }: { params: Promise<
                 propiedadTitulo={propiedad.titulo}
               />
             </div>
+            )}
           </div>
         </div>
       </div>

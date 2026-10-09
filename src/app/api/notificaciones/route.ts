@@ -55,3 +55,43 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Error al marcar notificaciones" }, { status: 500 });
   }
 }
+
+const borrarSchema = z
+  .object({
+    ids: z.array(z.string()).max(100).optional(),
+    /** Borra todas las notificaciones ya leídas del usuario. */
+    leidas: z.boolean().optional(),
+  })
+  .refine((b) => (b.ids?.length ?? 0) > 0 || b.leidas === true, {
+    message: "Indicá qué notificaciones borrar",
+  });
+
+export async function DELETE(request: NextRequest) {
+  const session = await requireAuth();
+  if (isNextResponse(session)) return session;
+  const { userId } = session;
+
+  let body: unknown;
+  try { body = await request.json(); }
+  catch { return NextResponse.json({ error: "Body inválido" }, { status: 400 }); }
+
+  const parsed = borrarSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Datos inválidos", details: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const { ids, leidas } = parsed.data;
+
+  try {
+    // Siempre filtrado por usuarioId: nadie puede borrar notificaciones ajenas
+    // aunque mande ids de otro usuario.
+    const { count } = await db.notificacion.deleteMany({
+      where: leidas
+        ? { usuarioId: userId, leida: true }
+        : { usuarioId: userId, id: { in: ids } },
+    });
+    return NextResponse.json({ success: true, borradas: count });
+  } catch {
+    return NextResponse.json({ error: "Error al borrar notificaciones" }, { status: 500 });
+  }
+}

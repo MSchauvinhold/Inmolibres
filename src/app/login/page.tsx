@@ -72,7 +72,11 @@ export default function LoginPage() {
         redirect: false,
       });
       if (res?.error) {
-        toast.error("Email o contraseña incorrectos");
+        if (res.code === "rate_limited") {
+          toast.error("Demasiados intentos. Esperá unos minutos antes de volver a probar.");
+        } else {
+          toast.error("Email o contraseña incorrectos");
+        }
       } else {
         const session = await getSession();
         if (session?.user?.rol === "SUPERADMIN") {
@@ -286,7 +290,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@inmobiliaria.com"
+                  placeholder="tu_correo@gmail.com"
                   required
                   autoComplete="email"
                   style={{
@@ -535,7 +539,7 @@ export default function LoginPage() {
                 <input
                   value={contacto.telefono}
                   onChange={(e) => setContacto((p) => ({ ...p, telefono: e.target.value }))}
-                  placeholder="3772 123456"
+                  placeholder="Número de teléfono"
                   required
                   style={{ width: "100%", height: 44, padding: "0 14px", border: "1px solid var(--border, #E8DFD0)", borderRadius: 10, fontSize: 14, color: "var(--antracita-900, #14110E)", outline: "none", background: "#fff" }}
                 />

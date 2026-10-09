@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { pagoRegistroSchema } from "@/lib/validations/rental";
 import { requireInmobiliariaAuth, isNextResponse } from "@/lib/api-auth";
+import { inicioMesArComoFechaDb } from "@/lib/utils";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -109,7 +110,18 @@ export async function POST(request: NextRequest, { params }: Params) {
       },
     });
 
-    return NextResponse.json({ data: serializarPago(pago) }, { status: 201 });
+    // Un pago del mes en curso pone al día un contrato atrasado. El cliente avisa y
+    // ofrece dejarlo atrasado igual (si el pago era de una deuda vieja, por ejemplo).
+    let marcadoAlDia = false;
+    if (pago.fecha >= inicioMesArComoFechaDb()) {
+      const res = await db.contratoAlquiler.updateMany({
+        where: { id: contratoId, inmobiliariaId, estadoPago: "ATRASADO" },
+        data: { estadoPago: "AL_DIA" },
+      });
+      marcadoAlDia = res.count > 0;
+    }
+
+    return NextResponse.json({ data: serializarPago(pago), marcadoAlDia }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Error al registrar pago" }, { status: 500 });
   }

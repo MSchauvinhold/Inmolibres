@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { contratoSchema, type ContratoInput } from "@/lib/validations/rental";
+import { parseNumeroAR } from "@/lib/utils";
 
 interface SelectOption { id: string; label: string }
 
@@ -66,12 +67,12 @@ export function ContratoForm({ propiedades }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Nombre del inquilino *</label>
-          <input {...register("inquilinoNombre")} className={inputCls} placeholder="Juan Pérez" />
+          <input {...register("inquilinoNombre")} className={inputCls} placeholder="Nombre y apellido" />
           {errors.inquilinoNombre && <p className={errorCls}>{errors.inquilinoNombre.message}</p>}
         </div>
         <div>
           <label className={labelCls}>Teléfono *</label>
-          <input {...register("inquilinoTel")} className={inputCls} placeholder="+54 3772..." />
+          <input {...register("inquilinoTel")} className={inputCls} placeholder="Número de teléfono" />
           {errors.inquilinoTel && <p className={errorCls}>{errors.inquilinoTel.message}</p>}
         </div>
       </div>
@@ -79,7 +80,7 @@ export function ContratoForm({ propiedades }: Props) {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <div className="sm:col-span-2">
           <label className={labelCls}>Precio mensual *</label>
-          <input {...register("precioMensual", { valueAsNumber: true })} type="number" className={inputCls} />
+          <input {...register("precioMensual", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" className={inputCls} />
           {errors.precioMensual && <p className={errorCls}>{errors.precioMensual.message}</p>}
         </div>
         <div>

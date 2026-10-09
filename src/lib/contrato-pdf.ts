@@ -48,6 +48,12 @@ export interface ContratoAlquilerPdf {
   propiedad:         { titulo: string; direccion: string };
   /** Si se pasa, reemplaza las cláusulas del config (permite que el wizard pase las editadas) */
   clausulasOverride?: string | null;
+  /** Garante opcional: si se pasa `garanteNombre`, se agrega como tercera parte firmante */
+  garanteNombre?:    string | null;
+  garanteTel?:       string | null;
+  garanteDomicilio?: string | null;
+  /** Depósito en garantía, en la misma moneda que el canon */
+  deposito?:         number | null;
 }
 
 export interface ContratoVentaPdf {
@@ -149,6 +155,46 @@ SÉPTIMA — ENTREGA: A la finalización del contrato, el locatario deberá entr
 
 OCTAVA — DOMICILIOS ESPECIALES: Las partes constituyen domicilios especiales en los indicados en el presente instrumento, donde serán válidas todas las notificaciones judiciales y extrajudiciales.`;
 
+const CLAUSULA_ICL = "SEXTA — ACTUALIZACIONES: El precio del alquiler será actualizado conforme a la variación del Índice de Contratos de Locación (ICL) publicado por el BCRA, de acuerdo con la Ley N° 27.737 y sus normas reglamentarias.";
+
+const CLAUSULA_DEPOSITO_GENERICA = "QUINTA — DEPÓSITO EN GARANTÍA: Al momento de la firma, el locatario entregará en concepto de depósito en garantía el equivalente a un (1) mes de alquiler, el cual le será devuelto al finalizar el contrato previa verificación del estado del inmueble.";
+
+/**
+ * La cláusula QUINTA por defecto habla en abstracto ("un (1) mes de alquiler"): cuando el
+ * asistente carga un monto de depósito concreto, se reemplaza por la cifra real. Mismo
+ * criterio que `ajustarClausulaActualizacion` — si la inmobiliaria reescribió la cláusula,
+ * se respeta lo que escribió.
+ */
+export function ajustarClausulaDeposito(
+  texto: string,
+  deposito: number | null | undefined,
+  moneda: "ARS" | "USD",
+): string {
+  if (!deposito) return texto;
+  const monto = formatPrice(deposito, moneda);
+  const nueva = `QUINTA — DEPÓSITO EN GARANTÍA: Al momento de la firma, el locatario entregará en concepto de depósito en garantía la suma de ${monto}, el cual le será devuelto al finalizar el contrato previa verificación del estado del inmueble.`;
+  return texto.replace(CLAUSULA_DEPOSITO_GENERICA, nueva);
+}
+
+/**
+ * Las cláusulas por defecto traían la SEXTA fija en ICL: un contrato con ajuste por IPC
+ * (o sin ajuste) salía impreso con el índice equivocado. Solo se reemplaza esa oración
+ * exacta; si la inmobiliaria la reescribió, se respeta lo que escribió.
+ */
+export function ajustarClausulaActualizacion(
+  texto: string,
+  c: { ajusteActivo?: boolean; ajusteIndice?: string; ajusteMeses?: number },
+): string {
+  const cada = c.ajusteMeses ? ` cada ${c.ajusteMeses} ${c.ajusteMeses === 1 ? "mes" : "meses"}` : "";
+  const sexta =
+    c.ajusteActivo === false
+      ? "SEXTA — ACTUALIZACIONES: El precio del alquiler se mantendrá fijo durante toda la vigencia del contrato."
+      : c.ajusteIndice === "IPC"
+        ? `SEXTA — ACTUALIZACIONES: El precio del alquiler será actualizado${cada} conforme a la variación del Índice de Precios al Consumidor (IPC) publicado por el INDEC, según lo acordado por las partes.`
+        : `SEXTA — ACTUALIZACIONES: El precio del alquiler será actualizado${cada} conforme a la variación del Índice de Contratos de Locación (ICL) publicado por el BCRA, de acuerdo con la Ley N° 27.737 y sus normas reglamentarias.`;
+  return texto.replace(CLAUSULA_ICL, sexta);
+}
+
 // ─── CSS compartido ───────────────────────────────────────────────────────────
 
 function buildCss(cp: string, cs: string): string {
@@ -215,7 +261,12 @@ function datosEmisor(cfg: PdfConfig | null, inmobiliaria: PdfInmobiliaria | null
   const pieRaw = cfg?.piePaginaContrato
     ?? [rsRaw, inmobiliaria?.whatsapp && `Tel: ${inmobiliaria.whatsapp}`].filter(Boolean).join(" · ");
   const hoy = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric", timeZone: TZ_AR });
+  // `logoEnContrato` estaba declarado pero no se usaba: el logo se imprimía
+  // siempre, aunque el interruptor de Configuración estuviera apagado.
+  // Sin config guardada se mantiene el comportamiento anterior (con logo).
+  const mostrarLogo = cfg?.logoEnContrato ?? true;
   return {
+    logoUrl: mostrarLogo ? safeUrl(inmobiliaria?.logoUrl) : null,
     cp:      safeColor(cfg?.colorPrimario, "#1B4332"),
     cs:      safeColor(cfg?.colorSecundario, "#2C2C2C"),
     rs:      esc(rsRaw),
@@ -234,7 +285,7 @@ function buildHband(
   folioLabel: string,
   folio: string,
 ): string {
-  const logoUrl = safeUrl(inmobiliaria?.logoUrl);
+  const logoUrl = e.logoUrl;
   const logoHtml = logoUrl
     ? `<img src="${logoUrl}" alt="${e.rs}" style="height:48px;width:auto;object-fit:contain;background:#fff;border-radius:8px;padding:4px;flex-shrink:0"/>`
     : `<div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,${e.cp},${e.cs});display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:600;flex-shrink:0">${e.inicial}</div>`;
@@ -270,8 +321,21 @@ export function buildContratoAlquilerHtml(
   const moneda     = esc(contrato.moneda);
 
   // Cláusulas: override del wizard > config > default
-  const clausulasRaw = contrato.clausulasOverride ?? cfg?.clausulasAdicionales ?? DEFAULT_CLAUSULAS_ALQ;
+  const clausulasRaw = ajustarClausulaDeposito(
+    ajustarClausulaActualizacion(
+      contrato.clausulasOverride ?? cfg?.clausulasAdicionales ?? DEFAULT_CLAUSULAS_ALQ,
+      contrato,
+    ),
+    contrato.deposito,
+    contrato.moneda,
+  );
   const clausulas = parrafosHtml(clausulasRaw);
+
+  // Garante opcional: se agrega como tercera parte (tarjeta, intro y firma) solo si vino nombre
+  const tieneGarante = !!contrato.garanteNombre;
+  const garanteNombre = esc(contrato.garanteNombre);
+  const garanteTel    = esc(contrato.garanteTel);
+  const garanteDom    = esc(contrato.garanteDomicilio);
 
   // Ajuste
   const ajusteLabel = contrato.ajusteActivo !== false && contrato.ajusteIndice
@@ -289,7 +353,7 @@ export function buildContratoAlquilerHtml(
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>Contrato — ${inquilino}</title>
-<style>${buildCss(cp, cs)}.sigs{grid-template-columns:1fr 1fr}</style>
+<style>${buildCss(cp, cs)}.sigs{grid-template-columns:${tieneGarante ? "1fr 1fr 1fr" : "1fr 1fr"}}</style>
 </head><body>
 <div class="wm">VIGENTE</div>
 <div class="page">
@@ -298,7 +362,7 @@ ${buildHband(emisor, inmobiliaria, "Folio", ctr)}
   <div class="tsub">Ley 27.551 — Régimen general</div>
   <div class="ttit">Contrato de Locación de Inmueble</div>
 </div>
-<div class="pgrid">
+<div class="pgrid" style="${tieneGarante ? "grid-template-columns:1fr 1fr 1fr" : ""}">
   <div class="pcard" style="border-top:3px solid ${cp}">
     <div class="prole">Locador / Inmobiliaria</div>
     <div class="pname">${rs}</div>
@@ -310,6 +374,12 @@ ${buildHband(emisor, inmobiliaria, "Folio", ctr)}
     <div class="pname">${inquilino}</div>
     <div class="pdet">${inquilinoTel}</div>
   </div>
+  ${tieneGarante ? `<div class="pcard" style="border-top:3px solid #7A8B6F">
+    <div class="prole">Garante</div>
+    <div class="pname">${garanteNombre}</div>
+    ${garanteTel ? `<div class="pdet">${garanteTel}</div>` : ""}
+    ${garanteDom ? `<div class="pdet" style="font-family:inherit">${garanteDom}</div>` : ""}
+  </div>` : ""}
 </div>
 <div class="propbox">
   <div class="proplab">Inmueble objeto del contrato</div>
@@ -326,12 +396,13 @@ ${buildHband(emisor, inmobiliaria, "Folio", ctr)}
   <div class="fc"><div class="fl">Plazo</div><div class="fv">${meses} meses</div><div class="fs">${fmtFecha(contrato.fechaInicio)} – ${fmtFecha(contrato.fechaFin)}</div></div>
   <div class="fc"><div class="fl">Ajuste</div><div class="fv">${ajusteLabel}</div><div class="fs">${ajusteSub}</div></div>
 </div>
-<p class="intro">En la ciudad de <strong>${lugar}</strong>, entre <strong>${rs}</strong>${cuit ? `, CUIT ${cuit}` : ""}${dom ? `, con domicilio en ${dom}` : ""}${mat ? `, corredor inmobiliario matrícula N° ${mat}` : ""}, en adelante el <strong>LOCADOR</strong>; y <strong>${inquilino}</strong>, tel. ${inquilinoTel}, en adelante el <strong>LOCATARIO</strong>; se celebra el presente Contrato de Locación bajo los siguientes términos y condiciones:</p>
+<p class="intro">En la ciudad de <strong>${lugar}</strong>, entre <strong>${rs}</strong>${cuit ? `, CUIT ${cuit}` : ""}${dom ? `, con domicilio en ${dom}` : ""}${mat ? `, corredor inmobiliario matrícula N° ${mat}` : ""}, en adelante el <strong>LOCADOR</strong>; y <strong>${inquilino}</strong>, tel. ${inquilinoTel}, en adelante el <strong>LOCATARIO</strong>${tieneGarante ? `; y <strong>${garanteNombre}</strong>, en adelante el <strong>GARANTE</strong>` : ""}; se celebra el presente Contrato de Locación bajo los siguientes términos y condiciones:</p>
 <div class="sectit">II — Cláusulas y condiciones</div>
 <div class="clauses">${clausulas}</div>
 <div class="sigs">
   <div>${firmaLocadorHtml}<div class="srole">Locador / Inmobiliaria</div><div class="sname">${rs}</div>${mat ? `<div class="sname">Mat. N° ${mat}</div>` : ""}</div>
   <div><div class="sline"></div><div class="srole">Locatario</div><div class="sname">${inquilino}</div><div class="sname">Tel: ${inquilinoTel}</div></div>
+  ${tieneGarante ? `<div><div class="sline"></div><div class="srole">Garante</div><div class="sname">${garanteNombre}</div>${garanteTel ? `<div class="sname">Tel: ${garanteTel}</div>` : ""}</div>` : ""}
 </div>
 <div class="footer"><span>${pie}</span></div>
 </div></body></html>`;

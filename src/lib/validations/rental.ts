@@ -33,6 +33,11 @@ export const contratoSchema = z.object({
   ajusteIndice: z.enum(["ICL", "IPC"]).optional().default("ICL"),
   ajusteMeses:  z.number().int().min(1).optional().default(6),
   ajusteDia:    z.number().int().min(1).max(28).optional().default(14),
+  // Notas internas del contrato
+  notas: z.string().max(3000, "Máximo 3000 caracteres").optional().nullable(),
+  // Depósito en garantía, en la moneda del contrato. El asistente siempre lo pidió
+  // pero no existía dónde guardarlo y el monto se descartaba al crear el contrato.
+  deposito: z.number().nonnegative().optional().nullable(),
   // Si es false, no se genera la operación de comisión en Finanzas al crear el contrato
   registrarEnFinanzas: z.boolean().optional().default(true),
   // Estado a dejar en la propiedad: el wizard sugiere ALQUILADA pero el agente decide;

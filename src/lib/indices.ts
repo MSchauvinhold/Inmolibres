@@ -17,8 +17,7 @@ const INDEC_URL =
 
 // v4 de la API del BCRA. La v3 fue deprecada (devuelve 410) y el id correcto del
 // Índice para Contratos de Locación es el 40 (el 47 es otra serie distinta).
-const BCRA_ICL_URL =
-  "https://api.bcra.gob.ar/estadisticas/v4.0/monetarias/40?limit=3";
+const BCRA_ICL_BASE = "https://api.bcra.gob.ar/estadisticas/v4.0/monetarias/40";
 
 export interface IndiceActual {
   valor: number;
@@ -27,9 +26,24 @@ export interface IndiceActual {
   anterior?: number | null;
 }
 
+/** Fecha de hoy en hora argentina (YYYY-MM-DD): a la noche, UTC ya está en el día siguiente. */
+function hoyAr(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+}
+
 async function fetchICL(revalidate: number): Promise<IndiceActual | null> {
   try {
-    const res = await fetch(BCRA_ICL_URL, {
+    // El BCRA publica el ICL con fechas por ADELANTADO (el valor que rige para
+    // cada día del mes siguiente ya está cargado). Tomar el último de la serie
+    // mostraba "ICL actual: 36,88 (16/10/2026)" estando en septiembre — y el
+    // ajuste se calculaba con un índice que todavía no rige. Se pide una ventana
+    // que termina hoy y se usa el último valor con fecha <= hoy (no publica fines
+    // de semana ni feriados).
+    const hasta = hoyAr();
+    const desde = new Date(`${hasta}T12:00:00Z`);
+    desde.setDate(desde.getDate() - 15);
+    const url = `${BCRA_ICL_BASE}?desde=${ymd(desde)}&hasta=${hasta}&limit=50`;
+    const res = await fetch(url, {
       next: { revalidate },
       headers: { Accept: "application/json" },
     });
@@ -39,9 +53,11 @@ async function fetchICL(revalidate: number): Promise<IndiceActual | null> {
     };
     // Forma real: { results: [ { idVariable, detalle: [ {fecha, valor}, ... ] } ] }
     const detalle = json?.results?.[0]?.detalle;
-    const row = detalle?.[0];
+    if (!detalle?.length) return null;
+    const i = detalle.findIndex((d) => d.fecha <= hasta);
+    const row = i >= 0 ? detalle[i] : detalle[detalle.length - 1];
     if (!row || typeof row.valor !== "number") return null;
-    return { valor: row.valor, fecha: row.fecha, anterior: detalle?.[1]?.valor ?? null };
+    return { valor: row.valor, fecha: row.fecha, anterior: detalle[(i >= 0 ? i : 0) + 1]?.valor ?? null };
   } catch {
     return null;
   }

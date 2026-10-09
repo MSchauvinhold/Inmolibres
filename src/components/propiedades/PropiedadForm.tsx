@@ -15,7 +15,7 @@ import { CAMPOS_POR_TIPO, CARACTERISTICAS_POR_TIPO } from "@/lib/propiedades-con
 import { FotoUploader, type FotoData } from "./FotoUploader";
 import { VideoUploader } from "./VideoUploader";
 import { PropertyIllustration } from "@/components/ui/property-illustration";
-import { formatPrice, ESTADO_PROPIEDAD_LABELS } from "@/lib/utils";
+import { formatPrice, ESTADO_PROPIEDAD_LABELS, parseNumeroAR } from "@/lib/utils";
 import type { TipoPropiedad, TipoOperacion, Moneda, EstadoPropiedad } from "@prisma/client";
 
 const MapPicker = dynamic(
@@ -622,27 +622,27 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
           <div className="rg-fields rg-fields--3" style={{ gap: 12 }}>
             {hasMedida("superficieCubierta") && (
               <WizardField label="Sup. cubierta" suffix="m²">
-                <input {...register("atributos.superficieCubierta", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.superficieCubierta", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
             )}
             {hasMedida("superficieTotal") && (
               <WizardField label="Sup. total" suffix="m²">
-                <input {...register("atributos.superficieTotal", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.superficieTotal", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
             )}
             {hasMedida("anchoMetros") && (
               <WizardField label="Ancho" suffix="m">
-                <input {...register("atributos.anchoMetros", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.anchoMetros", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
             )}
             {hasMedida("largoMetros") && (
               <WizardField label="Largo" suffix="m">
-                <input {...register("atributos.largoMetros", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.largoMetros", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
             )}
             {hasMedida("alturaInterna") && (
               <WizardField label="Altura interna" suffix="m">
-                <input {...register("atributos.alturaInterna", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.alturaInterna", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
             )}
           </div>
@@ -653,22 +653,22 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
           <div className="rg-fields rg-fields--3" style={{ gap: 12 }}>
             {hasNumerico("habitaciones") && (
               <WizardField label="Dormitorios">
-                <input {...register("atributos.habitaciones", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.habitaciones", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
             )}
             {hasNumerico("banos") && (
               <WizardField label="Baños">
-                <input {...register("atributos.banos", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.banos", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
             )}
             {hasNumerico("cantidadPisos") && (
               <WizardField label="Cant. pisos">
-                <input {...register("atributos.cantidadPisos", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.cantidadPisos", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
             )}
             {hasNumerico("numeroPiso") && (
               <WizardField label="N° de piso">
-                <input {...register("atributos.numeroPiso", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.numeroPiso", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
             )}
           </div>
@@ -741,19 +741,19 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
             </div>
             <div className="rg-fields rg-fields--3" style={{ gap: 12, marginBottom: 8 }}>
               <WizardField label="Por día" suffix="$" required error={errors.atributos?.precioPorDia?.message}>
-                <input {...register("atributos.precioPorDia", { valueAsNumber: true })} type="number" style={{ ...W_INPUT, fontWeight: 700 }} placeholder="0" />
+                <input {...register("atributos.precioPorDia", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={{ ...W_INPUT, fontWeight: 700 }} placeholder="0" />
               </WizardField>
               <WizardField label="Por semana" suffix="$">
-                <input {...register("atributos.precioSemana", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.precioSemana", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
               <WizardField label="Por quincena" suffix="$">
-                <input {...register("atributos.precioQuincena", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.precioQuincena", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
               <WizardField label="Días mínimos">
-                <input {...register("atributos.diasMinimos", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.diasMinimos", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
               <WizardField label="Días máximos">
-                <input {...register("atributos.diasMaximos", { valueAsNumber: true })} type="number" style={W_INPUT} placeholder="—" />
+                <input {...register("atributos.diasMaximos", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" style={W_INPUT} placeholder="—" />
               </WizardField>
             </div>
           </div>
@@ -859,7 +859,7 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
                 <label className={lbl}>Precio *</label>
-                <input {...register("precio", { valueAsNumber: true })} type="number" className={inp} placeholder="0" />
+                <input {...register("precio", { setValueAs: parseNumeroAR })} type="text" inputMode="decimal" className={inp} placeholder="0" />
                 {errors.precio && <p className={errS}>{errors.precio.message}</p>}
               </div>
               <div>
@@ -910,7 +910,7 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
           <AnimatePresence initial={false}>
             {campos && (
               <motion.div key={tipo} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
-                <CaracteristicasPanel />
+                {CaracteristicasPanel()}
               </motion.div>
             )}
           </AnimatePresence>
@@ -1087,8 +1087,8 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
                   <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 100px", gap: 12, alignItems: "start" }}>
                     <WizardField label="Precio" required error={errors.precio?.message}>
                       <input
-                        {...register("precio", { valueAsNumber: true })}
-                        type="number"
+                        {...register("precio", { setValueAs: parseNumeroAR })}
+                        type="text" inputMode="decimal"
                         style={{ ...W_INPUT, fontSize: 16, fontWeight: 700 }}
                         placeholder="0"
                       />
@@ -1289,7 +1289,7 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
                   Detallá las medidas y comodidades de la propiedad.
                 </p>
                 {tipo ? (
-                  <CaracteristicasPanel />
+                  CaracteristicasPanel()
                 ) : (
                   <div style={{ padding: "20px 16px", borderRadius: 10, background: "var(--crema-100)", border: "1px solid var(--border)", textAlign: "center" }}>
                     <p style={{ fontSize: 13, color: "var(--antracita-400)" }}>
@@ -1412,13 +1412,24 @@ export function PropiedadForm({ propiedad, agentes = [], currentUserId }: Props)
           <ChevronLeft size={16} /> Anterior
         </button>
 
+        {/* `key` distinto en cada botón: sin eso React reusa el MISMO nodo del DOM y
+            solo le cambia el type. El navegador resuelve el envío del formulario
+            DESPUÉS de procesar el clic, cuando el botón ya se convirtió en submit,
+            así que un solo clic en "Continuar" avanzaba al paso 5 y publicaba. */}
         {step < 5 ? (
-          <button type="button" onClick={goNext} style={btnPrimary}>
+          <button key="continuar" type="button" onClick={goNext} style={btnPrimary}>
             Continuar a {STEPS[step].label}
             <ChevronRight size={16} />
           </button>
         ) : (
-          <button type="submit" disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.7 : 1 }}>
+          // Envío explícito por onClick, no por type="submit"
+          <button
+            key="publicar"
+            type="button"
+            onClick={handleSubmit(onSubmit as never)}
+            disabled={loading}
+            style={{ ...btnPrimary, opacity: loading ? 0.7 : 1 }}
+          >
             {loading && <Loader2 size={15} className="animate-spin" />}
             Publicar propiedad
             {!loading && <Check size={15} />}

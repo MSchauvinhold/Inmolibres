@@ -31,11 +31,14 @@ export default async function AlquileresPage({
       orderBy: { fechaFin: "asc" },
       include: {
         propiedad: { select: { id: true, titulo: true, direccion: true } },
-        // DNI del inquilino para el comprobante de pago (solo si hay contacto vinculado)
+        // Contactos vinculados al contrato: el inquilino (su DNI va en el
+        // comprobante de pago) y el garante, que la ficha lista en "Partes".
         personas: {
-          where: { rol: "INQUILINO", contacto: { inmobiliariaId } },
-          select: { contacto: { select: { dni: true } } },
-          take: 1,
+          where: { contacto: { inmobiliariaId } },
+          select: {
+            rol: true,
+            contacto: { select: { id: true, nombre: true, dni: true, telefono: true } },
+          },
         },
       },
     }),
@@ -45,7 +48,7 @@ export default async function AlquileresPage({
     }),
     db.propiedad.findMany({
       where: { inmobiliariaId, estado: { in: ["DISPONIBLE", "RESERVADA"] } },
-      select: { id: true, titulo: true, direccion: true },
+      select: { id: true, titulo: true, direccion: true, operacion: true },
       orderBy: { titulo: "asc" },
     }),
     db.configuracionInmobiliaria.findUnique({ where: { inmobiliariaId } }),
@@ -61,8 +64,16 @@ export default async function AlquileresPage({
     inmobiliariaId: c.inmobiliariaId,
     inquilinoNombre: c.inquilinoNombre,
     inquilinoTel: c.inquilinoTel,
-    inquilinoDni: c.personas[0]?.contacto.dni ?? null,
+    inquilinoDni: c.personas.find((p) => p.rol === "INQUILINO")?.contacto.dni ?? null,
+    personas: c.personas.map((p) => ({
+      rol: p.rol,
+      id: p.contacto.id,
+      nombre: p.contacto.nombre,
+      dni: p.contacto.dni,
+      telefono: p.contacto.telefono,
+    })),
     precioMensual: Number(c.precioMensual),
+    deposito: c.deposito != null ? Number(c.deposito) : null,
     moneda: c.moneda as "ARS" | "USD",
     diaVencimientoPago: c.diaVencimientoPago,
     estadoPago: c.estadoPago as "AL_DIA" | "ATRASADO",

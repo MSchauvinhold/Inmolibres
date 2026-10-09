@@ -38,6 +38,32 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
+  // El selector de contratos buscaba solo en Contactos: un prospecto del pipeline
+  // (Lucía, Carolina…) daba "no se encontró" aunque estuviera cargado en el CRM.
+  // Se devuelven aparte, sin los que ya tienen contacto con el mismo teléfono.
+  if (searchParams.get("incluirProspectos") === "1") {
+    const clientes = await db.cliente.findMany({
+      where: {
+        inmobiliariaId,
+        archivadoAt: null,
+        ...(q ? {
+          OR: [
+            { nombre: { contains: q, mode: "insensitive" } },
+            { telefono: { contains: q } },
+            { email: { contains: q, mode: "insensitive" } },
+          ],
+        } : {}),
+      },
+      select: { id: true, nombre: true, telefono: true, email: true, origen: true, notas: true },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+    const prospectos = clientes.filter(
+      (c) => !contactos.some((k) => k.telefono && c.telefono && telefonosCoinciden(k.telefono, c.telefono))
+    );
+    return NextResponse.json({ data: contactos, prospectos });
+  }
+
   return NextResponse.json({ data: contactos });
 }
 

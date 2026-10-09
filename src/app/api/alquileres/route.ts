@@ -140,7 +140,57 @@ export async function POST(request: NextRequest) {
         await tx.contratoPersona.createMany({ data: personas, skipDuplicates: true });
       }
 
-      return created;
+      // El garante del asistente y el garante de la ficha del inquilino eran dos
+      // cosas separadas: se cargaba en el contrato y la ficha de Contactos seguía
+      // diciendo "sin garante". Acá se crea/actualiza esa ficha apuntando al
+      // contacto real, así no queda la misma persona escrita dos veces.
+      if (garanteContactoId && inquilinoContactoId) {
+        const garante = await tx.contacto.findFirst({
+          where: { id: garanteContactoId, inmobiliariaId },
+          select: { id: true, nombre: true, dni: true, telefono: true, domicilio: true, fechaNacimiento: true },
+        });
+        if (garante) {
+          const datos = {
+            nombre: garante.nombre,
+            dni: garante.dni,
+            telefono: garante.telefono,
+            domicilio: garante.domicilio,
+            fechaNacimiento: garante.fechaNacimiento,
+            contactoGaranteId: garante.id,
+          };
+          await tx.garante.upsert({
+            where: { contactoId: inquilinoContactoId },
+            create: { contactoId: inquilinoContactoId, ...datos },
+            update: datos,
+          });
+          // El contacto usado como garante queda con ese rol (antes quedaba sin ninguno)
+          const rolesActuales = await tx.contacto.findUnique({
+            where: { id: garante.id },
+            select: { roles: true },
+          });
+          if (rolesActuales && !rolesActuales.roles.includes("GARANTE")) {
+            await tx.contacto.update({
+              where: { id: garante.id },
+              data: { roles: { set: [...rolesActuales.roles, "GARANTE"] } },
+            });
+          }
+        }
+      }
+
+      // Sin esto, el contrato que vuelve al wizard apenas creado queda sin garante hasta
+      // que se recargue la página (el objeto `created` es anterior a los createMany de arriba).
+      const personasCreadas = await tx.contratoPersona.findMany({
+        where: { contratoId: created.id },
+        select: {
+          rol: true,
+          contacto: { select: { id: true, nombre: true, dni: true, telefono: true, domicilio: true } },
+        },
+      });
+
+      return {
+        ...created,
+        personas: personasCreadas.map((p) => ({ rol: p.rol, ...p.contacto })),
+      };
     });
 
     // Generar la operación financiera automáticamente (no bloquea si falla) —

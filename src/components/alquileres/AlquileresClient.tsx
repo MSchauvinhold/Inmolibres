@@ -18,6 +18,7 @@ import {
   printHtml,
   duracionMeses,
   type PdfConfig,
+  ajustarClausulaActualizacion,
 } from "@/lib/contrato-pdf";
 import { Pill } from "@/components/ui/pill";
 import {
@@ -60,6 +61,11 @@ interface Contrato {
   // Firma
   tipoFirma: string | null;
   contratoFirmadoUrl: string | null;
+  /** Contactos vinculados al contrato (inquilino, garante). Puede venir vacío
+   *  en un contrato recién creado, hasta que la página se vuelva a cargar. */
+  personas?: { rol: string; id: string; nombre: string; dni: string | null; telefono: string | null }[];
+  /** Depósito en garantía, en la moneda del contrato */
+  deposito?: number | null;
   fechaFirmado: string | null;
 }
 
@@ -470,6 +476,7 @@ function DocumentoPreview({
   const hoyStr          = new Date().toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric", timeZone: TZ_AR });
   const meses           = duracionMeses(contrato.fechaInicio, contrato.fechaFin);
   const ctr             = `CTR-${contrato.id.slice(-4).toUpperCase()}`;
+  const garante         = contrato.personas?.find((p) => p.rol === "GARANTE") ?? null;
 
   return (
     <div>
@@ -548,6 +555,8 @@ function DocumentoPreview({
           {[
             { role: "Locador / Inmobiliaria", name: razonSocial, detail: cuit ? `CUIT ${cuit}` : domicilio, tone: colorPrimario },
             { role: "Locatario",              name: contrato.inquilinoNombre, detail: contrato.inquilinoTel, tone: "var(--accent, #D4A853)" },
+            // El garante se cargaba en el asistente y el documento no lo nombraba
+            ...(garante ? [{ role: "Garante", name: garante.nombre, detail: garante.dni ? `DNI ${garante.dni}` : (garante.telefono ?? ""), tone: "var(--antracita-700)" }] : []),
           ].map((p) => (
             <div key={p.role} style={{ padding: "11px 13px", background: "var(--crema-100)", border: "1px solid var(--border)", borderTop: `3px solid ${p.tone}`, borderRadius: 8 }}>
               <div className="mono" style={{ fontSize: 9, color: "var(--antracita-300)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 600 }}>{p.role}</div>
@@ -590,6 +599,11 @@ function DocumentoPreview({
                 v: formatPrice(contrato.precioMensual * contrato.administracionPct / 100, contrato.moneda),
                 s: `${contrato.administracionPct}% · por mes`,
               }] : []),
+              ...(contrato.deposito ? [{
+                l: "Depósito",
+                v: formatPrice(contrato.deposito, contrato.moneda),
+                s: "en garantía",
+              }] : []),
             ].map((f) => (
               <div key={f.l} style={{ padding: "9px 11px", background: f.terra ? "var(--terracota-100, #FAE8E2)" : "var(--crema-100)", border: f.terra ? "1px solid var(--terracota-300, #E0A088)" : "1px solid var(--border)", borderRadius: 7 }}>
                 <div className="mono" style={{ fontSize: 9, color: f.terra ? colorPrimario : "var(--antracita-300)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>{f.l}</div>
@@ -619,6 +633,7 @@ function DocumentoPreview({
           {[
             { r: "Locador / Inmobiliaria", n: razonSocial, firmable: true },
             { r: "Locatario",              n: contrato.inquilinoNombre, firmable: false },
+            ...(garante ? [{ r: "Garante", n: garante.nombre, firmable: false }] : []),
           ].map((s) => {
             const mostrarFirma = s.firmable && contrato.tipoFirma === "DIGITAL" && inmobiliaria?.firmaUrl;
             return (
@@ -1310,10 +1325,12 @@ function PagosHistorial({
   contrato,
   config,
   inmobiliaria,
+  onEstadoChange,
 }: {
   contrato: Contrato;
   config: Config | null;
   inmobiliaria: WizardInmobiliaria | null;
+  onEstadoChange: (id: string, estado: "AL_DIA" | "ATRASADO") => void;
 }) {
   const { id: contratoId, precioMensual: defaultMonto, moneda: defaultMoneda } = contrato;
   const mesLabel = new Date().toLocaleDateString("es-AR", { month: "long", year: "numeric", timeZone: TZ_AR });
@@ -1361,7 +1378,32 @@ function PagosHistorial({
       setPagos((prev) => [data.data, ...prev]);
       setShowForm(false);
       setForm((f) => ({ ...f, concepto: `Pago ${mesLabel}`, metodoPago: "" }));
-      toast.success("Pago registrado");
+      if (data.marcadoAlDia) {
+        // El servidor lo pasó a "Al día"; se ofrece revertir por si el pago era de una deuda vieja
+        onEstadoChange(contratoId, "AL_DIA");
+        toast.success("Pago registrado · el contrato quedó al día", {
+          duration: 8000,
+          action: {
+            label: "Dejar atrasado",
+            onClick: async () => {
+              try {
+                const r = await fetch(`/api/alquileres/${contratoId}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ estadoPago: "ATRASADO" }),
+                });
+                if (!r.ok) throw new Error();
+                onEstadoChange(contratoId, "ATRASADO");
+                toast.info("El contrato sigue como atrasado");
+              } catch {
+                toast.error("No se pudo cambiar el estado");
+              }
+            },
+          },
+        });
+      } else {
+        toast.success("Pago registrado");
+      }
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Error al registrar");
     } finally {
@@ -1637,7 +1679,7 @@ function ContratoDetalleModal({
     { id: "documento", label: "Documento",      Icon: FileText },
     { id: "pagos",     label: "Pagos",           Icon: Receipt },
     { id: "ajustes",   label: "Ajustes",         Icon: TrendingUp },
-    { id: "partes",    label: "Partes",          Icon: Users, n: 2 },
+    { id: "partes",    label: "Partes",          Icon: Users, n: 1 + (contrato.personas?.filter((p) => p.rol !== "INQUILINO").length ?? 0) },
     { id: "clausulas", label: "Cláusulas",       Icon: ScrollText },
     { id: "notas",     label: "Notas internas",  Icon: MessageSquare },
   ] as const;
@@ -1759,7 +1801,7 @@ function ContratoDetalleModal({
                     : <DocumentoPreview contrato={contratoVivo} config={config} inmobiliaria={inmobiliaria} onPrint={() => setShowPrint(true)} />
                 )}
                 {subTab === "pagos" && (
-                  <PagosHistorial contrato={contratoVivo} config={config} inmobiliaria={inmobiliaria} />
+                  <PagosHistorial contrato={contratoVivo} config={config} inmobiliaria={inmobiliaria} onEstadoChange={onEstadoChange} />
                 )}
                 {subTab === "ajustes" && (
                   <AjustesTab contrato={contratoVivo} onSaved={setAjusteState} />
@@ -1767,8 +1809,18 @@ function ContratoDetalleModal({
                 {subTab === "partes" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     <h3 className="display" style={{ fontSize: 17, margin: 0, color: "var(--antracita-900)" }}>Partes del contrato</h3>
+                    {/* El locatario sale del contrato; el resto (garante, etc.) de los
+                        contactos vinculados. Antes esta lista estaba escrita a mano y
+                        el garante cargado en el asistente no aparecía nunca. */}
                     {[
-                      { rol: "Locatario",  nombre: contrato.inquilinoNombre, tel: contrato.inquilinoTel },
+                      { rol: "Locatario", nombre: contrato.inquilinoNombre, tel: contrato.inquilinoTel },
+                      ...(contrato.personas ?? [])
+                        .filter((p) => p.rol !== "INQUILINO")
+                        .map((p) => ({
+                          rol: p.rol === "GARANTE" ? "Garante" : p.rol,
+                          nombre: p.nombre,
+                          tel: p.telefono ?? "",
+                        })),
                     ].map((p) => (
                       <div key={p.rol} className="il-card" style={{ padding: 14 }}>
                         <div className="mono" style={{ fontSize: 9.5, color: "var(--antracita-300)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{p.rol}</div>
@@ -1784,7 +1836,7 @@ function ContratoDetalleModal({
                   <div>
                     <h3 className="display" style={{ fontSize: 17, margin: "0 0 14px", color: "var(--antracita-900)" }}>Cláusulas</h3>
                     <pre style={{ fontSize: 12, color: "var(--antracita-700)", lineHeight: 1.7, fontFamily: "Georgia, 'Times New Roman', serif", whiteSpace: "pre-wrap" }}>
-                      {config?.clausulasAdicionales ?? DEFAULT_CLAUSULAS}
+                      {ajustarClausulaActualizacion(config?.clausulasAdicionales ?? DEFAULT_CLAUSULAS, contrato)}
                     </pre>
                   </div>
                 )}
@@ -1894,6 +1946,12 @@ function ContratoDetalleModal({
                       {formatPrice(contrato.precioMensual, contrato.moneda)}
                     </span>
                   </div>
+                  {/* "Al día" es el estado que marca el agente (o el cron), no un cobro
+                      registrado: sin esta aclaración el panel decía "Al día $420.000"
+                      mientras la pestaña Pagos figuraba vacía. */}
+                  <p style={{ fontSize: 10.5, color: "var(--antracita-400)", margin: "-6px 0 10px", lineHeight: 1.45 }}>
+                    Estado del contrato, no un cobro registrado. Los cobros se cargan en la pestaña <strong>Pagos</strong>.
+                  </p>
                   {/* Proximo */}
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--antracita-500)", padding: "6px 0", borderTop: "1px solid var(--border)" }}>
                     <span>Próximo vencimiento</span>
@@ -2437,10 +2495,16 @@ function ContratoDocumentoModal({
   onClose: () => void;
 }) {
   const clausulas = config?.clausulasAdicionales ?? DEFAULT_CLAUSULAS;
+  const garante = contrato.personas?.find((p) => p.rol === "GARANTE") ?? null;
 
   function handlePrint() {
     const html = buildContratoAlquilerHtml(
-      { ...contrato, clausulasOverride: clausulas },
+      {
+        ...contrato,
+        clausulasOverride: clausulas,
+        garanteNombre: garante?.nombre ?? null,
+        garanteTel: garante?.telefono ?? null,
+      },
       config as PdfConfig | null,
       inmobiliaria,
     );

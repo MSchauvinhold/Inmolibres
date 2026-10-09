@@ -59,19 +59,19 @@ export function ClienteForm({ clienteId, defaultValues }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
           <label className={labelCls}>Nombre completo *</label>
-          <input {...register("nombre")} className={inputCls} placeholder="Juan Pérez" />
+          <input {...register("nombre")} className={inputCls} placeholder="Nombre y apellido" />
           {errors.nombre && <p className={errorCls}>{errors.nombre.message}</p>}
         </div>
         <div>
           <label className={labelCls}>Teléfono *</label>
-          <input {...register("telefono")} className={inputCls} placeholder="+54 3772 000000" />
+          <input {...register("telefono")} className={inputCls} placeholder="Número de teléfono" />
           {errors.telefono && <p className={errorCls}>{errors.telefono.message}</p>}
         </div>
       </div>
 
       <div>
         <label className={labelCls}>Email</label>
-        <input {...register("email")} type="email" className={inputCls} placeholder="juan@email.com" />
+        <input {...register("email")} type="email" className={inputCls} placeholder="tu_correo@gmail.com" />
         {errors.email && <p className={errorCls}>{errors.email.message}</p>}
       </div>
 

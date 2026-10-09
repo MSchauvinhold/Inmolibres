@@ -9,7 +9,7 @@ import { Prisma } from "@prisma/client";
 
 /* ── Metadata ─────────────────────────────────────────────────── */
 export const metadata: Metadata = {
-  title: "Buscar propiedades — InmoLibres",
+  title: "Buscar propiedades",
   description: "Casas, departamentos, terrenos y locales en venta y alquiler.",
 };
 

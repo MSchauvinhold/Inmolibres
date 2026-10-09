@@ -61,11 +61,21 @@ export async function PUT(request: NextRequest, { params }: Params) {
   try {
     const existing = await db.visita.findUnique({
       where: { id },
-      select: { inmobiliariaId: true, agenteId: true },
+      select: { inmobiliariaId: true, agenteId: true, fechaHora: true },
     });
 
     if (!existing) {
       return NextResponse.json({ error: "Visita no encontrada" }, { status: 404 });
+    }
+
+    // Una visita que todavía no ocurrió no puede estar "realizada": se marcaba
+    // sin ninguna advertencia y ensuciaba el historial y los reportes.
+    const fechaFinal = parsed.data.fechaHora ? new Date(parsed.data.fechaHora) : existing.fechaHora;
+    if (parsed.data.estado === "REALIZADA" && fechaFinal.getTime() > Date.now()) {
+      return NextResponse.json(
+        { error: "La visita todavía no ocurrió: no se puede marcar como realizada" },
+        { status: 400 }
+      );
     }
     if (existing.inmobiliariaId !== inmobiliariaId) {
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });

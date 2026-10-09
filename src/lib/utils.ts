@@ -77,6 +77,35 @@ export function generateUniqueSlug(base: string, suffix?: string): string {
   return `${slug}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+/**
+ * Una propiedad alquilada o vendida sigue publicada con su sello (decisión de
+ * producto), pero ya no recibe consultas: no tiene sentido invitar a escribir por
+ * algo que ya no está disponible. Reservada sí, por si la reserva se cae.
+ * Única fuente de verdad para el mapa, las cards y la ficha pública.
+ */
+export function propiedadAceptaConsultas(estado?: string | null): boolean {
+  return estado !== "ALQUILADA" && estado !== "VENDIDA";
+}
+
+/**
+ * Texto de un campo numérico escrito a la argentina → número.
+ * "1.200" → 1200, "1.200,50" → 1200.5, "120,5" → 120.5, "" → undefined.
+ *
+ * Con <input type="number"> el navegador lee el punto como separador DECIMAL:
+ * quien escribía 1.200 m² (o un precio de 1.200.000) guardaba 1,2 sin ningún
+ * aviso. Por eso esos campos son de texto y se parsean acá.
+ */
+export function parseNumeroAR(v: unknown): number | undefined {
+  if (typeof v === "number") return Number.isNaN(v) ? undefined : v;
+  if (typeof v !== "string") return undefined;
+  const s = v.trim().replace(/\s/g, "");
+  if (!s) return undefined;
+  // Solo es separador de miles si los grupos son de 3 dígitos: "1.200" sí, "1.2" no.
+  const esMiles = /^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s);
+  const n = Number(esMiles ? s.replace(/\./g, "").replace(",", ".") : s.replace(",", "."));
+  return Number.isFinite(n) ? n : undefined;
+}
+
 // ─── Date Formatting ──────────────────────────────────────────────────────────
 
 /**
@@ -86,6 +115,15 @@ export function generateUniqueSlug(base: string, suffix?: string): string {
  * las 24 hs cae en el día siguiente.
  */
 export const TZ_AR = "America/Argentina/Buenos_Aires";
+
+/**
+ * Primer día del mes en curso (hora argentina) como medianoche UTC: el mismo formato en
+ * que Prisma guarda las columnas @db.Date (ej: la fecha de un pago), para compararlas.
+ */
+export function inicioMesArComoFechaDb(ahora: Date = new Date()): Date {
+  const [y, m] = ahora.toLocaleDateString("en-CA", { timeZone: TZ_AR }).split("-");
+  return new Date(`${y}-${m}-01T00:00:00Z`);
+}
 
 /**
  * Node y los navegadores traen versiones distintas de ICU: para el mismo formato

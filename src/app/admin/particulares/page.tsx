@@ -114,7 +114,7 @@ export default function AdminParticulariesPage() {
               <input
                 value={form.nombre}
                 onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
-                placeholder="Juan García"
+                placeholder="Nombre y apellido"
                 className={inp}
                 required
               />
@@ -125,7 +125,7 @@ export default function AdminParticulariesPage() {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                placeholder="juan@email.com"
+                placeholder="tu_correo@gmail.com"
                 className={inp}
                 required
               />
@@ -135,7 +135,7 @@ export default function AdminParticulariesPage() {
               <input
                 value={form.whatsapp}
                 onChange={(e) => setForm((p) => ({ ...p, whatsapp: e.target.value }))}
-                placeholder="+54 3772 ..."
+                placeholder="Número de teléfono"
                 className={inp}
               />
             </div>

@@ -6,7 +6,7 @@ import {
   Building2, Users, CalendarCheck, FileText,
   Bell, TrendingUp, BarChart2, Clock, MessageSquare,
 } from "lucide-react";
-import { formatDate, formatFechaCalendario } from "@/lib/utils";
+import { formatDate, formatFechaCalendario, TZ_AR } from "@/lib/utils";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { Pill } from "@/components/ui/pill";
 import { DashboardActivityChart } from "@/components/crm/DashboardActivityChart";
@@ -15,7 +15,9 @@ import { DashboardExportButton } from "@/components/crm/DashboardExportButton";
 export const metadata = { title: "Dashboard" };
 
 const greetingByHour = () => {
-  const h = new Date().getHours();
+  // Hora de Argentina, no la del servidor: en Vercel (UTC) a las 10:56 de acá
+  // el dashboard saludaba con "Buenas tardes".
+  const h = Number(new Date().toLocaleString("en-US", { hour: "numeric", hour12: false, timeZone: TZ_AR }));
   if (h < 12) return "Buenos días";
   if (h < 19) return "Buenas tardes";
   return "Buenas noches";
@@ -180,7 +182,7 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     db.propiedad.count({ where: { inmobiliariaId } }),
     db.propiedad.count({ where: { inmobiliariaId, estado: "DISPONIBLE", publicada: true } }),
-    db.cliente.count({ where: { inmobiliariaId } }),
+    db.cliente.count({ where: { inmobiliariaId, archivadoAt: null } }),
     db.visita.groupBy({
       by: ["estado"],
       where: { inmobiliariaId, fechaHora: { gte: semanaARStart, lt: semanaAREnd }, estado: { not: "CANCELADA" } },
@@ -327,7 +329,7 @@ export default async function DashboardPage() {
         <KPICard label="Pipeline · clientes" value={totalClientes} sub="en el sistema" icon={Users} iconColor="var(--il-accent)" iconBg="var(--il-accent-soft)" href="/clientes" />
         <KPICard label="Visitas esta semana" value={visitasSemana} sub={visitasSemana === 0 ? "sin visitas" : `${visitasSemanaPendientes} pendiente${visitasSemanaPendientes !== 1 ? "s" : ""}`} icon={Clock} iconColor="var(--antracita-700)" iconBg="var(--crema-100)" href="/visitas" />
         <KPICard label="Alquileres activos" value={contratosActivos} sub={contratosAtrasados > 0 ? `${contratosAtrasados} atrasados` : "todos al día"} icon={FileText} iconColor="var(--success-500)" iconBg="var(--success-100)" href="/alquileres" />
-        <KPICard label="Operaciones · mes" value={operacionesMes} sub={`desde el 1° de ${formatDate(hoy, { month: "long" })}`} icon={BarChart2} iconColor="var(--antracita-700)" iconBg="var(--crema-100)" href="/finanzas" />
+        <KPICard label="Operaciones · mes" value={operacionesMes} sub={`desde el 1° de ${hoy.toLocaleDateString("es-AR", { month: "long", timeZone: TZ_AR })}`} icon={BarChart2} iconColor="var(--antracita-700)" iconBg="var(--crema-100)" href="/finanzas" />
         <KPICard label="Consultas sin leer" value={consultasNoLeidas} sub="del marketplace" icon={MessageSquare} iconColor="var(--terracota-500)" iconBg="var(--terracota-100)" href="/consultas" highlight mono />
       </div>
 

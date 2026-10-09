@@ -17,13 +17,26 @@ export interface ContactoMinimal {
   email: string | null;
 }
 
+/** Prospecto del pipeline que todavía no es Contacto (ver búsqueda más abajo). */
+interface ProspectoMinimal {
+  id: string;
+  nombre: string;
+  telefono: string | null;
+  email: string | null;
+  origen: string;
+  notas: string | null;
+}
+
 interface Props {
   label: string;
   required?: boolean;
   selected: ContactoMinimal | null;
   color?: string;
   /** Si se pasa, el selector pre-filtra por ese rol al abrir */
-  rolHint?: "INQUILINO" | "PROPIETARIO" | "COMPRADOR";
+  rolHint?: "INQUILINO" | "PROPIETARIO" | "COMPRADOR" | "GARANTE" | "PROVEEDOR";
+  /** Contactos ya usados en otro campo del mismo contrato: el selector de
+   *  garante ofrecía al propio inquilino, y nadie se garantiza a sí mismo. */
+  excluirIds?: (string | null | undefined)[];
   onSelect: (c: ContactoMinimal | null) => void;
   error?: string;
 }
@@ -76,10 +89,12 @@ function ContactoInfo({ c }: { c: ContactoMinimal }) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function ContactoSelector({ label, required, selected, color = "#1B4332", rolHint, onSelect, error }: Props) {
+export function ContactoSelector({ label, required, selected, color = "#1B4332", rolHint, excluirIds, onSelect, error }: Props) {
   const [open, setOpen]         = useState(false);
   const [query, setQuery]       = useState("");
   const [results, setResults]   = useState<ContactoMinimal[]>([]);
+  const [prospectos, setProspectos] = useState<ProspectoMinimal[]>([]);
+  const [convirtiendo, setConvirtiendo] = useState<string | null>(null);
   const [loading, setLoading]   = useState(false);
   const [mode, setMode]         = useState<"search" | "create">("search");
 
@@ -107,18 +122,58 @@ export function ContactoSelector({ label, required, selected, color = "#1B4332",
 
   // ── Búsqueda con debounce ────────────────────────────────────────────────
 
+  // Clave estable: `excluirIds` llega como array nuevo en cada render y usarlo
+  // como dependencia del efecto dispara una búsqueda infinita.
+  const excluidosKey = (excluirIds ?? []).filter(Boolean).join(",");
+
   const buscar = useCallback(async (q: string) => {
     setLoading(true);
     try {
-      const url = `/api/contactos?q=${encodeURIComponent(q)}${rolHint ? `&rol=${rolHint}` : ""}`;
+      // Sin filtrar por rol: filtrar esconde contactos válidos (un propietario puede
+      // ser garante) y era parte de por qué "no se encontraba" a alguien ya cargado.
+      // `rolHint` solo sirve para etiquetar al contacto que se crea desde acá.
+      const url = `/api/contactos?q=${encodeURIComponent(q)}&incluirProspectos=1`;
       const res = await fetch(url);
       if (res.ok) {
-        const json = await res.json() as { data: ContactoMinimal[] };
-        setResults(json.data ?? []);
+        const json = await res.json() as { data: ContactoMinimal[]; prospectos?: ProspectoMinimal[] };
+        const excluidos = new Set(excluidosKey ? excluidosKey.split(",") : []);
+        setResults((json.data ?? []).filter((c) => !excluidos.has(c.id)));
+        setProspectos(json.prospectos ?? []);
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
-  }, [rolHint]);
+  }, [excluidosKey]);
+
+  // El prospecto no es un Contacto todavía: se crea con sus datos (la API
+  // devuelve 409 con el existente si ya había uno con ese teléfono) y se elige.
+  async function usarProspecto(p: ProspectoMinimal) {
+    setConvirtiendo(p.id);
+    try {
+      const res = await fetch("/api/contactos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roles: rolHint ? [rolHint] : [],
+          nombre: p.nombre,
+          telefono: p.telefono ?? undefined,
+          email: p.email ?? undefined,
+          notas: `Convertido desde prospecto (origen: ${p.origen}).${p.notas ? ` Notas: ${p.notas}` : ""}`,
+        }),
+      });
+      const json = await res.json() as { data: ContactoMinimal; error?: string; existente?: ContactoMinimal };
+      if (res.status === 409 && json.existente) {
+        handleSelect(json.existente);
+        return;
+      }
+      if (!res.ok) throw new Error(json.error ?? "Error al crear el contacto");
+      toast.success(`${p.nombre} agregado a Contactos`);
+      handleSelect(json.data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al crear el contacto");
+    } finally {
+      setConvirtiendo(null);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -288,7 +343,7 @@ export function ContactoSelector({ label, required, selected, color = "#1B4332",
 
               {/* Lista de resultados */}
               <div style={{ overflowY: "auto", flex: 1 }}>
-                {results.length === 0 && !loading ? (
+                {results.length === 0 && prospectos.length === 0 && !loading ? (
                   <div style={{ padding: "14px 16px", textAlign: "center" }}>
                     <p style={{ fontSize: 12, color: "#9a9a9a" }}>
                       {query ? `No se encontró "${query}"` : "No hay contactos cargados aún"}
@@ -317,6 +372,41 @@ export function ContactoSelector({ label, required, selected, color = "#1B4332",
                       {selected?.id === c.id && <Check size={14} color={color} style={{ marginLeft: "auto" }} />}
                     </button>
                   ))
+                )}
+
+                {/* Prospectos del pipeline: todavía no son contactos */}
+                {prospectos.length > 0 && (
+                  <>
+                    <div style={{ padding: "8px 14px 4px", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#9a9a9a", background: "#FAFAF8", borderTop: "1px solid #F0EDE8" }}>
+                      En el pipeline · se agregan a Contactos al elegirlos
+                    </div>
+                    {prospectos.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        disabled={convirtiendo !== null}
+                        onClick={() => usarProspecto(p)}
+                        style={{
+                          width: "100%", padding: "10px 14px", textAlign: "left",
+                          display: "flex", alignItems: "center", gap: 10,
+                          border: "none", background: "none",
+                          cursor: convirtiendo ? "default" : "pointer",
+                          borderBottom: "1px solid #F7F5F2",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#F7F5F2")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                      >
+                        <Avatar nombre={p.nombre} />
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>{p.nombre}</div>
+                          <span style={{ fontSize: 10.5, color: "#9a9a9a" }}>
+                            {p.telefono ?? "Sin teléfono"} · prospecto
+                          </span>
+                        </div>
+                        {convirtiendo === p.id && <Loader2 size={13} color="#9a9a9a" className="animate-spin" style={{ marginLeft: "auto" }} />}
+                      </button>
+                    ))}
+                  </>
                 )}
               </div>
 
@@ -353,7 +443,7 @@ export function ContactoSelector({ label, required, selected, color = "#1B4332",
                   className={inp} style={inpS} required
                   value={form.nombre}
                   onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-                  placeholder="Juan Pérez"
+                  placeholder="Nombre y apellido"
                 />
               </div>
 
@@ -364,7 +454,7 @@ export function ContactoSelector({ label, required, selected, color = "#1B4332",
                 </div>
                 <div>
                   <label className={lbl}>Teléfono</label>
-                  <input className={inp} style={inpS} value={form.telefono} onChange={(e) => setForm((f) => ({ ...f, telefono: e.target.value }))} placeholder="+54 3772..." />
+                  <input className={inp} style={inpS} value={form.telefono} onChange={(e) => setForm((f) => ({ ...f, telefono: e.target.value }))} placeholder="Número de teléfono" />
                 </div>
               </div>
 

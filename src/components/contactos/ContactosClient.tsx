@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Plus, Search, FileText, Shield, Trash2, ExternalLink,
-  User, Users, Home, ShoppingCart, X, Loader2, ChevronDown, List, Columns3,
+  User, Users, Home, ShoppingCart, Wrench, X, Loader2, ChevronDown, List, Columns3,
 } from "lucide-react";
 import type { RolContacto } from "@prisma/client";
 import { buildWhatsAppLink, getDaysUntil } from "@/lib/utils";
@@ -38,6 +38,8 @@ export const ROL_CFG: Record<RolContacto, { label: string; bg: string; text: str
   PROPIETARIO: { label: "Propietario", bg: "#E8F5E9", text: "#1B5E20", icon: Home },
   INQUILINO:   { label: "Inquilino",   bg: "#E3F2FD", text: "#0D47A1", icon: Users },
   COMPRADOR:   { label: "Comprador",   bg: "#FFF8E1", text: "#E65100", icon: ShoppingCart },
+  GARANTE:     { label: "Garante",     bg: "#F3E5F5", text: "#4A148C", icon: Shield },
+  PROVEEDOR:   { label: "Proveedor",   bg: "#ECEFF1", text: "#37474F", icon: Wrench },
 };
 
 const TABS: Array<{ key: RolContacto | "TODOS"; label: string }> = [
@@ -45,6 +47,8 @@ const TABS: Array<{ key: RolContacto | "TODOS"; label: string }> = [
   { key: "PROPIETARIO", label: "Propietarios" },
   { key: "INQUILINO",   label: "Inquilinos" },
   { key: "COMPRADOR",   label: "Compradores" },
+  { key: "GARANTE",     label: "Garantes" },
+  { key: "PROVEEDOR",   label: "Proveedores" },
 ];
 
 // ─── Kanban: columnas calculadas desde las fechas del contrato ───────────────
@@ -196,7 +200,7 @@ function NuevoContactoModal({ onClose, onCreated }: { onClose: () => void; onCre
           <div>
             <p className={lbl}>Rol del contacto *</p>
             <div className="flex gap-2 flex-wrap">
-              {(["PROPIETARIO", "INQUILINO", "COMPRADOR"] as RolContacto[]).map((r) => {
+              {(["PROPIETARIO", "INQUILINO", "COMPRADOR", "GARANTE", "PROVEEDOR"] as RolContacto[]).map((r) => {
                 const cfg = ROL_CFG[r];
                 const active = form.roles.includes(r);
                 return (
@@ -224,7 +228,7 @@ function NuevoContactoModal({ onClose, onCreated }: { onClose: () => void; onCre
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={lbl}>Nombre completo *</label>
-              <input className={inp} style={inpStyle} value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} placeholder="Juan Pérez" />
+              <input className={inp} style={inpStyle} value={form.nombre} onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))} placeholder="Nombre y apellido" />
               {errs.nombre && <p className="text-[11px] text-red-500 mt-1">{errs.nombre}</p>}
             </div>
             <div>
@@ -258,12 +262,12 @@ function NuevoContactoModal({ onClose, onCreated }: { onClose: () => void; onCre
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={lbl}>Teléfono</label>
-              <input className={inp} style={inpStyle} value={form.telefono} onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))} placeholder="+54 3772 ..." />
+              <input className={inp} style={inpStyle} value={form.telefono} onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))} placeholder="Número de teléfono" />
               {errs.telefono && <p className="text-[11px] text-red-500 mt-1">{errs.telefono}</p>}
             </div>
             <div>
               <label className={lbl}>Email</label>
-              <input type="email" className={inp} style={inpStyle} value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder="juan@email.com" />
+              <input type="email" className={inp} style={inpStyle} value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder="tu_correo@gmail.com" />
             </div>
           </div>
 

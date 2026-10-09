@@ -5,7 +5,7 @@ import Link from "next/link";
 import { LIMITES_PLAN } from "@/lib/planes";
 import { ParticularPropiedadesClient } from "@/components/particular/ParticularPropiedadesClient";
 
-export const metadata = { title: "Mis propiedades — InmoLibres" };
+export const metadata = { title: "Mis propiedades" };
 
 export default async function ParticularPropiedadesPage() {
   const session = await auth();

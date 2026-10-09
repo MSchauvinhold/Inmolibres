@@ -99,7 +99,10 @@ export function VisitaForm({ propiedades, clientes, agentes }: Props) {
         {errors.agenteId && <p className={errorCls}>{errors.agenteId.message}</p>}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Una sola columna: el formulario vive en un panel angosto y `sm:grid-cols-2`
+          mira el ancho de la ventana, no el del panel — en pantalla grande el campo
+          de fecha y hora quedaba en 173 px y no entraba la fecha completa. */}
+      <div className="grid grid-cols-1 gap-4">
         <div>
           <label className={labelCls}>Fecha y hora *</label>
           <input

@@ -93,6 +93,7 @@ export default async function ContactoDetallePage({ params }: Params) {
       domicilio: contacto.garante.domicilio,
       telefono: contacto.garante.telefono,
       relacionConContacto: contacto.garante.relacionConContacto,
+      contactoGaranteId: contacto.garante.contactoGaranteId,
       documentos: contacto.garante.documentos.map((d) => ({
         id: d.id,
         tipo: d.tipo as TipoDocumento,

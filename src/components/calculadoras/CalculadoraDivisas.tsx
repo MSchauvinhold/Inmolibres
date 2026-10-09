@@ -165,13 +165,13 @@ export function CalculadoraDivisas() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="rounded-xl p-4 border" style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}>
               <p className="text-[10px] text-text-muted uppercase tracking-wide font-semibold">Compra</p>
-              <p className="text-2xl font-bold tabular-nums mt-1" style={{ fontFamily: "var(--font-mono)", color: "var(--brand-primary)" }}>
+              <p className="text-xl sm:text-2xl font-bold tabular-nums mt-1" style={{ fontFamily: "var(--font-mono)", color: "var(--brand-primary)", overflowWrap: "anywhere" }}>
                 ${cotActual.compra.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
               </p>
             </div>
             <div className="rounded-xl p-4 border" style={{ borderColor: "var(--border)", background: "var(--surface-raised)" }}>
               <p className="text-[10px] text-text-muted uppercase tracking-wide font-semibold">Venta</p>
-              <p className="text-2xl font-bold tabular-nums mt-1" style={{ fontFamily: "var(--font-mono)", color: "var(--brand-accent)" }}>
+              <p className="text-xl sm:text-2xl font-bold tabular-nums mt-1" style={{ fontFamily: "var(--font-mono)", color: "var(--brand-accent)", overflowWrap: "anywhere" }}>
                 ${cotActual.venta.toLocaleString("es-AR", { minimumFractionDigits: 2 })}
               </p>
             </div>

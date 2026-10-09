@@ -13,7 +13,7 @@ export async function PUT(_request: NextRequest, { params }: Params) {
 
   const ajuste = await db.ajusteAlquiler.findUnique({
     where: { id },
-    include: { contrato: { select: { inmobiliariaId: true } } },
+    include: { contrato: { select: { inmobiliariaId: true, ajusteIndice: true } } },
   });
 
   if (!ajuste || ajuste.contrato.inmobiliariaId !== inmobiliariaId) {
@@ -21,6 +21,15 @@ export async function PUT(_request: NextRequest, { params }: Params) {
   }
   if (ajuste.aplicado) {
     return NextResponse.json({ error: "Este ajuste ya fue aplicado" }, { status: 400 });
+  }
+  if (ajuste.indiceUsado !== (ajuste.contrato.ajusteIndice ?? "ICL")) {
+    return NextResponse.json(
+      {
+        error: `Este ajuste se calculó con ${ajuste.indiceUsado} pero el contrato usa ${ajuste.contrato.ajusteIndice}. ` +
+          "Descartalo y generá uno nuevo.",
+      },
+      { status: 409 }
+    );
   }
 
   // Aplicar: nuevo precio al contrato + actualizar base del índice, marcar ajuste aplicado
